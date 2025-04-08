@@ -23,7 +23,7 @@ add_executable(engine "engine/main.cpp")
 target_include_directories(engine PRIVATE engine)
 target_include_directories(engine PRIVATE .)
 
-add_library(renderer STATIC "renderer/lib.cpp" "renderer/window.cpp")
+add_library(renderer STATIC "renderer/lib.cpp" "renderer/window.cpp" "renderer/queue.cpp" "renderer/logicalDevice.cpp" "renderer/physicalDevice.cpp")
 
 
 target_link_libraries(engine PUBLIC renderer)

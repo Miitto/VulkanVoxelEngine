@@ -1,18 +1,17 @@
 #include "queue.h"
 
-std::vector<VkQueueFamilyProperties> Queue::all(PhysicalDevice &device) {
-  if (queueFamilies.contains(*device)) {
-    return queueFamilies.at(*device);
-  }
+static std::unordered_map<VkPhysicalDevice,
+                            std::vector<VkQueueFamilyProperties>>
+      queueFamilies ();
 
+std::vector<VkQueueFamilyProperties> Queue::all(PhysicalDevice &device) {
   uint32_t queueFamilyCount = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(*device, &queueFamilyCount, nullptr);
   std::vector<VkQueueFamilyProperties> families(queueFamilyCount);
   vkGetPhysicalDeviceQueueFamilyProperties(*device, &queueFamilyCount,
                                            families.data());
 
-  queueFamilies[*device] = families;
-  return queueFamilies.at(*device);
+  return families;
 }
 
 bool Queue::canPresent(PhysicalDevice &device,

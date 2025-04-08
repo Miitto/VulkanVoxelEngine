@@ -5,10 +5,6 @@
 #include <vulkan/vulkan.h>
 
 class Queue {
-  static std::unordered_map<VkPhysicalDevice,
-                            std::vector<VkQueueFamilyProperties>>
-      queueFamilies;
-
   VkQueue queue = VK_NULL_HANDLE;
 
 public:
