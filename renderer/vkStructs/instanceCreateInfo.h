@@ -17,16 +17,16 @@ class InstanceCreateInfoBuilder {
 
 public:
   InstanceCreateInfoBuilder(VkApplicationInfo appInfo) {
+    this->appInfo = appInfo;
+
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
-    createInfo.pApplicationInfo = &appInfo;
+    createInfo.pApplicationInfo = &this->appInfo;
     createInfo.enabledLayerCount = 0;
     createInfo.ppEnabledLayerNames = nullptr;
     createInfo.enabledExtensionCount = 0;
     createInfo.ppEnabledExtensionNames = nullptr;
-
-    this->appInfo = appInfo;
   }
 
   InstanceCreateInfoBuilder &
