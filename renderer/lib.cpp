@@ -18,7 +18,6 @@ std::optional<App> App::create() {
     std::cerr << "Failed to create window." << std::endl;
     return std::nullopt;
   }
-  std::println("Window created successfully.");
 
   auto appInfo = ApplicationInfoBuilder().build();
   auto instanceOpt = InstanceCreateInfoBuilder(appInfo)
@@ -29,12 +28,9 @@ std::optional<App> App::create() {
     std::cerr << "Failed to create Vulkan instance." << std::endl;
     return std::nullopt;
   }
-  std::println("Vulkan instance created successfully.");
 
   auto window = std::move(*windowOpt);
-  std::println("Window moved successfully.");
   windowOpt.reset();
-  std::println("Window Reset successfully.");
   auto instance = std::move(*instanceOpt);
   instanceOpt.reset();
 
@@ -108,9 +104,7 @@ void App::run() {
 }
 
 App::~App() {
-  std::println("App Destructor");
   if (moved) {
-    std::println("App already moved, skipping cleanup.");
     return;
   }
   device.~LogicalDevice();

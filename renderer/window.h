@@ -20,7 +20,6 @@ public:
     return *this;
   };
   ~Window() {
-    std::println("Window Destructor");
     if (window != nullptr) {
       std::println("Destroying window");
       glfwDestroyWindow(window);
