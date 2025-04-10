@@ -1,9 +1,5 @@
 #include "queue.h"
 
-static std::unordered_map<VkPhysicalDevice,
-                            std::vector<VkQueueFamilyProperties>>
-      queueFamilies ();
-
 std::vector<VkQueueFamilyProperties> Queue::all(PhysicalDevice &device) {
   uint32_t queueFamilyCount = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(*device, &queueFamilyCount, nullptr);
@@ -15,10 +11,10 @@ std::vector<VkQueueFamilyProperties> Queue::all(PhysicalDevice &device) {
 }
 
 bool Queue::canPresent(PhysicalDevice &device,
-                       VkQueueFamilyProperties &queueFamily,
-                       VkSurfaceKHR surface) {
+                       VkQueueFamilyProperties &queueFamily, Surface &surface,
+                       int index) {
   VkBool32 presentSupport = false;
-  vkGetPhysicalDeviceSurfaceSupportKHR(*device, queueFamily.queueCount, surface,
+  vkGetPhysicalDeviceSurfaceSupportKHR(*device, index, *surface,
                                        &presentSupport);
   return presentSupport;
 }

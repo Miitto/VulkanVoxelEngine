@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include "instance.h"
+#include "surface.h"
 #include "window.h"
 
 class App {
@@ -18,13 +19,15 @@ public:
   App &operator=(const App &) = delete;
   App(App &&o)
       : window(std::move(o.window)), instance(std::move(o.instance)),
-        device(std::move(o.device)), graphicsQueue(std::move(o.graphicsQueue)),
+        surface(std::move(o.surface)), device(std::move(o.device)),
+        graphicsQueue(std::move(o.graphicsQueue)),
         presentQueue(std::move(o.presentQueue)) {
     o.moved = true;
   }
   App &operator=(App &&o) {
     window = std::move(o.window);
     instance = std::move(o.instance);
+    surface = std::move(o.surface);
     device = std::move(o.device);
     graphicsQueue = std::move(o.graphicsQueue);
     presentQueue = std::move(o.presentQueue);
@@ -37,13 +40,15 @@ private:
   bool moved = false;
   Window window;
   Instance instance;
+  Surface surface;
   LogicalDevice device;
   Queue graphicsQueue;
   Queue presentQueue;
 
-  App(Window window, Instance instance, LogicalDevice device,
+  App(Window window, Instance instance, Surface surface, LogicalDevice device,
       Queue graphicsQueue, Queue presentQueue)
       : window(std::move(window)), instance(std::move(instance)),
-        device(std::move(device)), graphicsQueue(std::move(graphicsQueue)),
+        surface(std::move(surface)), device(std::move(device)),
+        graphicsQueue(std::move(graphicsQueue)),
         presentQueue(std::move(presentQueue)) {}
 };

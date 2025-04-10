@@ -1,7 +1,7 @@
 #pragma once
 
 #include "physicalDevice.h"
-#include <unordered_map>
+#include "surface.h"
 #include <vulkan/vulkan.h>
 
 class Queue {
@@ -21,7 +21,7 @@ public:
   Queue(VkQueue queue) : queue(queue) {}
   static std::vector<VkQueueFamilyProperties> all(PhysicalDevice &device);
   static bool canPresent(PhysicalDevice &device,
-                         VkQueueFamilyProperties &queueFamily,
-                         VkSurfaceKHR surface);
+                         VkQueueFamilyProperties &queueFamily, Surface &surface,
+                         int index);
   static bool hasGraphics(VkQueueFamilyProperties &queueFamily);
 };

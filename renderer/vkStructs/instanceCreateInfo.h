@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 #include <optional>
+#include <print>
 #include <vector>
 
 class InstanceCreateInfoBuilder {
@@ -88,6 +89,18 @@ public:
       uint32_t glfwExtensionCount = 0;
       const char **glfwExtensions =
           glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+      std::vector<char *> glfwExt(glfwExtensionCount);
+      for (uint32_t i = 0; i < glfwExtensionCount; i++) {
+        glfwExt[i] = const_cast<char *>(glfwExtensions[i]);
+      }
+      std::print("Enabling {} GLFW extensions (", glfwExtensionCount);
+      for (uint32_t i = 0; i < glfwExtensionCount; i++) {
+        std::print("{}", glfwExtensions[i]);
+        if (i != glfwExtensionCount - 1) {
+          std::print(", ");
+        }
+      }
+      std::print(")\n");
       for (uint32_t i = 0; i < glfwExtensionCount; i++) {
         extensions.push_back(glfwExtensions[i]);
       }
@@ -107,6 +120,9 @@ public:
 
     auto extensionCount = extensions.size();
     auto extensionPtr = extensionCount > 0 ? extensions.data() : nullptr;
+
+    createInfo.enabledExtensionCount = extensionCount;
+    createInfo.ppEnabledExtensionNames = extensionPtr;
 
     return createInfo;
   }
