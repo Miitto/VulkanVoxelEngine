@@ -2,6 +2,8 @@
 #include "logicalDevice.h"
 #include "physicalDevice.h"
 #include "surface.h"
+#include "vkStructs/imageViewCreate.h"
+#include <iostream>
 #include <vector>
 #include <vulkan/vulkan.h>
 
@@ -17,12 +19,20 @@ public:
 class SwapChainPtr {
   LogicalDevice device;
   VkSwapchainKHR swapChain;
+  std::vector<VkImage> images;
+  std::vector<VkImageView> imageViews;
 
 public:
-  SwapChainPtr(VkSwapchainKHR swapChain, LogicalDevice device)
-      : swapChain(swapChain), device(device) {}
+  SwapChainPtr(VkSwapchainKHR swapChain, LogicalDevice device,
+               std::vector<VkImage> &images,
+               std::vector<VkImageView> &imageViews)
+      : swapChain(swapChain), device(device), images(images),
+        imageViews(imageViews) {}
   ~SwapChainPtr() {
     if (swapChain != VK_NULL_HANDLE) {
+      for (auto imageView : imageViews) {
+        vkDestroyImageView(*device, imageView, nullptr);
+      }
       vkDestroySwapchainKHR(*device, swapChain, nullptr);
     }
   }
@@ -41,14 +51,36 @@ public:
   }
 
   VkSwapchainKHR &operator*() { return swapChain; }
+  std::vector<VkImage> &getImages() { return images; }
+  std::vector<VkImageView> &getImageViews() { return imageViews; }
 };
 
 class SwapChain {
   std::shared_ptr<SwapChainPtr> swapChain;
+  VkFormat format;
+  VkExtent2D extent;
 
 public:
-  SwapChain(VkSwapchainKHR swapChain, LogicalDevice device)
-      : swapChain(std::make_shared<SwapChainPtr>(swapChain, device)) {}
+  SwapChain(VkSwapchainKHR swapChain, LogicalDevice device, VkFormat format,
+            VkExtent2D extent)
+      : format(format), extent(extent) {
+    uint32_t imageCount;
+    vkGetSwapchainImagesKHR(*device, swapChain, &imageCount, nullptr);
+    std::vector<VkImage> images(imageCount);
+    vkGetSwapchainImagesKHR(*device, swapChain, &imageCount, images.data());
+
+    std::vector<VkImageView> imageViews(imageCount);
+    for (int i = 0; i < imageCount; ++i) {
+      auto createInfo = ImageViewCreateInfoBuilder(images[i], format).build();
+      if (vkCreateImageView(*device, &createInfo, nullptr, &imageViews[i]) !=
+          VK_SUCCESS) {
+        std::cerr << "Failed to create image views!" << std::endl;
+      }
+    }
+
+    this->swapChain =
+        std::make_shared<SwapChainPtr>(swapChain, device, images, imageViews);
+  }
 
   VkSwapchainKHR &operator*() { return **swapChain; }
 };

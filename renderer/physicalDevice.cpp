@@ -1,4 +1,5 @@
 #include "physicalDevice.h"
+#include <cstring>
 
 std::vector<PhysicalDevice> PhysicalDevice::all(Instance &instance) {
   uint32_t deviceCount = 0;

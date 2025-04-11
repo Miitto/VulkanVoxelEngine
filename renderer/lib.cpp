@@ -36,7 +36,7 @@ std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
   std::vector<uint32_t> ratings(physicalDevices.size(), 0);
   for (int i = 0; i < physicalDevices.size(); i++) {
     auto device = physicalDevices[i];
-    ratings[i] = 0;
+    ratings[i] = 1;
 
     std::vector<char const *> requiredExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME};
@@ -50,6 +50,7 @@ std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
         std::cerr << extension << " ";
       }
       std::cerr << std::endl;
+      ratings[i] = 0;
       continue;
     }
 
@@ -62,6 +63,7 @@ std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
       std::cerr << "Device " << i
                 << " does not support swap chain formats or present modes."
                 << std::endl;
+      ratings[i] = 0;
       continue;
     }
 
@@ -276,6 +278,7 @@ std::optional<App> App::create() {
 }
 
 void App::run() {
+  std::println("Running app...");
   while (!window.shouldClose()) {
     glfwPollEvents();
   }
