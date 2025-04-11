@@ -35,3 +35,34 @@ VkPhysicalDeviceFeatures PhysicalDevice::getFeatures() {
   this->features = features;
   return features;
 }
+
+std::vector<VkExtensionProperties> PhysicalDevice::getExtensions() {
+  uint32_t extensionCount = 0;
+  vkEnumerateDeviceExtensionProperties(**device, nullptr, &extensionCount,
+                                       nullptr);
+  std::vector<VkExtensionProperties> extensions(extensionCount);
+  vkEnumerateDeviceExtensionProperties(**device, nullptr, &extensionCount,
+                                       extensions.data());
+  return extensions;
+}
+
+std::vector<char const *> PhysicalDevice::findUnsupportedExtensions(
+    std::vector<char const *> extensions) {
+  std::vector<VkExtensionProperties> availableExtensions = getExtensions();
+  std::vector<char const *> unsupportedExtensions;
+
+  for (auto requested : extensions) {
+    bool found = false;
+    for (const auto &extension : availableExtensions) {
+      if (strcmp(requested, extension.extensionName) == 0) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      unsupportedExtensions.push_back(requested);
+    }
+  }
+
+  return unsupportedExtensions;
+}

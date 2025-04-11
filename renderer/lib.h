@@ -2,6 +2,7 @@
 
 #include "logicalDevice.h"
 #include "queue.h"
+#include "swapChain.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -18,19 +19,19 @@ public:
   App(const App &) = delete;
   App &operator=(const App &) = delete;
   App(App &&o)
-      : window(std::move(o.window)), instance(std::move(o.instance)),
-        surface(std::move(o.surface)), device(std::move(o.device)),
-        graphicsQueue(std::move(o.graphicsQueue)),
-        presentQueue(std::move(o.presentQueue)) {
+      : window(o.window), instance(o.instance), surface(o.surface),
+        device(o.device), graphicsQueue(o.graphicsQueue),
+        presentQueue(o.presentQueue), swapChain(o.swapChain) {
     o.moved = true;
   }
   App &operator=(App &&o) {
-    window = std::move(o.window);
-    instance = std::move(o.instance);
-    surface = std::move(o.surface);
-    device = std::move(o.device);
-    graphicsQueue = std::move(o.graphicsQueue);
-    presentQueue = std::move(o.presentQueue);
+    window = o.window;
+    instance = o.instance;
+    surface = o.surface;
+    device = o.device;
+    graphicsQueue = o.graphicsQueue;
+    presentQueue = o.presentQueue;
+    swapChain = o.swapChain;
     o.moved = true;
     return *this;
   }
@@ -44,11 +45,11 @@ private:
   LogicalDevice device;
   Queue graphicsQueue;
   Queue presentQueue;
+  SwapChain swapChain;
 
   App(Window window, Instance instance, Surface surface, LogicalDevice device,
-      Queue graphicsQueue, Queue presentQueue)
-      : window(std::move(window)), instance(std::move(instance)),
-        surface(std::move(surface)), device(std::move(device)),
-        graphicsQueue(std::move(graphicsQueue)),
-        presentQueue(std::move(presentQueue)) {}
+      Queue graphicsQueue, Queue presentQueue, SwapChain swapChain)
+      : window(window), instance(instance), surface(surface), device(device),
+        graphicsQueue(graphicsQueue), presentQueue(presentQueue),
+        swapChain(swapChain) {}
 };

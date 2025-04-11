@@ -7,6 +7,7 @@ class DeviceCreateInfoBuilder {
   VkDeviceCreateInfo createInfo;
   VkPhysicalDeviceFeatures features;
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+  std::vector<char const *> extensions;
 
 public:
   DeviceCreateInfoBuilder() {
@@ -43,7 +44,17 @@ public:
     return *this;
   }
 
+  DeviceCreateInfoBuilder &enableExtension(const char *extension) {
+    extensions.push_back(extension);
+    return *this;
+  }
+
   VkDeviceCreateInfo build() {
+    createInfo.pEnabledFeatures = &features;
+
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    createInfo.ppEnabledExtensionNames = extensions.data();
+
     createInfo.queueCreateInfoCount = queueCreateInfos.size();
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
     return createInfo;

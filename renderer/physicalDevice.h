@@ -42,6 +42,9 @@ public:
 
   VkPhysicalDeviceProperties getProperties();
   VkPhysicalDeviceFeatures getFeatures();
+  std::vector<VkExtensionProperties> getExtensions();
+  std::vector<char const *>
+  findUnsupportedExtensions(std::vector<char const *> extensions);
 
   VkPhysicalDevice &operator*() { return **device; }
 
