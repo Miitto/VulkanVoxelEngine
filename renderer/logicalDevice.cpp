@@ -15,9 +15,6 @@ LogicalDevice::create(PhysicalDevice &physicalDevice,
 std::optional<Queue> LogicalDevice::getQueue(uint32_t queueFamilyIndex,
                                              uint32_t queueIndex) {
   VkQueue queue;
-  std::println("Getting queue for family index: {} and queue index: {}",
-               queueFamilyIndex, queueIndex);
-  std::cout << "Using logical device " << **device << std::endl;
   vkGetDeviceQueue(**device, queueFamilyIndex, queueIndex, &queue);
   if (queue == VK_NULL_HANDLE) {
     return std::nullopt;

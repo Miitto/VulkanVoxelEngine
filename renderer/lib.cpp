@@ -18,7 +18,6 @@ std::optional<App> App::create() {
     std::cerr << "Failed to create window." << std::endl;
     return std::nullopt;
   }
-  std::println("Window Created");
 
   auto appInfo = ApplicationInfoBuilder().build();
   auto instance = InstanceCreateInfoBuilder(appInfo)
@@ -29,7 +28,6 @@ std::optional<App> App::create() {
     std::cerr << "Failed to create Vulkan instance." << std::endl;
     return std::nullopt;
   }
-  std::println("Instance Created");
 
   auto surface = Surface::create(*instance, *window);
   if (!surface.has_value()) {
@@ -111,7 +109,6 @@ std::optional<App> App::create() {
     std::cerr << "Failed to create logical device." << std::endl;
     return std::nullopt;
   }
-  std::println("Logical Device Created");
 
   auto graphicsQueue =
       logicalDevice->getQueue(graphicsQueueFamilyIndex.value(), 0);
@@ -119,7 +116,6 @@ std::optional<App> App::create() {
     std::cerr << "Failed to create graphics queue." << std::endl;
     return std::nullopt;
   }
-  std::println("Graphics Queue Created");
 
   auto presentQueue =
       logicalDevice->getQueue(presentQueueFamilyIndex.value(), 0);
@@ -127,18 +123,15 @@ std::optional<App> App::create() {
     std::cerr << "Failed to create present queue." << std::endl;
     return std::nullopt;
   }
-  std::println("Present Queue Created");
 
   App app(std::move(*window), std::move(*instance), std::move(*surface),
           std::move(*logicalDevice), std::move(*graphicsQueue),
           std::move(*presentQueue));
-  std::println("App created successfully.");
 
   return app;
 }
 
 void App::run() {
-  std::println("Running App");
   while (!window.shouldClose()) {
     glfwPollEvents();
   }

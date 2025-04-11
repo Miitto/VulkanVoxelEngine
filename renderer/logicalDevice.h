@@ -2,7 +2,6 @@
 
 #include "physicalDevice.h"
 #include "queue.h"
-#include <iostream>
 #include <optional>
 #include <vulkan/vulkan.h>
 
@@ -10,12 +9,9 @@ class LogicalDevicePtr {
   VkDevice device;
 
 public:
-  LogicalDevicePtr(VkDevice device) : device(device) {
-    std::cout << "Creating logical device " << device << std::endl;
-  }
+  LogicalDevicePtr(VkDevice device) : device(device) {}
   ~LogicalDevicePtr() {
     if (device != VK_NULL_HANDLE) {
-      std::println("Destroying logical device");
       vkDestroyDevice(device, nullptr);
     }
   }
@@ -25,12 +21,10 @@ public:
 
   LogicalDevicePtr(LogicalDevicePtr &&o) noexcept
       : device(std::move(o.device)) {
-    std::println("Moving LogicalDevicePtr");
     o.device = VK_NULL_HANDLE;
   }
 
   LogicalDevicePtr &operator=(LogicalDevicePtr &&o) noexcept {
-    std::println("Assigning LogicalDevicePtr");
     device = std::move(o.device);
     o.device = VK_NULL_HANDLE;
     return *this;

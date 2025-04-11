@@ -1,7 +1,6 @@
 #pragma once
 
 #include <optional>
-#include <print>
 #include <vector>
 #include <vulkan/vulkan.h>
 
@@ -18,14 +17,12 @@ public:
 
   PhysicalDevicePtr(PhysicalDevicePtr &&o) noexcept
       : device(std::move(o.device)) {
-    std::println("Moving PhysicalDevicePtr");
     o.device = VK_NULL_HANDLE;
   }
 
   PhysicalDevicePtr &operator=(PhysicalDevicePtr &&o) noexcept {
     device = std::move(o.device);
     o.device = VK_NULL_HANDLE;
-    printf("Assigning PhysicalDevicePtr\n");
     return *this;
   }
 
