@@ -59,11 +59,17 @@ class SwapChain {
   std::shared_ptr<SwapChainPtr> swapChain;
   VkFormat format;
   VkExtent2D extent;
+  SwapChain(VkSwapchainKHR swapChain, LogicalDevice device,
+            std::vector<VkImage> &images, std::vector<VkImageView> &imageViews,
+            VkFormat format, VkExtent2D extent)
+      : swapChain(std::make_shared<SwapChainPtr>(swapChain, device, images,
+                                                 imageViews)),
+        format(format), extent(extent) {}
 
 public:
-  SwapChain(VkSwapchainKHR swapChain, LogicalDevice device, VkFormat format,
-            VkExtent2D extent)
-      : format(format), extent(extent) {
+  static std::optional<SwapChain> create(VkSwapchainKHR swapChain,
+                                         LogicalDevice device, VkFormat format,
+                                         VkExtent2D extent) {
     uint32_t imageCount;
     vkGetSwapchainImagesKHR(*device, swapChain, &imageCount, nullptr);
     std::vector<VkImage> images(imageCount);
@@ -75,12 +81,14 @@ public:
       if (vkCreateImageView(*device, &createInfo, nullptr, &imageViews[i]) !=
           VK_SUCCESS) {
         std::cerr << "Failed to create image views!" << std::endl;
+        return std::nullopt;
       }
     }
 
-    this->swapChain =
-        std::make_shared<SwapChainPtr>(swapChain, device, images, imageViews);
+    return SwapChain(swapChain, device, images, imageViews, format, extent);
   }
 
   VkSwapchainKHR &operator*() { return **swapChain; }
+  VkExtent2D &getExtent() { return extent; }
+  VkFormat &getFormat() { return format; }
 };

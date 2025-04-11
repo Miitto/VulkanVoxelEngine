@@ -166,7 +166,7 @@ public:
       std::cerr << "Failed to create swap chain." << std::endl;
       return std::nullopt;
     }
-    return SwapChain(swapChain, logicalDevice, createInfo.imageFormat,
-                     createInfo.imageExtent);
+    return SwapChain::create(swapChain, logicalDevice, createInfo.imageFormat,
+                             createInfo.imageExtent);
   }
 };
