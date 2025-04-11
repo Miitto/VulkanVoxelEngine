@@ -2,35 +2,54 @@
 
 #include "physicalDevice.h"
 #include "queue.h"
+#include <iostream>
 #include <optional>
 #include <vulkan/vulkan.h>
 
-class LogicalDevice {
-  VkDevice device = VK_NULL_HANDLE;
-
-  LogicalDevice(VkDevice device) : device(device) {}
+class LogicalDevicePtr {
+  VkDevice device;
 
 public:
-  // Move only, and clean up old device on move
-  LogicalDevice(const LogicalDevice &) = delete;
-  LogicalDevice &operator=(const LogicalDevice &) = delete;
-  LogicalDevice(LogicalDevice &&o) noexcept : device(o.device) {
-    o.device = nullptr;
+  LogicalDevicePtr(VkDevice device) : device(device) {
+    std::cout << "Creating logical device " << device << std::endl;
   }
-  LogicalDevice &operator=(LogicalDevice &&o) noexcept {
-    device = o.device;
-    o.device = nullptr;
-    return *this;
-  };
+  ~LogicalDevicePtr() {
+    if (device != VK_NULL_HANDLE) {
+      std::println("Destroying logical device");
+      vkDestroyDevice(device, nullptr);
+    }
+  }
 
+  LogicalDevicePtr(const LogicalDevicePtr &) = delete;
+  LogicalDevicePtr &operator=(const LogicalDevicePtr &) = delete;
+
+  LogicalDevicePtr(LogicalDevicePtr &&o) noexcept
+      : device(std::move(o.device)) {
+    std::println("Moving LogicalDevicePtr");
+    o.device = VK_NULL_HANDLE;
+  }
+
+  LogicalDevicePtr &operator=(LogicalDevicePtr &&o) noexcept {
+    std::println("Assigning LogicalDevicePtr");
+    device = std::move(o.device);
+    o.device = VK_NULL_HANDLE;
+    return *this;
+  }
+
+  VkDevice &operator*() { return device; }
+};
+
+class LogicalDevice {
+  std::shared_ptr<LogicalDevicePtr> device;
+
+  LogicalDevice(VkDevice device)
+      : device(std::make_shared<LogicalDevicePtr>(device)) {}
+
+public:
   static std::optional<LogicalDevice> create(PhysicalDevice &physicalDevice,
                                              VkDeviceCreateInfo &createInfo);
 
-  Queue getQueue(uint32_t queueFamilyIndex, uint32_t queueIndex) {
-    VkQueue queue;
-    vkGetDeviceQueue(device, queueFamilyIndex, queueIndex, &queue);
-    return Queue(queue);
-  }
+  std::optional<Queue> getQueue(uint32_t queueFamilyIndex, uint32_t queueIndex);
 
-  ~LogicalDevice();
+  VkDevice &operator*() { return **device; }
 };

@@ -22,9 +22,9 @@ std::optional<App> App::create() {
 
   auto appInfo = ApplicationInfoBuilder().build();
   auto instance = InstanceCreateInfoBuilder(appInfo)
-                         .enableGLFWExtensions()
-                         .enableValidationLayers()
-                         .createInstance();
+                      .enableGLFWExtensions()
+                      .enableValidationLayers()
+                      .createInstance();
   if (!instance.has_value()) {
     std::cerr << "Failed to create Vulkan instance." << std::endl;
     return std::nullopt;
@@ -40,9 +40,9 @@ std::optional<App> App::create() {
   auto physicalDevices = PhysicalDevice::all(*instance);
   std::println("Found {} physical devices", physicalDevices.size());
 
-  auto find = std::find_if(
-      physicalDevices.begin(), physicalDevices.end(),
-      [](PhysicalDevice &device) { return device.isDiscrete(); });
+  auto find =
+      std::find_if(physicalDevices.begin(), physicalDevices.end(),
+                   [](PhysicalDevice &device) { return device.isDiscrete(); });
 
   if (find != physicalDevices.end()) {
     std::println("Found discrete GPU");
@@ -50,9 +50,8 @@ std::optional<App> App::create() {
     std::println("No discrete GPU found, using first available device");
   }
 
-  PhysicalDevice physicalDevice = std::move(*(find != physicalDevices.end()
-                                                 ? find
-                                                 : physicalDevices.begin()));
+  PhysicalDevice physicalDevice = std::move(
+      *(find != physicalDevices.end() ? find : physicalDevices.begin()));
 
   auto queueFamilies = Queue::all(physicalDevice);
   std::println("Found {} queue families", queueFamilies.size());
@@ -62,7 +61,8 @@ std::optional<App> App::create() {
 
   for (int i = 0; i < queueFamilies.size(); i++) {
     bool graphics = Queue::hasGraphics(queueFamilies[i]);
-    bool present = Queue::canPresent(physicalDevice, queueFamilies[i], *surface, i);
+    bool present =
+        Queue::canPresent(physicalDevice, queueFamilies[i], *surface, i);
 
     if (graphics && present) {
       graphicsQueueFamilyIndex = i;
@@ -84,11 +84,11 @@ std::optional<App> App::create() {
     std::cerr << "Failed to find a present queue family." << std::endl;
     return std::nullopt;
   }
-  
+
   std::println("Found graphics queue family index: {}",
-           graphicsQueueFamilyIndex.value());
+               graphicsQueueFamilyIndex.value());
   std::println("Found present queue family index: {}",
-           presentQueueFamilyIndex.value());
+               presentQueueFamilyIndex.value());
 
   DeviceQueueCreateInfoBuilder graphicsQueueCreateInfo(
       graphicsQueueFamilyIndex.value());
@@ -111,15 +111,27 @@ std::optional<App> App::create() {
     std::cerr << "Failed to create logical device." << std::endl;
     return std::nullopt;
   }
+  std::println("Logical Device Created");
 
   auto graphicsQueue =
       logicalDevice->getQueue(graphicsQueueFamilyIndex.value(), 0);
+  if (!graphicsQueue.has_value()) {
+    std::cerr << "Failed to create graphics queue." << std::endl;
+    return std::nullopt;
+  }
+  std::println("Graphics Queue Created");
 
   auto presentQueue =
       logicalDevice->getQueue(presentQueueFamilyIndex.value(), 0);
+  if (!presentQueue.has_value()) {
+    std::cerr << "Failed to create present queue." << std::endl;
+    return std::nullopt;
+  }
+  std::println("Present Queue Created");
 
-  App app(std::move(*window), std::move(*instance), std::move(*surface), std::move(*logicalDevice),
-          std::move(graphicsQueue), std::move(presentQueue));
+  App app(std::move(*window), std::move(*instance), std::move(*surface),
+          std::move(*logicalDevice), std::move(*graphicsQueue),
+          std::move(*presentQueue));
   std::println("App created successfully.");
 
   return app;

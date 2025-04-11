@@ -5,7 +5,6 @@
 int main(int argc, char *argv[]) {
   std::cout << "Vulkan Application Starting..." << std::endl;
   auto app = App::create();
-  std::cout << "Vulkan Application Created." << std::endl;
   if (!app.has_value()) {
     std::cout << "Failed to create application." << std::endl;
     return EXIT_FAILURE;

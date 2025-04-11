@@ -21,7 +21,7 @@ VkPhysicalDeviceProperties PhysicalDevice::getProperties() {
     return *properties;
   }
   VkPhysicalDeviceProperties properties;
-  vkGetPhysicalDeviceProperties(device, &properties);
+  vkGetPhysicalDeviceProperties(**device, &properties);
   this->properties = properties;
   return properties;
 }
@@ -31,7 +31,7 @@ VkPhysicalDeviceFeatures PhysicalDevice::getFeatures() {
     return *features;
   }
   VkPhysicalDeviceFeatures features;
-  vkGetPhysicalDeviceFeatures(device, &features);
+  vkGetPhysicalDeviceFeatures(**device, &features);
   this->features = features;
   return features;
 }

@@ -10,9 +10,3 @@ std::optional<Surface> Surface::create(Instance &instance, Window &window) {
   }
   return Surface(instance, surface);
 }
-
-Surface::~Surface() {
-  if (surface != VK_NULL_HANDLE) {
-    vkDestroySurfaceKHR(*instance, surface, nullptr);
-  }
-}
