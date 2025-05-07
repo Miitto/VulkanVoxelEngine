@@ -1,7 +1,9 @@
 #include "shader.h"
+#include "shaderModule.h"
 #include "vkStructs/shaderModuleCreate.h"
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -25,7 +27,7 @@ static std::optional<std::vector<char>> readFile(const std::string &fileName) {
 }
 
 std::optional<Shader> Shader::fromFile(const std::string &fileName,
-                                       LogicalDevice &device) {
+                                       std::shared_ptr<Device> &device) {
   auto code = readFile(fileName);
   if (!code) {
     std::cerr << "Failed to read shader file: " << fileName << std::endl;
@@ -36,15 +38,19 @@ std::optional<Shader> Shader::fromFile(const std::string &fileName,
 }
 
 std::optional<Shader> Shader::fromCode(std::vector<char> &code,
-                                       LogicalDevice &device) {
+                                       std::shared_ptr<Device> &device) {
   auto createInfo = ShaderModuleCreateInfoBuilder(code).build();
 
   VkShaderModule shaderModule;
-  if (vkCreateShaderModule(*device, &createInfo, nullptr, &shaderModule) !=
+  if (vkCreateShaderModule(**device, &createInfo, nullptr, &shaderModule) !=
       VK_SUCCESS) {
     std::cerr << "Failed to create shader module" << std::endl;
     return std::nullopt;
   }
 
   ShaderModule module(shaderModule, device);
+
+  std::println("TODO: Shader from shader module");
+
+  return std::nullopt;
 }

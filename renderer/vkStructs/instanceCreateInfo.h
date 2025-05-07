@@ -1,6 +1,6 @@
 #pragma once
-#include "../instance.h"
 #include "GLFW/glfw3.h"
+#include "instance.h"
 #include <cstring>
 #include <iostream>
 #include <optional>
@@ -137,7 +137,7 @@ public:
     if (result != VK_SUCCESS) {
       return std::nullopt;
     }
-    return Instance(instance);
+    return instance;
   }
 
   InstanceCreateInfoBuilder &enableGLFWExtensions() {

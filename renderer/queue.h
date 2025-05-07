@@ -1,36 +1,30 @@
 #pragma once
 
-#include "physicalDevice.h"
 #include "surface.h"
 #include <vulkan/vulkan.h>
 
-class QueuePtr {
+class Queue {
   VkQueue queue;
 
 public:
-  QueuePtr(VkQueue queue) : queue(queue) {}
-  QueuePtr(const QueuePtr &) = delete;
-  QueuePtr &operator=(const QueuePtr &) = delete;
-  QueuePtr(QueuePtr &&o) noexcept : queue(std::move(o.queue)) {
-    o.queue = VK_NULL_HANDLE;
-  }
-  QueuePtr &operator=(QueuePtr &&o) noexcept {
-    queue = std::move(o.queue);
-    o.queue = VK_NULL_HANDLE;
-    return *this;
-  }
-
-  VkQueue &operator*() { return queue; }
+  Queue(VkQueue queue) : queue(VkQueue(queue)) {}
 };
 
-class Queue {
-  std::shared_ptr<QueuePtr> queue;
+class QueueFamily {
+  PhysicalDevice device;
+  VkQueueFamilyProperties family;
+  int index;
 
 public:
-  Queue(VkQueue queue) : queue(std::make_shared<QueuePtr>(queue)) {}
-  static std::vector<VkQueueFamilyProperties> all(PhysicalDevice &device);
-  static bool canPresent(PhysicalDevice &device,
-                         VkQueueFamilyProperties &queueFamily, Surface &surface,
-                         int index);
-  static bool hasGraphics(VkQueueFamilyProperties &queueFamily);
+  QueueFamily(PhysicalDevice &device, VkQueueFamilyProperties family, int index)
+      : device(device), family(family), index(index) {}
+
+  bool canPresentTo(Surface &surface) {
+    VkBool32 presentSupport = false;
+    vkGetPhysicalDeviceSurfaceSupportKHR(*device, index, *surface,
+                                         &presentSupport);
+    return presentSupport;
+  }
+
+  bool hasGraphics() { return family.queueFlags & VK_QUEUE_GRAPHICS_BIT; }
 };

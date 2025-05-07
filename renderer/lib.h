@@ -19,22 +19,13 @@ public:
   App(const App &) = delete;
   App &operator=(const App &) = delete;
   App(App &&o)
-      : window(o.window), instance(o.instance), surface(o.surface),
-        device(o.device), graphicsQueue(o.graphicsQueue),
-        presentQueue(o.presentQueue), swapChain(o.swapChain) {
+      : window(std::move(o.window)), instance(std::move(o.instance)),
+        surface(std::move(o.surface)), device(std::move(o.device)),
+        graphicsQueue(o.graphicsQueue), presentQueue(o.presentQueue),
+        swapChain(std::move(o.swapChain)) {
     o.moved = true;
   }
-  App &operator=(App &&o) {
-    window = o.window;
-    instance = o.instance;
-    surface = o.surface;
-    device = o.device;
-    graphicsQueue = o.graphicsQueue;
-    presentQueue = o.presentQueue;
-    swapChain = o.swapChain;
-    o.moved = true;
-    return *this;
-  }
+  App &operator=(App &&o) = delete;
   ~App();
 
 private:
@@ -42,14 +33,15 @@ private:
   Window window;
   Instance instance;
   Surface surface;
-  LogicalDevice device;
+  Device device;
   Queue graphicsQueue;
   Queue presentQueue;
   SwapChain swapChain;
 
-  App(Window window, Instance instance, Surface surface, LogicalDevice device,
+  App(Window window, Instance instance, Surface surface, Device device,
       Queue graphicsQueue, Queue presentQueue, SwapChain swapChain)
-      : window(window), instance(instance), surface(surface), device(device),
+      : window(std::move(window)), instance(std::move(instance)),
+        surface(std::move(surface)), device(std::move(device)),
         graphicsQueue(graphicsQueue), presentQueue(presentQueue),
-        swapChain(swapChain) {}
+        swapChain(std::move(swapChain)) {}
 };

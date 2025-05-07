@@ -1,74 +1,52 @@
 #pragma once
 #include "logicalDevice.h"
-#include "physicalDevice.h"
-#include "surface.h"
 #include "vkStructs/imageViewCreate.h"
 #include <iostream>
 #include <vector>
 #include <vulkan/vulkan.h>
 
-class SwapChainSupport {
-public:
-  VkSurfaceCapabilitiesKHR capabilities;
-  std::vector<VkSurfaceFormatKHR> formats;
-  std::vector<VkPresentModeKHR> presentModes;
-
-  SwapChainSupport(PhysicalDevice &device, Surface &surface);
-};
-
-class SwapChainPtr {
-  LogicalDevice device;
+class SwapChain {
+  Device::Ref device;
   VkSwapchainKHR swapChain;
   std::vector<VkImage> images;
   std::vector<VkImageView> imageViews;
+  VkExtent2D extent;
+  VkFormat format;
 
 public:
-  SwapChainPtr(VkSwapchainKHR swapChain, LogicalDevice device,
-               std::vector<VkImage> &images,
-               std::vector<VkImageView> &imageViews)
-      : swapChain(swapChain), device(device), images(images),
-        imageViews(imageViews) {}
-  ~SwapChainPtr() {
+  SwapChain(VkSwapchainKHR swapChain, Device &device,
+            std::vector<VkImage> &images, std::vector<VkImageView> &imageViews,
+            VkExtent2D extent, VkFormat format)
+      : swapChain(swapChain), device(device.ref()), images(images),
+        imageViews(imageViews), extent(extent), format(format) {}
+
+  ~SwapChain() {
     if (swapChain != VK_NULL_HANDLE) {
       for (auto imageView : imageViews) {
-        vkDestroyImageView(*device, imageView, nullptr);
+        vkDestroyImageView(**device, imageView, nullptr);
       }
-      vkDestroySwapchainKHR(*device, swapChain, nullptr);
+      vkDestroySwapchainKHR(**device, swapChain, nullptr);
     }
   }
 
-  SwapChainPtr(const SwapChainPtr &) = delete;
-  SwapChainPtr &operator=(const SwapChainPtr &) = delete;
+  SwapChain(const SwapChain &) = delete;
+  SwapChain &operator=(const SwapChain &) = delete;
 
-  SwapChainPtr(SwapChainPtr &&o) noexcept
-      : swapChain(std::move(o.swapChain)), device(o.device) {
+  SwapChain(SwapChain &&o) noexcept
+      : swapChain(o.swapChain), device(o.device), images(std::move(o.images)),
+        imageViews(std::move(o.imageViews)), extent(o.extent),
+        format(o.format) {
     o.swapChain = VK_NULL_HANDLE;
   }
-  SwapChainPtr &operator=(SwapChainPtr &&o) noexcept {
-    swapChain = std::move(o.swapChain);
-    o.swapChain = VK_NULL_HANDLE;
-    return *this;
-  }
+  SwapChain &operator=(SwapChain &&o) = delete;
 
   VkSwapchainKHR &operator*() { return swapChain; }
   std::vector<VkImage> &getImages() { return images; }
   std::vector<VkImageView> &getImageViews() { return imageViews; }
-};
-
-class SwapChain {
-  std::shared_ptr<SwapChainPtr> swapChain;
-  VkFormat format;
-  VkExtent2D extent;
-  SwapChain(VkSwapchainKHR swapChain, LogicalDevice device,
-            std::vector<VkImage> &images, std::vector<VkImageView> &imageViews,
-            VkFormat format, VkExtent2D extent)
-      : swapChain(std::make_shared<SwapChainPtr>(swapChain, device, images,
-                                                 imageViews)),
-        format(format), extent(extent) {}
 
 public:
   static std::optional<SwapChain> create(VkSwapchainKHR swapChain,
-                                         LogicalDevice device, VkFormat format,
+                                         Device &device, VkFormat format,
                                          VkExtent2D extent) {
     uint32_t imageCount;
     vkGetSwapchainImagesKHR(*device, swapChain, &imageCount, nullptr);
@@ -84,11 +62,9 @@ public:
         return std::nullopt;
       }
     }
-
-    return SwapChain(swapChain, device, images, imageViews, format, extent);
+    return SwapChain(swapChain, device, images, imageViews, extent, format);
   }
 
-  VkSwapchainKHR &operator*() { return **swapChain; }
   VkExtent2D &getExtent() { return extent; }
   VkFormat &getFormat() { return format; }
 };

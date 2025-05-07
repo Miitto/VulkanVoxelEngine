@@ -21,12 +21,12 @@ std::optional<Instance> makeInstance() {
                       .enableValidationLayers()
                       .createInstance();
 
-  return instance;
+  return std::move(instance);
 }
 
 struct DeviceReturn {
   PhysicalDevice device;
-  SwapChainSupport swapChainSupport;
+  SurfaceAttributes swapChainSupport;
 };
 
 std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
@@ -35,7 +35,7 @@ std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
 
   std::vector<uint32_t> ratings(physicalDevices.size(), 0);
   for (int i = 0; i < physicalDevices.size(); i++) {
-    auto device = physicalDevices[i];
+    auto &device = physicalDevices[i];
     ratings[i] = 1;
 
     std::vector<char const *> requiredExtensions = {
@@ -56,10 +56,10 @@ std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
 
     // Need to do this after extensions, since this wil fail if the device
     // doesn't support swap chains
-    auto swapChainSupport = SwapChainSupport(device, surface);
+    auto surfaceAttrs = SurfaceAttributes(device, surface);
 
-    if (swapChainSupport.formats.size() == 0 ||
-        swapChainSupport.presentModes.size() == 0) {
+    if (surfaceAttrs.formats.size() == 0 ||
+        surfaceAttrs.presentModes.size() == 0) {
       std::cerr << "Device " << i
                 << " does not support swap chain formats or present modes."
                 << std::endl;
@@ -73,11 +73,11 @@ std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
   }
 
   uint32_t maxRating = 0;
-  const PhysicalDevice *physicalDevice = nullptr;
+  int maxIndex = -1;
   for (int i = 0; i < ratings.size(); i++) {
     if (ratings[i] > maxRating) {
       maxRating = ratings[i];
-      physicalDevice = &physicalDevices[i];
+      maxIndex = i;
     }
   }
 
@@ -86,20 +86,21 @@ std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
     return std::nullopt;
   }
 
-  auto device = *physicalDevice;
-  auto swapChainSupport = SwapChainSupport(device, surface);
+  PhysicalDevice &physicalDevice = physicalDevices[maxIndex];
 
-  if (device.isDiscrete()) {
+  auto swapChainSupport = SurfaceAttributes(physicalDevice, surface);
+
+  if (physicalDevice.isDiscrete()) {
     std::println("Found discrete device: {}",
-                 device.getProperties().deviceName);
+                 physicalDevice.getProperties().deviceName);
   } else {
     std::println("Found integrated device: {}",
-                 device.getProperties().deviceName);
+                 physicalDevice.getProperties().deviceName);
   }
 
-  DeviceReturn deviceReturn(device, swapChainSupport);
+  DeviceReturn deviceReturn(std::move(physicalDevice), swapChainSupport);
 
-  return deviceReturn;
+  return std::move(deviceReturn);
 }
 
 VkSurfaceFormatKHR chooseSwapSurfaceFormat(
@@ -133,8 +134,8 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities,
     int width, height;
     glfwGetFramebufferSize(*window, &width, &height);
 
-    VkExtent2D actualExtent = {static_cast<uint32_t>(width),
-                               static_cast<uint32_t>(height)};
+    VkExtent2D actualExtent = {.width = static_cast<uint32_t>(width),
+                               .height = static_cast<uint32_t>(height)};
 
     actualExtent.width =
         std::clamp(actualExtent.width, capabilities.minImageExtent.width,
@@ -173,22 +174,21 @@ std::optional<App> App::create() {
     return std::nullopt;
   }
 
-  auto physicalDevice = deviceReturn->device;
+  auto &physicalDevice = deviceReturn->device;
   auto swapChainSupport = deviceReturn->swapChainSupport;
   auto format = chooseSwapSurfaceFormat(swapChainSupport.formats);
   auto presentMode = pickPresentMode(swapChainSupport.presentModes);
   auto extent = chooseSwapExtent(swapChainSupport.capabilities, *window);
 
-  auto queueFamilies = Queue::all(physicalDevice);
+  auto queueFamilies = physicalDevice.getQueues();
   std::println("Found {} queue families", queueFamilies.size());
 
   std::optional<int> graphicsQueueFamilyIndex;
   std::optional<int> presentQueueFamilyIndex;
 
   for (int i = 0; i < queueFamilies.size(); i++) {
-    bool graphics = Queue::hasGraphics(queueFamilies[i]);
-    bool present =
-        Queue::canPresent(physicalDevice, queueFamilies[i], *surface, i);
+    bool graphics = queueFamilies[i].hasGraphics();
+    bool present = queueFamilies[i].canPresentTo(*surface);
 
     if (graphics && present) {
       graphicsQueueFamilyIndex = i;
@@ -227,8 +227,7 @@ std::optional<App> App::create() {
 
   VkDeviceCreateInfo deviceCreateInfoStruct = deviceCreateInfo.build();
 
-  auto logicalDevice =
-      LogicalDevice::create(physicalDevice, deviceCreateInfoStruct);
+  auto logicalDevice = Device::create(physicalDevice, deviceCreateInfoStruct);
 
   if (!logicalDevice.has_value()) {
     std::cerr << "Failed to create logical device." << std::endl;
@@ -271,10 +270,11 @@ std::optional<App> App::create() {
     return std::nullopt;
   }
 
-  App app(*window, *instance, *surface, *logicalDevice, *graphicsQueue,
-          *presentQueue, *swapChain);
+  App app(std::move(*window), std::move(*instance), std::move(*surface),
+          std::move(*logicalDevice), graphicsQueue.value(),
+          presentQueue.value(), std::move(*swapChain));
 
-  return app;
+  return std::move(app);
 }
 
 void App::run() {
@@ -288,12 +288,6 @@ App::~App() {
   if (moved) {
     return;
   }
-
-  swapChain.~SwapChain();
-  device.~LogicalDevice();
-  surface.~Surface();
-  instance.~Instance();
-  window.~Window();
 
   glfwTerminate();
 }

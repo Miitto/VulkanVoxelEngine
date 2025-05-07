@@ -1,60 +1,15 @@
 #pragma once
 #include "logicalDevice.h"
+#include <memory>
 #include <optional>
 #include <string>
 #include <vulkan/vulkan.h>
 
-enum EShaderStage { VERTEX, FRAG, GEOM, TESS };
-
-class ShaderModulePtr {
-  LogicalDevice device;
-  VkShaderModule module;
-
-public:
-  ShaderModulePtr(VkShaderModule module, LogicalDevice device)
-      : module(module), device(device) {}
-  ShaderModulePtr(const ShaderModulePtr &) = delete;
-  ShaderModulePtr &operator=(const ShaderModulePtr &) = delete;
-  ShaderModulePtr(ShaderModulePtr &&other) noexcept
-      : module(other.module), device(other.device) {
-    other.module = VK_NULL_HANDLE;
-  }
-  ShaderModulePtr &operator=(ShaderModulePtr &&other) noexcept {
-    if (this != &other) {
-      module = other.module;
-      device = other.device;
-      other.module = VK_NULL_HANDLE;
-    }
-    return *this;
-  }
-
-  ~ShaderModulePtr() {
-    if (module != VK_NULL_HANDLE) {
-      vkDestroyShaderModule(*device, module, nullptr);
-    }
-  }
-
-  VkShaderModule &operator*() { return module; }
-};
-
-class ShaderModule {
-  std::shared_ptr<ShaderModulePtr> shaderModulePtr;
-
-public:
-  ShaderModule(VkShaderModule module, LogicalDevice device)
-      : shaderModulePtr(std::make_shared<ShaderModulePtr>(module, device)) {}
-
-  VkShaderModule &operator*() { return **shaderModulePtr; }
-};
-
-class ShaderPtr {};
-
 class Shader {
-  std::shared_ptr<ShaderPtr> shaderPtr;
 
 public:
   static std::optional<Shader> fromCode(std::vector<char> &code,
-                                        LogicalDevice &device);
+                                        std::shared_ptr<Device> &device);
   static std::optional<Shader> fromFile(const std::string &fileName,
-                                        LogicalDevice &device);
+                                        std::shared_ptr<Device> &device);
 };

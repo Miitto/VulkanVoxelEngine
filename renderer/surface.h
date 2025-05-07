@@ -1,48 +1,44 @@
 #pragma once
+
 #include "instance.h"
+#include "physicalDevice.h"
 #include "window.h"
 #include <optional>
 #include <utility>
 #include <vulkan/vulkan.h>
 
-class SurfacePtr {
-  Instance instance;
+class Surface {
+  Instance::Ref instance;
   VkSurfaceKHR surface;
 
 public:
-  SurfacePtr(Instance instance, VkSurfaceKHR surface)
-      : instance(instance), surface(surface) {}
-  ~SurfacePtr() {
+  Surface(Instance &instance, VkSurfaceKHR surface)
+      : instance(instance.ref()), surface(surface) {}
+  ~Surface() {
     if (surface != VK_NULL_HANDLE) {
-      vkDestroySurfaceKHR(*instance, surface, nullptr);
+      vkDestroySurfaceKHR(**instance, surface, nullptr);
     }
   }
 
-  SurfacePtr(const SurfacePtr &) = delete;
-  SurfacePtr &operator=(const SurfacePtr &) = delete;
+  Surface(const Surface &) = delete;
+  Surface &operator=(const Surface &) = delete;
+  Surface &operator=(Surface &&o) = delete;
 
-  SurfacePtr(SurfacePtr &&o) noexcept
+  Surface(Surface &&o) noexcept
       : instance(o.instance), surface(std::move(o.surface)) {
     o.surface = VK_NULL_HANDLE;
   }
 
-  SurfacePtr &operator=(SurfacePtr &&o) noexcept {
-    surface = std::move(o.surface);
-    o.surface = VK_NULL_HANDLE;
-    return *this;
-  }
+  static std::optional<Surface> create(Instance &instance, Window &window);
 
   VkSurfaceKHR &operator*() { return surface; }
 };
 
-class Surface {
-  std::shared_ptr<SurfacePtr> surface;
-
-  Surface(Instance instance, VkSurfaceKHR surface)
-      : surface(std::make_shared<SurfacePtr>(SurfacePtr(instance, surface))) {}
-
+class SurfaceAttributes {
 public:
-  VkSurfaceKHR operator*() { return **surface; }
+  VkSurfaceCapabilitiesKHR capabilities;
+  std::vector<VkSurfaceFormatKHR> formats;
+  std::vector<VkPresentModeKHR> presentModes;
 
-  static std::optional<Surface> create(Instance &instance, Window &window);
+  SurfaceAttributes(PhysicalDevice &device, Surface &surface);
 };

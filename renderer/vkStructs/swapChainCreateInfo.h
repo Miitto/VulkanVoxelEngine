@@ -1,19 +1,18 @@
 #pragma once
-#include "../logicalDevice.h"
+#include "logicalDevice.h"
 #include <iostream>
 #include <vulkan/vulkan.h>
 
-#include "../swapChain.h"
+#include "swapChain.h"
 
 class SwapChainCreateInfoBuilder {
   VkSwapchainCreateInfoKHR createInfo;
-  SwapChainSupport &swapChainSupport;
-  Surface surface;
+  SurfaceAttributes &swapChainSupport;
 
 public:
-  SwapChainCreateInfoBuilder(SwapChainSupport &swapChainSupport,
+  SwapChainCreateInfoBuilder(SurfaceAttributes &swapChainSupport,
                              Surface &surface)
-      : surface(surface), swapChainSupport(swapChainSupport) {
+      : swapChainSupport(swapChainSupport) {
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.pNext = nullptr;
     createInfo.surface = *surface;
@@ -159,7 +158,7 @@ public:
     return *this;
   }
 
-  std::optional<SwapChain> build(LogicalDevice &logicalDevice) {
+  std::optional<SwapChain> build(Device &logicalDevice) {
     VkSwapchainKHR swapChain;
     if (vkCreateSwapchainKHR(*logicalDevice, &createInfo, nullptr,
                              &swapChain) != VK_SUCCESS) {

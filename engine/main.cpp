@@ -1,6 +1,5 @@
-#include "renderer/lib.h"
+#include "lib.h"
 #include <iostream>
-#include <print>
 
 int main(int argc, char *argv[]) {
   std::cout << "Vulkan Application Starting..." << std::endl;

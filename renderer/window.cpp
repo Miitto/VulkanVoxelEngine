@@ -15,5 +15,5 @@ std::optional<Window> Window::create(const char *name, const uint32_t width,
     return std::nullopt;
   }
 
-  return window;
+  return std::move(window);
 }

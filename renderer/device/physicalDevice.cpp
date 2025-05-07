@@ -1,5 +1,7 @@
 #include "physicalDevice.h"
+#include "queue.h"
 #include <cstring>
+#include <vector>
 
 std::vector<PhysicalDevice> PhysicalDevice::all(Instance &instance) {
   uint32_t deviceCount = 0;
@@ -22,7 +24,7 @@ VkPhysicalDeviceProperties PhysicalDevice::getProperties() {
     return *properties;
   }
   VkPhysicalDeviceProperties properties;
-  vkGetPhysicalDeviceProperties(**device, &properties);
+  vkGetPhysicalDeviceProperties(device, &properties);
   this->properties = properties;
   return properties;
 }
@@ -32,23 +34,23 @@ VkPhysicalDeviceFeatures PhysicalDevice::getFeatures() {
     return *features;
   }
   VkPhysicalDeviceFeatures features;
-  vkGetPhysicalDeviceFeatures(**device, &features);
+  vkGetPhysicalDeviceFeatures(device, &features);
   this->features = features;
   return features;
 }
 
-std::vector<VkExtensionProperties> PhysicalDevice::getExtensions() {
+std::vector<VkExtensionProperties> PhysicalDevice::getExtensions() const {
   uint32_t extensionCount = 0;
-  vkEnumerateDeviceExtensionProperties(**device, nullptr, &extensionCount,
+  vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount,
                                        nullptr);
   std::vector<VkExtensionProperties> extensions(extensionCount);
-  vkEnumerateDeviceExtensionProperties(**device, nullptr, &extensionCount,
+  vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount,
                                        extensions.data());
   return extensions;
 }
 
 std::vector<char const *> PhysicalDevice::findUnsupportedExtensions(
-    std::vector<char const *> extensions) {
+    std::vector<char const *> extensions) const {
   std::vector<VkExtensionProperties> availableExtensions = getExtensions();
   std::vector<char const *> unsupportedExtensions;
 
@@ -66,4 +68,19 @@ std::vector<char const *> PhysicalDevice::findUnsupportedExtensions(
   }
 
   return unsupportedExtensions;
+}
+
+std::vector<QueueFamily> PhysicalDevice::getQueues() {
+  uint32_t queueFamilyCount = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+  std::vector<VkQueueFamilyProperties> families(queueFamilyCount);
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
+                                           families.data());
+
+  std::vector<QueueFamily> queueFamilies;
+  for (int i = 0; i < queueFamilyCount; ++i) {
+    queueFamilies.emplace_back(*this, families[i], i);
+  }
+
+  return queueFamilies;
 }

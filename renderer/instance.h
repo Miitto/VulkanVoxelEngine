@@ -1,44 +1,50 @@
 #pragma once
 
 #include <memory>
-#include <vector>
+#include <utility>
 #include <vulkan/vulkan.h>
 
-class InstancePtr {
+class Instance {
+public:
+  class Ref {
+    friend class Instance;
+    std::shared_ptr<Instance *> instance;
+
+    Ref() = delete;
+    explicit Ref(Instance *instance)
+        : instance(std::make_shared<Instance *>(instance)) {}
+
+  protected:
+    static Ref create(Instance &instance) { return Ref(&instance); }
+    static Ref create(Instance *instance) { return Ref(instance); }
+
+  public:
+    void set(Instance *instance) { *this->instance = instance; }
+    Instance &operator*() { return **instance; }
+  };
+
+private:
   VkInstance instance;
+  Ref reference;
 
 public:
-  InstancePtr(VkInstance instance) : instance(instance) {}
-  ~InstancePtr() {
+  Instance(VkInstance instance)
+      : instance(instance), reference(Ref::create(this)) {}
+  ~Instance() {
     if (instance != VK_NULL_HANDLE) {
       vkDestroyInstance(instance, nullptr);
     }
   }
 
-  InstancePtr(const InstancePtr &) = delete;
-  InstancePtr &operator=(const InstancePtr &) = delete;
-
-  InstancePtr(InstancePtr &&o) noexcept : instance(std::move(o.instance)) {
+  Instance(const Instance &) = delete;
+  Instance &operator=(const Instance &) = delete;
+  Instance &operator=(Instance &&o) = delete;
+  Instance(Instance &&o) noexcept
+      : instance(std::move(o.instance)), reference(o.reference) {
     o.instance = VK_NULL_HANDLE;
-  }
-
-  InstancePtr &operator=(InstancePtr &&o) noexcept {
-    instance = std::move(o.instance);
-    o.instance = VK_NULL_HANDLE;
-    return *this;
+    reference.set(this);
   }
 
   VkInstance &operator*() { return instance; }
-};
-
-class Instance {
-  std::shared_ptr<InstancePtr> instance;
-
-  std::vector<std::shared_ptr<VkSurfaceKHR>> surfaces;
-
-public:
-  Instance(VkInstance instance)
-      : instance(std::make_shared<InstancePtr>(instance)) {}
-
-  VkInstance &operator*() { return **instance; }
+  Ref &ref() { return reference; }
 };
