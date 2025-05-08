@@ -1,11 +1,15 @@
 #include "lib.h"
 #include "physicalDevice.h"
+#include "pipeline.h"
 #include "queue.h"
 #include "swapChain.h"
 #include "vkStructs/appInfo.h"
 #include "vkStructs/deviceCreateInfo.h"
 #include "vkStructs/deviceQueueCreationInfo.h"
 #include "vkStructs/instanceCreateInfo.h"
+#include "vkStructs/pipelineDynamicStateCreate.h"
+#include "vkStructs/pipelineInputAssemblyStateCreate.h"
+#include "vkStructs/pipelineVertexInputStateCreate.h"
 #include "vkStructs/swapChainCreateInfo.h"
 #include <algorithm>
 #include <iostream>
@@ -147,6 +151,30 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities,
     return actualExtent;
   }
 }
+
+std::optional<Pipeline> makePipeline(SwapChain &swapChain) {
+  PipelineDynamicStateCreateInfoBuilder dynState;
+  dynState.addDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
+  dynState.addDynamicState(VK_DYNAMIC_STATE_SCISSOR);
+
+  PipelineInputAssemblyStateCreateInfoBuilder inputAssembly;
+  inputAssembly.setTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
+  PipelineVertexInputStateCreateInfoBuilder vertexInput;
+
+  VkViewport viewport{.x = 0.,
+                      .y = 0.,
+                      .width = static_cast<float>(swapChain.getExtent().width),
+                      .height =
+                          static_cast<float>(swapChain.getExtent().height),
+                      .minDepth = 0.,
+                      .maxDepth = 1.0};
+
+  VkRect2D scissor{.offset = {0, 0}, .extent = swapChain.getExtent()};
+
+  std::println("TODO: Create Pipeline");
+  return std::nullopt;
+}
+
 std::optional<App> App::create() {
   glfwInit();
 
@@ -267,6 +295,12 @@ std::optional<App> App::create() {
   auto swapChain = swapChainCreateInfo.build(*logicalDevice);
   if (!swapChain.has_value()) {
     std::cerr << "Failed to create swap chain." << std::endl;
+    return std::nullopt;
+  }
+
+  std::optional<Pipeline> pipeline = makePipeline(*swapChain);
+  if (!pipeline.has_value()) {
+    std::cerr << "Failed to create pipeline." << std::endl;
     return std::nullopt;
   }
 

@@ -1,11 +1,24 @@
 #include "shader.h"
 #include "shaderModule.h"
-#include "vkStructs/shaderModuleCreate.h"
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <optional>
 #include <vector>
+#include <vulkan/vulkan_core.h>
+
+VkShaderStageFlagBits shaderStageToFlagBits(EShaderStage &stage) {
+  switch (stage) {
+  case EShaderStage::VERTEX: {
+    return VK_SHADER_STAGE_VERTEX_BIT;
+  }
+  case EShaderStage::FRAG: {
+    return VK_SHADER_STAGE_FRAGMENT_BIT;
+  }
+  case EShaderStage::GEOM: {
+    return VK_SHADER_STAGE_GEOMETRY_BIT;
+  }
+  }
+}
 
 static std::optional<std::vector<char>> readFile(const std::string &fileName) {
   std::ifstream file(fileName, std::ios::ate | std::ios::binary);
@@ -27,30 +40,29 @@ static std::optional<std::vector<char>> readFile(const std::string &fileName) {
 }
 
 std::optional<Shader> Shader::fromFile(const std::string &fileName,
-                                       std::shared_ptr<Device> &device) {
+                                       EShaderStage stage,
+                                       Device::Ref &device) {
   auto code = readFile(fileName);
   if (!code) {
     std::cerr << "Failed to read shader file: " << fileName << std::endl;
     return std::nullopt;
   }
 
-  return Shader::fromCode(*code, device);
+  return Shader::fromCode(*code, stage, device);
 }
 
 std::optional<Shader> Shader::fromCode(std::vector<char> &code,
-                                       std::shared_ptr<Device> &device) {
-  auto createInfo = ShaderModuleCreateInfoBuilder(code).build();
+                                       EShaderStage stage,
+                                       Device::Ref &device) {
 
-  VkShaderModule shaderModule;
-  if (vkCreateShaderModule(**device, &createInfo, nullptr, &shaderModule) !=
-      VK_SUCCESS) {
-    std::cerr << "Failed to create shader module" << std::endl;
+  auto module_opt = ShaderModule::fromCode(code, device);
+
+  if (!module_opt.has_value())
     return std::nullopt;
-  }
 
-  ShaderModule module(shaderModule, device);
+  ShaderModule module = std::move(*module_opt);
 
-  std::println("TODO: Shader from shader module");
+  Shader shader(module, stage);
 
-  return std::nullopt;
+  return std::move(shader);
 }

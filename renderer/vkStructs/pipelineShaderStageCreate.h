@@ -7,29 +7,25 @@ class PipelineShaderStageCreateInfoBuilder {
   VkPipelineShaderStageCreateInfo createInfo;
 
 public:
-  PipelineShaderStageCreateInfoBuilder(ShaderModule module) {
+  PipelineShaderStageCreateInfoBuilder(Shader shader) {
     createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
-    switch (module.getStage()) {
-    case VERTEX: {
+    switch (shader.getStage()) {
+    case EShaderStage::VERTEX: {
       createInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
       break;
     }
-    case FRAG: {
+    case EShaderStage::FRAG: {
       createInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
       break;
     }
-    case GEOM: {
+    case EShaderStage::GEOM: {
       createInfo.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
       break;
     }
-    case TESS: {
-      createInfo.stage = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-      break;
     }
-    }
-    createInfo.module = *module;
+    createInfo.module = *shader.getModule();
     createInfo.pName = "main";
   }
 

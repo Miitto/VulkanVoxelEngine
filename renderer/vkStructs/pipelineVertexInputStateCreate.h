@@ -16,4 +16,6 @@ public:
     createInfo.vertexAttributeDescriptionCount = 0;
     createInfo.pVertexAttributeDescriptions = nullptr;
   }
+
+  VkPipelineVertexInputStateCreateInfo build() { return createInfo; }
 };
