@@ -40,8 +40,7 @@ static std::optional<std::vector<char>> readFile(const std::string &fileName) {
 }
 
 std::optional<Shader> Shader::fromFile(const std::string &fileName,
-                                       EShaderStage stage,
-                                       Device::Ref &device) {
+                                       EShaderStage stage, Device &device) {
   auto code = readFile(fileName);
   if (!code) {
     std::cerr << "Failed to read shader file: " << fileName << std::endl;
@@ -52,8 +51,7 @@ std::optional<Shader> Shader::fromFile(const std::string &fileName,
 }
 
 std::optional<Shader> Shader::fromCode(std::vector<char> &code,
-                                       EShaderStage stage,
-                                       Device::Ref &device) {
+                                       EShaderStage stage, Device &device) {
 
   auto module_opt = ShaderModule::fromCode(code, device);
 

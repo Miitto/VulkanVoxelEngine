@@ -1,9 +1,8 @@
 #pragma once
-#include "logicalDevice.h"
+
+#include "surface.h"
 #include <iostream>
 #include <vulkan/vulkan.h>
-
-#include "swapChain.h"
 
 class SwapChainCreateInfoBuilder {
   VkSwapchainCreateInfoKHR createInfo;
@@ -136,8 +135,8 @@ public:
     return *this;
   }
 
-  SwapChainCreateInfoBuilder &setOldSwapChain(SwapChain &oldSwapChain) {
-    createInfo.oldSwapchain = &**oldSwapChain;
+  SwapChainCreateInfoBuilder &setOldSwapChain(VkSwapchainKHR oldSwapChain) {
+    createInfo.oldSwapchain = oldSwapChain;
     return *this;
   }
 
@@ -158,14 +157,5 @@ public:
     return *this;
   }
 
-  std::optional<SwapChain> build(Device &logicalDevice) {
-    VkSwapchainKHR swapChain;
-    if (vkCreateSwapchainKHR(*logicalDevice, &createInfo, nullptr,
-                             &swapChain) != VK_SUCCESS) {
-      std::cerr << "Failed to create swap chain." << std::endl;
-      return std::nullopt;
-    }
-    return SwapChain::create(swapChain, logicalDevice, createInfo.imageFormat,
-                             createInfo.imageExtent);
-  }
+  VkSwapchainCreateInfoKHR build() { return createInfo; }
 };

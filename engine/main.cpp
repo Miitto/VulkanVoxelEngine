@@ -1,7 +1,7 @@
 #include "lib.h"
 #include <iostream>
 
-int main(int argc, char *argv[]) {
+int main() {
   std::cout << "Vulkan Application Starting..." << std::endl;
   auto app = App::create();
   if (!app.has_value()) {

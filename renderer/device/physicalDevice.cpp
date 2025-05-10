@@ -78,7 +78,7 @@ std::vector<QueueFamily> PhysicalDevice::getQueues() {
                                            families.data());
 
   std::vector<QueueFamily> queueFamilies;
-  for (int i = 0; i < queueFamilyCount; ++i) {
+  for (size_t i = 0; i < queueFamilyCount; ++i) {
     queueFamilies.emplace_back(*this, families[i], i);
   }
 

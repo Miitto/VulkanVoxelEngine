@@ -1,6 +1,6 @@
 #pragma once
 
-#include "swapChain.h"
+#include "swapchain.h"
 #include <vulkan/vulkan.h>
 
 class Viewport {
@@ -18,5 +18,5 @@ public:
 
   Viewport(VkExtent2D extent) { Viewport(extent.width, extent.height); }
 
-  Viewport(SwapChain &swapChain) { Viewport(swapChain.getExtent()); }
+  Viewport(Swapchain &swapChain) { Viewport(swapChain.getExtent()); }
 };

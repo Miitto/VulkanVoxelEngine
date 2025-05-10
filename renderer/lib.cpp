@@ -1,16 +1,15 @@
 #include "lib.h"
-#include "physicalDevice.h"
-#include "pipeline.h"
+#include "device/physicalDevice.h"
+#include "pipeline/graphics.h"
+#include "pipeline/layout.h"
+#include "pipeline/renderPass.h"
 #include "queue.h"
-#include "swapChain.h"
-#include "vkStructs/appInfo.h"
-#include "vkStructs/deviceCreateInfo.h"
-#include "vkStructs/deviceQueueCreationInfo.h"
-#include "vkStructs/instanceCreateInfo.h"
-#include "vkStructs/pipelineDynamicStateCreate.h"
-#include "vkStructs/pipelineInputAssemblyStateCreate.h"
-#include "vkStructs/pipelineVertexInputStateCreate.h"
-#include "vkStructs/swapChainCreateInfo.h"
+#include "shaders/shader.h"
+#include "swapchain.h"
+#include "vkStructs/all.h"
+#include "vkStructs/presentInfo.h"
+#include "vkStructs/renderPass.h"
+#include "vkStructs/submitInfo.h"
 #include <algorithm>
 #include <iostream>
 #include <print>
@@ -25,12 +24,12 @@ std::optional<Instance> makeInstance() {
                       .enableValidationLayers()
                       .createInstance();
 
-  return std::move(instance);
+  return instance;
 }
 
 struct DeviceReturn {
   PhysicalDevice device;
-  SurfaceAttributes swapChainSupport;
+  SurfaceAttributes swapchainSupport;
 };
 
 std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
@@ -38,7 +37,7 @@ std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
   std::println("Found {} physical devices", physicalDevices.size());
 
   std::vector<uint32_t> ratings(physicalDevices.size(), 0);
-  for (int i = 0; i < physicalDevices.size(); i++) {
+  for (size_t i = 0; i < physicalDevices.size(); i++) {
     auto &device = physicalDevices[i];
     ratings[i] = 1;
 
@@ -78,7 +77,7 @@ std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
 
   uint32_t maxRating = 0;
   int maxIndex = -1;
-  for (int i = 0; i < ratings.size(); i++) {
+  for (size_t i = 0; i < ratings.size(); i++) {
     if (ratings[i] > maxRating) {
       maxRating = ratings[i];
       maxIndex = i;
@@ -152,14 +151,86 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities,
   }
 }
 
-std::optional<Pipeline> makePipeline(SwapChain &swapChain) {
+std::optional<PipelineLayout> makePipelineLayout(Device &device) {
+  PipelineLayoutCreateInfoBuilder pipelineLayoutCreateInfo;
+
+  auto pipelineLayout =
+      PipelineLayout::create(device, pipelineLayoutCreateInfo.build());
+  if (!pipelineLayout.has_value()) {
+    std::cerr << "Failed to create pipeline layout." << std::endl;
+    return std::nullopt;
+  }
+
+  return pipelineLayout;
+}
+
+std::optional<RenderPass> createRenderPass(Device &device,
+                                           Swapchain &swapChain) {
+  AttachmentDescriptionBuilder colorAttachment(swapChain.getFormat());
+
+  colorAttachment.setColorDepth(VK_ATTACHMENT_LOAD_OP_CLEAR,
+                                VK_ATTACHMENT_STORE_OP_STORE);
+
+  colorAttachment.setFinalLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+  VkAttachmentReference colorAttachmentRef = {
+      .attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+
+  SubpassDescriptionBuilder subpassDescription;
+  subpassDescription.color(colorAttachmentRef);
+
+  RenderPassCreateInfoBuilder renderPassCreateInfo;
+  renderPassCreateInfo.addAttachment(colorAttachment.build());
+  renderPassCreateInfo.addSubpass(subpassDescription.build());
+
+  VkSubpassDependency subpassDependency =
+      SubpassDependencyBuilder(VK_SUBPASS_EXTERNAL, 0)
+          .setSrcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+          .setDstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+          .setSrcAccessMask(0)
+          .setDstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+          .build();
+
+  renderPassCreateInfo.addDependency(subpassDependency);
+
+  auto rp = RenderPass::create(device, renderPassCreateInfo.build());
+
+  return rp;
+}
+
+std::optional<Shader> makeShader(Device &device, const char *path,
+                                 EShaderStage stage) {
+  auto shader = Shader::fromFile(path, stage, device);
+  if (!shader.has_value()) {
+    std::cerr << "Failed to create shader." << std::endl;
+    return std::nullopt;
+  }
+
+  return shader;
+}
+
+std::optional<GraphicsPipeline> makePipeline(Device &device,
+                                             Swapchain &swapChain,
+                                             PipelineLayout &layout,
+                                             RenderPass &renderPass) {
   PipelineDynamicStateCreateInfoBuilder dynState;
   dynState.addDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
   dynState.addDynamicState(VK_DYNAMIC_STATE_SCISSOR);
 
   PipelineInputAssemblyStateCreateInfoBuilder inputAssembly;
   inputAssembly.setTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
+
   PipelineVertexInputStateCreateInfoBuilder vertexInput;
+
+  PipelineRasterizationStateCreateInfoBuilder rasterizationState;
+
+  PipelineMultisampleStateCreateInfoBuilder multisampleState;
+
+  PipelineColorBlendStateCreateInfoBuilder colorBlendState;
+
+  PipelineColorBlendAttachmentStateBuilder colorBlendAttachment;
+
+  colorBlendState.addAttachment(colorBlendAttachment.build());
 
   VkViewport viewport{.x = 0.,
                       .y = 0.,
@@ -171,42 +242,83 @@ std::optional<Pipeline> makePipeline(SwapChain &swapChain) {
 
   VkRect2D scissor{.offset = {0, 0}, .extent = swapChain.getExtent()};
 
-  std::println("TODO: Create Pipeline");
-  return std::nullopt;
+  PiplineViewportStateCreateInfoBuilder viewportState;
+
+  viewportState.addViewport(viewport);
+  viewportState.addScissor(scissor);
+
+  auto vertexShader =
+      makeShader(device, "shaders/build/basic.vert.spv", EShaderStage::VERTEX);
+
+  if (!vertexShader.has_value()) {
+    std::cerr << "Failed to create vertex shader." << std::endl;
+    return std::nullopt;
+  }
+
+  auto fragmentShader =
+      makeShader(device, "shaders/build/basic.frag.spv", EShaderStage::FRAG);
+
+  if (!fragmentShader.has_value()) {
+    std::cerr << "Failed to create fragment shader." << std::endl;
+    return std::nullopt;
+  }
+
+  PipelineShaderStageCreateInfoBuilder vertexShaderStage(*vertexShader);
+  PipelineShaderStageCreateInfoBuilder fragmentShaderStage(*fragmentShader);
+
+  VkPipelineShaderStageCreateInfo shaderStages[] = {
+      vertexShaderStage.build(), fragmentShaderStage.build()};
+
+  GraphicsPipelineCreateInfoBuilder pipelineCreateInfo(
+      *layout, *renderPass, 2, shaderStages, vertexInput.build(),
+      inputAssembly.build(), viewportState.build(), rasterizationState.build(),
+      multisampleState.build(), colorBlendState.build(), dynState.build(), 0);
+
+  auto pipeline = GraphicsPipeline::create(device, pipelineCreateInfo.build());
+
+  if (!pipeline.has_value()) {
+    std::cerr << "Failed to create graphics pipeline." << std::endl;
+    return std::nullopt;
+  }
+
+  return pipeline;
 }
 
 std::optional<App> App::create() {
   glfwInit();
 
-  auto window = Window::create("Vulkan App", WIDTH, HEIGHT);
-  if (!window.has_value()) {
+  auto window_opt = Window::create("Vulkan App", WIDTH, HEIGHT);
+  if (!window_opt.has_value()) {
     std::cerr << "Failed to create window." << std::endl;
     return std::nullopt;
   }
+  auto &window = window_opt.value();
 
-  auto instance = makeInstance();
-  if (!instance.has_value()) {
+  auto instance_opt = makeInstance();
+  if (!instance_opt.has_value()) {
     std::cerr << "Failed to create Vulkan instance." << std::endl;
     return std::nullopt;
   }
+  auto &instance = instance_opt.value();
 
-  auto surface = Surface::create(*instance, *window);
-  if (!surface.has_value()) {
+  auto surface_opt = Surface::create(instance, window);
+  if (!surface_opt.has_value()) {
     std::cerr << "Failed to create surface." << std::endl;
     return std::nullopt;
   }
+  auto &surface = surface_opt.value();
 
-  auto deviceReturn = findDevice(*instance, *surface);
+  auto deviceReturn = findDevice(instance, surface);
   if (!deviceReturn.has_value()) {
     std::cerr << "Failed to find a suitable physical device." << std::endl;
     return std::nullopt;
   }
 
   auto &physicalDevice = deviceReturn->device;
-  auto swapChainSupport = deviceReturn->swapChainSupport;
-  auto format = chooseSwapSurfaceFormat(swapChainSupport.formats);
-  auto presentMode = pickPresentMode(swapChainSupport.presentModes);
-  auto extent = chooseSwapExtent(swapChainSupport.capabilities, *window);
+  auto swapchainSupport = deviceReturn->swapchainSupport;
+  auto format = chooseSwapSurfaceFormat(swapchainSupport.formats);
+  auto presentMode = pickPresentMode(swapchainSupport.presentModes);
+  auto extent = chooseSwapExtent(swapchainSupport.capabilities, window);
 
   auto queueFamilies = physicalDevice.getQueues();
   std::println("Found {} queue families", queueFamilies.size());
@@ -214,9 +326,9 @@ std::optional<App> App::create() {
   std::optional<int> graphicsQueueFamilyIndex;
   std::optional<int> presentQueueFamilyIndex;
 
-  for (int i = 0; i < queueFamilies.size(); i++) {
+  for (size_t i = 0; i < queueFamilies.size(); i++) {
     bool graphics = queueFamilies[i].hasGraphics();
-    bool present = queueFamilies[i].canPresentTo(*surface);
+    bool present = queueFamilies[i].canPresentTo(surface);
 
     if (graphics && present) {
       graphicsQueueFamilyIndex = i;
@@ -255,28 +367,28 @@ std::optional<App> App::create() {
 
   VkDeviceCreateInfo deviceCreateInfoStruct = deviceCreateInfo.build();
 
-  auto logicalDevice = Device::create(physicalDevice, deviceCreateInfoStruct);
+  auto device_opt = Device::create(physicalDevice, deviceCreateInfoStruct);
 
-  if (!logicalDevice.has_value()) {
+  if (!device_opt.has_value()) {
     std::cerr << "Failed to create logical device." << std::endl;
     return std::nullopt;
   }
+  auto &device = device_opt.value();
 
-  auto graphicsQueue =
-      logicalDevice->getQueue(graphicsQueueFamilyIndex.value(), 0);
+  auto graphicsQueue = device.getQueue(graphicsQueueFamilyIndex.value(), 0);
   if (!graphicsQueue.has_value()) {
     std::cerr << "Failed to create graphics queue." << std::endl;
     return std::nullopt;
   }
 
-  auto presentQueue =
-      logicalDevice->getQueue(presentQueueFamilyIndex.value(), 0);
+  std::optional<PresentQueue> presentQueue =
+      device.getQueue(presentQueueFamilyIndex.value(), 0);
   if (!presentQueue.has_value()) {
     std::cerr << "Failed to create present queue." << std::endl;
     return std::nullopt;
   }
 
-  SwapChainCreateInfoBuilder swapChainCreateInfo(swapChainSupport, *surface);
+  SwapChainCreateInfoBuilder swapChainCreateInfo(swapchainSupport, surface);
   swapChainCreateInfo.setImageFormat(format.format)
       .setImageColorSpace(format.colorSpace)
       .setImageExtent(extent)
@@ -292,21 +404,72 @@ std::optional<App> App::create() {
     swapChainCreateInfo.setImageSharingMode(VK_SHARING_MODE_EXCLUSIVE);
   }
 
-  auto swapChain = swapChainCreateInfo.build(*logicalDevice);
-  if (!swapChain.has_value()) {
+  auto swapchain_opt = Swapchain::create(device, swapChainCreateInfo.build());
+  if (!swapchain_opt.has_value()) {
     std::cerr << "Failed to create swap chain." << std::endl;
     return std::nullopt;
   }
+  auto &swapchain = swapchain_opt.value();
 
-  std::optional<Pipeline> pipeline = makePipeline(*swapChain);
-  if (!pipeline.has_value()) {
+  auto layout_opt = makePipelineLayout(device);
+  if (!layout_opt.has_value()) {
+    std::cerr << "Failed to create pipeline layout." << std::endl;
+    return std::nullopt;
+  }
+  auto &layout = layout_opt.value();
+
+  auto renderPass_opt = createRenderPass(device, swapchain);
+  if (!renderPass_opt.has_value()) {
+    std::cerr << "Failed to create render pass." << std::endl;
+    return std::nullopt;
+  }
+  auto &renderPass = renderPass_opt.value();
+
+  auto framebuffers_opt = swapchain.createFramebuffers(renderPass);
+  if (!framebuffers_opt.has_value()) {
+    std::cerr << "Failed to create framebuffers." << std::endl;
+    return std::nullopt;
+  }
+  auto &framebuffers = framebuffers_opt.value();
+
+  auto pipeline_opt = makePipeline(device, swapchain, layout, renderPass);
+  if (!pipeline_opt.has_value()) {
     std::cerr << "Failed to create pipeline." << std::endl;
     return std::nullopt;
   }
+  auto &pipeline = pipeline_opt.value();
 
-  App app(std::move(*window), std::move(*instance), std::move(*surface),
-          std::move(*logicalDevice), graphicsQueue.value(),
-          presentQueue.value(), std::move(*swapChain));
+  CommandPoolCreateInfoBuilder commandPoolCreateInfo(
+      graphicsQueueFamilyIndex.value());
+
+  commandPoolCreateInfo.resetable();
+
+  auto commandPool_opt =
+      CommandPool::create(device, commandPoolCreateInfo.build());
+  if (!commandPool_opt.has_value()) {
+    std::cerr << "Failed to create command pool." << std::endl;
+    return std::nullopt;
+  }
+  auto &commandPool = commandPool_opt.value();
+
+  auto commandBuffer_opt = commandPool.allocBuffer();
+  if (!commandBuffer_opt.has_value()) {
+    std::cerr << "Failed to allocate command buffer." << std::endl;
+    return std::nullopt;
+  }
+  auto &commandBuffer = commandBuffer_opt.value();
+
+  auto imageSem = Semaphore::create(device);
+  auto renderSem = Semaphore::create(device);
+  auto inFlightFence = Fence::create(device, true);
+
+  SyncObjects syncObjects{.imageAvailable = std::move(imageSem.value()),
+                          .renderFinished = std::move(renderSem.value()),
+                          .inFlight = std::move(inFlightFence.value())};
+
+  App app(window, instance, surface, device, graphicsQueue.value(),
+          presentQueue.value(), swapchain, layout, renderPass, framebuffers,
+          pipeline, commandPool, commandBuffer, syncObjects);
 
   return std::move(app);
 }
@@ -315,13 +478,87 @@ void App::run() {
   std::println("Running app...");
   while (!window.shouldClose()) {
     glfwPollEvents();
+
+    update();
+    render();
   }
+  std::println("App closed.");
+}
+
+void App::update() {}
+
+void App::render() {
+  syncObjects.inFlight.wait(true);
+  uint32_t imageIndex = swapchain.getNextImage(*syncObjects.imageAvailable);
+
+  commandBuffer.reset();
+  recordCommandBuffer(commandBuffer, imageIndex);
+
+  SubmitInfoBuilder submitInfoBuilder;
+  submitInfoBuilder
+      .addWaitSemaphore(*syncObjects.imageAvailable,
+                        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+      .addSignalSemaphore(*syncObjects.renderFinished)
+      .addCommandBuffer(*commandBuffer);
+
+  auto submitInfo = submitInfoBuilder.build();
+
+  if (graphicsQueue.submit(submitInfo, *syncObjects.inFlight) != VK_SUCCESS) {
+    std::cerr << "Failed to submit draw command buffer." << std::endl;
+    return;
+  }
+
+  PresentInfoBuilder presentInfoBuilder =
+      PresentInfoBuilder()
+          .addWaitSemaphore(*syncObjects.renderFinished)
+          .addSwapchain(*swapchain)
+          .setImageIndex(imageIndex);
+
+  auto presentInfo = presentInfoBuilder.build();
+
+  presentQueue.present(presentInfo);
+}
+
+void App::recordCommandBuffer(CommandBuffer &commandBuffer,
+                              uint32_t imageIndex) {
+  auto encoder = commandBuffer.begin();
+
+  RenderPassBeginInfoBuilder renderPassInfo(
+      *renderPass, *framebuffers[imageIndex],
+      VkRect2D{.offset = {0, 0}, .extent = swapchain.getExtent()});
+
+  renderPassInfo.addClearValue({.color = {{0.0f, 0.0f, 0.0f, 1.0f}}});
+
+  auto pass = encoder.beginRenderPass(renderPassInfo.build());
+
+  pass.bindPipeline(pipeline);
+
+  VkViewport viewport = {
+      .x = 0.0f,
+      .y = 0.0f,
+      .width = static_cast<float>(swapchain.getExtent().width),
+      .height = static_cast<float>(swapchain.getExtent().height),
+      .minDepth = 0.0f,
+      .maxDepth = 1.0f};
+
+  VkRect2D scissor = {.offset = {0, 0}, .extent = swapchain.getExtent()};
+
+  pass.setViewport(viewport);
+  pass.setScissor(scissor);
+
+  pass.draw(3);
+
+  pass.end();
+
+  encoder.end();
 }
 
 App::~App() {
-  if (moved) {
+  if (moveGuard.isMoved()) {
     return;
   }
+
+  device.waitIdle();
 
   glfwTerminate();
 }

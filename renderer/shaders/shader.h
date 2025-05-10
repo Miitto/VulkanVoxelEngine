@@ -1,5 +1,5 @@
 #pragma once
-#include "logicalDevice.h"
+#include "device/device.h"
 #include "shaderModule.h"
 #include <optional>
 #include <string>
@@ -30,11 +30,10 @@ public:
   }
   ShaderModule &getModule() { return module; }
 
-  static std::optional<Shader>
-  fromCode(std::vector<char> &code, EShaderStage stage, Device::Ref &device);
+  static std::optional<Shader> fromCode(std::vector<char> &code,
+                                        EShaderStage stage, Device &device);
   static std::optional<Shader> fromFile(const std::string &fileName,
-                                        EShaderStage stage,
-                                        Device::Ref &device);
+                                        EShaderStage stage, Device &device);
   static std::optional<Shader> fromModule(ShaderModule &module,
                                           EShaderStage stage);
 };

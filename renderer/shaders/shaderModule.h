@@ -1,5 +1,5 @@
 #pragma once
-#include "logicalDevice.h"
+#include "device/device.h"
 #include <optional>
 #include <string>
 #include <vulkan/vulkan.h>
@@ -10,14 +10,14 @@ class ShaderModule {
 
 public:
   ShaderModule(VkShaderModule module, Device::Ref &device)
-      : module(module), device(device) {}
+      : device(device), module(module) {}
 
   ShaderModule(const ShaderModule &) = delete;
   ShaderModule &operator=(const ShaderModule &) = delete;
   ShaderModule &operator=(ShaderModule &&other) = delete;
 
   ShaderModule(ShaderModule &&other) noexcept
-      : module(other.module), device(other.device) {
+      : device(other.device), module(other.module) {
     other.module = VK_NULL_HANDLE;
   }
 
@@ -31,7 +31,7 @@ public:
 
 public:
   static std::optional<ShaderModule> fromCode(std::vector<char> &code,
-                                              Device::Ref &device);
+                                              Device &device);
   static std::optional<ShaderModule> fromFile(const std::string &fileName,
-                                              Device::Ref &device);
+                                              Device &device);
 };

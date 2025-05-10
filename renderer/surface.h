@@ -1,7 +1,7 @@
 #pragma once
 
+#include "device/physicalDevice.h"
 #include "instance.h"
-#include "physicalDevice.h"
 #include "window.h"
 #include <optional>
 #include <utility>

@@ -23,6 +23,7 @@ public:
     void set(Device *device) { *this->device = device; }
 
     Device &operator*() { return **device; }
+    VkDevice &raw() { return ***device; }
   };
 
 private:
@@ -33,6 +34,7 @@ public:
   Device(VkDevice device) : device(device), reference(Ref::create(this)) {}
   void destroy() {
     if (device != VK_NULL_HANDLE) {
+      waitIdle();
       std::cout << "Destroying logical device" << std::endl;
       vkDestroyDevice(device, nullptr);
       device = VK_NULL_HANDLE;
@@ -57,4 +59,6 @@ public:
                                       VkDeviceCreateInfo &createInfo);
 
   std::optional<Queue> getQueue(uint32_t queueFamilyIndex, uint32_t queueIndex);
+
+  VkResult waitIdle() { return vkDeviceWaitIdle(device); }
 };

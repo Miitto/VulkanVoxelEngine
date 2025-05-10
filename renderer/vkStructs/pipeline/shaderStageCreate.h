@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../shader.h"
+#include "shaders/shader.h"
 #include <vulkan/vulkan.h>
 
 class PipelineShaderStageCreateInfoBuilder {
   VkPipelineShaderStageCreateInfo createInfo;
 
 public:
-  PipelineShaderStageCreateInfoBuilder(Shader shader) {
+  PipelineShaderStageCreateInfoBuilder(Shader &shader) {
     createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
@@ -27,6 +27,7 @@ public:
     }
     createInfo.module = *shader.getModule();
     createInfo.pName = "main";
+    createInfo.pSpecializationInfo = nullptr;
   }
 
   PipelineShaderStageCreateInfoBuilder &setPNext(void *pNext) {

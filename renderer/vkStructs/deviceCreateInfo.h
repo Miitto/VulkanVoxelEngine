@@ -32,7 +32,6 @@ public:
   DeviceCreateInfoBuilder &
   addQueueCreateInfo(const VkDeviceQueueCreateInfo &queueCreateInfo) {
     auto queueIdx = queueCreateInfo.queueFamilyIndex;
-    auto queueCount = queueCreateInfo.queueCount;
 
     for (auto &info : queueCreateInfos) {
       if (info.queueFamilyIndex == queueIdx) {

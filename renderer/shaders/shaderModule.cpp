@@ -25,9 +25,8 @@ static std::optional<std::vector<char>> readFile(const std::string &fileName) {
   return buffer;
 }
 
-std::optional<ShaderModule>
-ShaderModule::fromFile(const std::string &fileName,
-                       std::shared_ptr<Device> &device) {
+std::optional<ShaderModule> ShaderModule::fromFile(const std::string &fileName,
+                                                   Device &device) {
   auto code = readFile(fileName);
   if (!code) {
     std::cerr << "Failed to read shader file: " << fileName << std::endl;
@@ -37,18 +36,19 @@ ShaderModule::fromFile(const std::string &fileName,
   return ShaderModule::fromCode(*code, device);
 }
 
-std::optional<ShaderModule>
-ShaderModule::fromCode(std::vector<char> &code,
-                       std::shared_ptr<Device> &device) {
-  auto createInfo = ShaderModuleCreateInfoBuilder(code).build();
+std::optional<ShaderModule> ShaderModule::fromCode(std::vector<char> &code,
+                                                   Device &device) {
+  ShaderModuleCreateInfoBuilder builder(code);
+
+  auto createInfo = builder.build();
 
   VkShaderModule shaderModule;
-  if (vkCreateShaderModule(**device, &createInfo, nullptr, &shaderModule) !=
+  if (vkCreateShaderModule(*device, &createInfo, nullptr, &shaderModule) !=
       VK_SUCCESS) {
     std::cerr << "Failed to create shader module" << std::endl;
     return std::nullopt;
   }
 
-  ShaderModule module(shaderModule, device);
+  ShaderModule module(shaderModule, device.ref());
   return module;
 }

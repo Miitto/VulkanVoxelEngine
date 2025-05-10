@@ -1,4 +1,4 @@
-#include "logicalDevice.h"
+#include "device.h"
 
 std::optional<Device> Device::create(PhysicalDevice &physicalDevice,
                                      VkDeviceCreateInfo &createInfo) {
