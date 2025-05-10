@@ -13,7 +13,6 @@ public:
   Window(const char *name, const uint32_t width, const uint32_t height);
   ~Window() {
     if (window != nullptr) {
-      std::println("Destroying window");
       glfwDestroyWindow(window);
     }
   }

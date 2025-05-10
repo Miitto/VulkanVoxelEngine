@@ -11,7 +11,6 @@ class Fence {
   Fence() = delete;
   Fence(const Fence &) = delete;
   Fence &operator=(const Fence &) = delete;
-  Fence &operator=(Fence &&) = delete;
 
 public:
   Fence(VkFence semaphore, Device &device)
@@ -19,6 +18,15 @@ public:
 
   Fence(Fence &&other) noexcept : fence(other.fence), device(other.device) {
     other.fence = VK_NULL_HANDLE;
+  }
+
+  Fence operator=(Fence &&other) noexcept {
+    if (this != &other) {
+      fence = other.fence;
+      device = other.device;
+      other.fence = VK_NULL_HANDLE;
+    }
+    return std::move(*this);
   }
 
   static std::optional<Fence> create(Device &device,

@@ -56,12 +56,17 @@ public:
   std::optional<std::vector<Framebuffer>>
   createFramebuffers(RenderPass &renderPass);
 
-  uint32_t getNextImage(VkSemaphore semaphore = VK_NULL_HANDLE,
-                        VkFence fence = VK_NULL_HANDLE,
-                        uint64_t timeout = UINT64_MAX) {
+  struct SwapchainImageState {
+    VkResult state;
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(**device, swapchain, timeout, semaphore, fence,
-                          &imageIndex);
-    return imageIndex;
+  };
+
+  SwapchainImageState getNextImage(VkSemaphore semaphore = VK_NULL_HANDLE,
+                                   VkFence fence = VK_NULL_HANDLE,
+                                   uint64_t timeout = UINT64_MAX) {
+    uint32_t imageIndex;
+    VkResult result = vkAcquireNextImageKHR(**device, swapchain, timeout,
+                                            semaphore, fence, &imageIndex);
+    return {result, imageIndex};
   }
 };

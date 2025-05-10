@@ -11,7 +11,6 @@ class Semaphore {
   Semaphore() = delete;
   Semaphore(const Semaphore &) = delete;
   Semaphore &operator=(const Semaphore &) = delete;
-  Semaphore &operator=(Semaphore &&) = delete;
 
 public:
   Semaphore(VkSemaphore semaphore, Device &device)
@@ -20,6 +19,15 @@ public:
   Semaphore(Semaphore &&other) noexcept
       : semaphore(other.semaphore), device(other.device) {
     other.semaphore = VK_NULL_HANDLE;
+  }
+
+  Semaphore operator=(Semaphore &&other) noexcept {
+    if (this != &other) {
+      semaphore = other.semaphore;
+      device = other.device;
+      other.semaphore = VK_NULL_HANDLE;
+    }
+    return std::move(*this);
   }
 
   static std::optional<Semaphore> create(Device &device);

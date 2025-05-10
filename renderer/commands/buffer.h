@@ -54,15 +54,6 @@ private:
   CommandBuffer() = delete;
 
 public:
-  CommandBuffer(const CommandBuffer &o)
-      : commandBuffer(o.commandBuffer), encoder(o.encoder) {};
-
-  CommandBuffer &operator=(const CommandBuffer &o) {
-    commandBuffer = o.commandBuffer;
-    encoder = o.encoder;
-    return *this;
-  };
-
   CommandBuffer(VkCommandBuffer commandBuffer)
       : commandBuffer(commandBuffer),
         encoder(std::make_shared<std::optional<Encoder>>(std::nullopt)) {}

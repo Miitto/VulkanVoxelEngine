@@ -18,5 +18,5 @@ std::optional<Queue> Device::getQueue(uint32_t queueFamilyIndex,
   if (queue == VK_NULL_HANDLE) {
     return std::nullopt;
   }
-  return Queue(queue);
+  return Queue(queue, queueFamilyIndex);
 }

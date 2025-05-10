@@ -31,7 +31,7 @@ std::optional<CommandBuffer> CommandPool::allocBuffer(bool secondary) {
 std::optional<std::vector<CommandBuffer>>
 CommandPool::allocBuffers(uint32_t count, bool secondary) {
   std::vector<VkCommandBuffer> rawCommandBuffers;
-  rawCommandBuffers.reserve(count);
+  rawCommandBuffers.resize(count);
 
   CommandBufferAllocateInfoBuilder allocInfo(**this, secondary);
   allocInfo.setCount(count);
@@ -47,7 +47,20 @@ CommandPool::allocBuffers(uint32_t count, bool secondary) {
   std::vector<CommandBuffer> commandBuffers;
 
   for (auto &rawCommandBuffer : rawCommandBuffers) {
+    if (rawCommandBuffer == VK_NULL_HANDLE) {
+      std::cerr << "Failed to allocate command buffer, got VK_NULL_HANDLE"
+                << std::endl;
+      return std::nullopt;
+    }
+
     commandBuffers.emplace_back(rawCommandBuffer);
+  }
+
+  if (commandBuffers.size() != count) {
+    std::cerr << "Failed to allocate all command buffers, allocated "
+              << commandBuffers.size() << " buffers instead of " << count
+              << std::endl;
+    return std::nullopt;
   }
 
   return std::move(commandBuffers);

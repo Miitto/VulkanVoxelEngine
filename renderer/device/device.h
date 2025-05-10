@@ -35,7 +35,6 @@ public:
   void destroy() {
     if (device != VK_NULL_HANDLE) {
       waitIdle();
-      std::cout << "Destroying logical device" << std::endl;
       vkDestroyDevice(device, nullptr);
       device = VK_NULL_HANDLE;
     }

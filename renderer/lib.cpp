@@ -452,24 +452,41 @@ std::optional<App> App::create() {
   }
   auto &commandPool = commandPool_opt.value();
 
-  auto commandBuffer_opt = commandPool.allocBuffer();
-  if (!commandBuffer_opt.has_value()) {
+  auto commandBuffer_opt = commandPool.allocBuffers(MAX_FRAMES_IN_FLIGHT);
+  if (!commandBuffer_opt.has_value() ||
+      commandBuffer_opt.value().size() != MAX_FRAMES_IN_FLIGHT) {
     std::cerr << "Failed to allocate command buffer." << std::endl;
     return std::nullopt;
   }
-  auto &commandBuffer = commandBuffer_opt.value();
+  auto &commandBuffers = commandBuffer_opt.value();
 
-  auto imageSem = Semaphore::create(device);
-  auto renderSem = Semaphore::create(device);
-  auto inFlightFence = Fence::create(device, true);
+  auto imageSem1 = Semaphore::create(device);
+  auto renderSem1 = Semaphore::create(device);
+  auto inFlightFence1 = Fence::create(device, true);
+  auto imageSem2 = Semaphore::create(device);
+  auto renderSem2 = Semaphore::create(device);
+  auto inFlightFence2 = Fence::create(device, true);
 
-  SyncObjects syncObjects{.imageAvailable = std::move(imageSem.value()),
-                          .renderFinished = std::move(renderSem.value()),
-                          .inFlight = std::move(inFlightFence.value())};
+  if (!imageSem1.has_value() || !renderSem1.has_value() ||
+      !inFlightFence1.has_value() || !imageSem2.has_value() ||
+      !renderSem2.has_value() || !inFlightFence2.has_value()) {
+    std::cerr << "Failed to create synchronization objects." << std::endl;
+    return std::nullopt;
+  }
+
+  std::array<Frame, MAX_FRAMES_IN_FLIGHT> frames{
+      {{.commandBuffer = commandBuffers[0],
+        .imageAvailable = std::move(imageSem1.value()),
+        .renderFinished = std::move(renderSem1.value()),
+        .inFlight = std::move(inFlightFence1.value())},
+       {.commandBuffer = commandBuffers[1],
+        .imageAvailable = std::move(imageSem2.value()),
+        .renderFinished = std::move(renderSem2.value()),
+        .inFlight = std::move(inFlightFence2.value())}}};
 
   App app(window, instance, surface, device, graphicsQueue.value(),
           presentQueue.value(), swapchain, layout, renderPass, framebuffers,
-          pipeline, commandPool, commandBuffer, syncObjects);
+          pipeline, commandPool, frames);
 
   return std::move(app);
 }
@@ -488,35 +505,54 @@ void App::run() {
 void App::update() {}
 
 void App::render() {
-  syncObjects.inFlight.wait(true);
-  uint32_t imageIndex = swapchain.getNextImage(*syncObjects.imageAvailable);
+  frames[currentFrame].inFlight.wait();
+  auto [swpachainState, imageIndex] =
+      swapchain.getNextImage(*frames[currentFrame].imageAvailable);
 
-  commandBuffer.reset();
-  recordCommandBuffer(commandBuffer, imageIndex);
+  switch (swpachainState) {
+  case VK_SUBOPTIMAL_KHR:
+  case VK_ERROR_OUT_OF_DATE_KHR:
+    std::println("TODO: Recreate swapchain");
+    return;
+  case VK_SUCCESS:
+    break;
+  default: {
+    std::cerr << "Failed to acquire swapchain image." << std::endl;
+    return;
+  }
+  }
+
+  frames[currentFrame].inFlight.reset();
+
+  frames[currentFrame].commandBuffer.reset();
+  recordCommandBuffer(frames[currentFrame].commandBuffer, imageIndex);
 
   SubmitInfoBuilder submitInfoBuilder;
   submitInfoBuilder
-      .addWaitSemaphore(*syncObjects.imageAvailable,
+      .addWaitSemaphore(*frames[currentFrame].imageAvailable,
                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-      .addSignalSemaphore(*syncObjects.renderFinished)
-      .addCommandBuffer(*commandBuffer);
+      .addSignalSemaphore(*frames[currentFrame].renderFinished)
+      .addCommandBuffer(*frames[currentFrame].commandBuffer);
 
   auto submitInfo = submitInfoBuilder.build();
 
-  if (graphicsQueue.submit(submitInfo, *syncObjects.inFlight) != VK_SUCCESS) {
+  if (graphicsQueue.submit(submitInfo, *frames[currentFrame].inFlight) !=
+      VK_SUCCESS) {
     std::cerr << "Failed to submit draw command buffer." << std::endl;
     return;
   }
 
   PresentInfoBuilder presentInfoBuilder =
       PresentInfoBuilder()
-          .addWaitSemaphore(*syncObjects.renderFinished)
+          .addWaitSemaphore(*frames[currentFrame].renderFinished)
           .addSwapchain(*swapchain)
           .setImageIndex(imageIndex);
 
   auto presentInfo = presentInfoBuilder.build();
 
   presentQueue.present(presentInfo);
+
+  currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void App::recordCommandBuffer(CommandBuffer &commandBuffer,

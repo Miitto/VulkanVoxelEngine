@@ -135,8 +135,8 @@ public:
     return *this;
   }
 
-  SwapChainCreateInfoBuilder &setOldSwapChain(VkSwapchainKHR oldSwapChain) {
-    createInfo.oldSwapchain = oldSwapChain;
+  SwapChainCreateInfoBuilder &setOldSwapchain(VkSwapchainKHR oldSwapchain) {
+    createInfo.oldSwapchain = oldSwapchain;
     return *this;
   }
 

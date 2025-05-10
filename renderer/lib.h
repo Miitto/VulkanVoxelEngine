@@ -1,5 +1,7 @@
 #pragma once
 
+const int MAX_FRAMES_IN_FLIGHT = 2;
+
 #include "commands/pool.h"
 #include "device/device.h"
 #include "framebuffer.h"
@@ -11,6 +13,8 @@
 #include <cstdint>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+
+#include <array>
 
 #include "instance.h"
 #include "pipeline/graphics.h"
@@ -49,13 +53,16 @@ public:
   void update();
   void render();
 
-  struct SyncObjects {
+  struct Frame {
+    CommandBuffer commandBuffer;
     Semaphore imageAvailable;
     Semaphore renderFinished;
     Fence inFlight;
   };
 
 private:
+  int currentFrame = 0;
+
   Window window;
   Instance instance;
   Surface surface;
@@ -68,15 +75,13 @@ private:
   std::vector<Framebuffer> framebuffers;
   GraphicsPipeline pipeline;
   CommandPool commandPool;
-  CommandBuffer commandBuffer;
-  SyncObjects syncObjects;
+  std::array<Frame, MAX_FRAMES_IN_FLIGHT> frames;
 
   App(Window &window, Instance &instance, Surface &surface, Device &device,
       Queue graphicsQueue, PresentQueue presentQueue, Swapchain &swapchain,
       PipelineLayout &pipelineLayout, RenderPass &renderPass,
       std::vector<Framebuffer> &framebuffers, GraphicsPipeline &pipeline,
-      CommandPool &commandPool, CommandBuffer commandBuffer,
-      SyncObjects &syncObjects)
+      CommandPool &commandPool, std::array<Frame, MAX_FRAMES_IN_FLIGHT> &frames)
       : window(std::move(window)), instance(std::move(instance)),
         surface(std::move(surface)), device(std::move(device)),
         graphicsQueue(graphicsQueue), presentQueue(presentQueue),
@@ -84,6 +89,5 @@ private:
         pipelineLayout(std::move(pipelineLayout)),
         renderPass(std::move(renderPass)),
         framebuffers(std::move(framebuffers)), pipeline(std::move(pipeline)),
-        commandPool(std::move(commandPool)), commandBuffer(commandBuffer),
-        syncObjects(std::move(syncObjects)) {}
+        commandPool(std::move(commandPool)), frames(std::move(frames)) {}
 };

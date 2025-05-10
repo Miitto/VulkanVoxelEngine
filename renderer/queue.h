@@ -6,9 +6,11 @@
 class Queue {
 protected:
   VkQueue queue;
+  int familyIndex;
 
 public:
-  Queue(VkQueue queue) : queue(VkQueue(queue)) {}
+  Queue(VkQueue queue, int familyIndex)
+      : queue(VkQueue(queue)), familyIndex(familyIndex) {}
 
   VkResult submit(VkSubmitInfo &submitInfo, VkFence fence = VK_NULL_HANDLE) {
     return vkQueueSubmit(queue, 1, &submitInfo, fence);
@@ -41,7 +43,7 @@ public:
 
 class PresentQueue : Queue {
 public:
-  PresentQueue(VkQueue queue) : Queue(queue) {}
+  PresentQueue(VkQueue queue, int familyIndex) : Queue(queue, familyIndex) {}
   PresentQueue(Queue &&other) : Queue(std::move(other)) {}
   VkResult present(VkPresentInfoKHR &presentInfo) {
     return vkQueuePresentKHR(queue, &presentInfo);
