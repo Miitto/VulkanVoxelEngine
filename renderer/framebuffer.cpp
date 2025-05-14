@@ -1,4 +1,5 @@
 #include "framebuffer.h"
+#include <iostream>
 
 std::optional<Framebuffer> Framebuffer::create(Device &device,
                                                VkFramebufferCreateInfo info) {

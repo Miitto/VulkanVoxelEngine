@@ -1,20 +1,16 @@
 #pragma once
 
-#include "vulkan/vulkan.h"
+#include "vulkan/vulkan_core.h"
 
-class PipelineLayoutCreateInfoBuilder {
-  VkPipelineLayoutCreateInfo createInfo;
-
+class PipelineLayoutCreateInfo : public VkPipelineLayoutCreateInfo {
 public:
-  PipelineLayoutCreateInfoBuilder() {
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.setLayoutCount = 0;
-    createInfo.pSetLayouts = nullptr;
-    createInfo.pushConstantRangeCount = 0;
-    createInfo.pPushConstantRanges = nullptr;
+  PipelineLayoutCreateInfo() {
+    sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pNext = nullptr;
+    flags = 0;
+    setLayoutCount = 0;
+    pSetLayouts = nullptr;
+    pushConstantRangeCount = 0;
+    pPushConstantRanges = nullptr;
   }
-
-  VkPipelineLayoutCreateInfo build() { return createInfo; }
 };

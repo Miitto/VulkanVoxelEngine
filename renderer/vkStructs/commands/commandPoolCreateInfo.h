@@ -1,42 +1,48 @@
 #pragma once
 
-#include "vulkan/vulkan.h"
+#include "vulkan/vulkan_core.h"
 
-class CommandPoolCreateInfoBuilder {
-  VkCommandPoolCreateInfo createInfo;
+class CommandPoolCreateInfo : public VkCommandPoolCreateInfo {
 
 public:
-  CommandPoolCreateInfoBuilder(uint32_t queueFamilyIndex) {
-    createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.queueFamilyIndex = queueFamilyIndex;
+  CommandPoolCreateInfo(uint32_t queueFamily, bool resetable = false,
+                        bool transient = false) {
+    sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pNext = nullptr;
+    flags = 0;
+    queueFamilyIndex = queueFamily;
+
+    if (resetable) {
+      flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    }
+
+    if (transient) {
+      flags |= VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    }
   }
 
-  CommandPoolCreateInfoBuilder &setFlags(VkCommandPoolCreateFlags flags) {
-    createInfo.flags = flags;
+  CommandPoolCreateInfo &setFlags(VkCommandPoolCreateFlags flags) {
+    this->flags = flags;
     return *this;
   }
 
-  CommandPoolCreateInfoBuilder &setQueueFamilyIndex(uint32_t index) {
-    createInfo.queueFamilyIndex = index;
+  CommandPoolCreateInfo &setQueueFamilyIndex(uint32_t index) {
+    queueFamilyIndex = index;
     return *this;
   }
 
-  CommandPoolCreateInfoBuilder &setPNext(void *pNext) {
-    createInfo.pNext = pNext;
+  CommandPoolCreateInfo &setPNext(void *next) {
+    pNext = next;
     return *this;
   }
 
-  CommandPoolCreateInfoBuilder &resetable() {
-    createInfo.flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+  CommandPoolCreateInfo &resetable() {
+    flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     return *this;
   }
 
-  CommandPoolCreateInfoBuilder &transient() {
-    createInfo.flags |= VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+  CommandPoolCreateInfo &transient() {
+    flags |= VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     return *this;
   }
-
-  VkCommandPoolCreateInfo build() { return createInfo; }
 };

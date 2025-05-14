@@ -1,4 +1,7 @@
-#include "lib.h"
+#include "app.h"
+#include "vkStructs/commands/renderPassBeginInfo.h"
+#include "vkStructs/presentInfo.h"
+#include "vkStructs/submitInfo.h"
 #include <iostream>
 
 int main() {
@@ -21,4 +24,112 @@ int main() {
 
   std::cout << "Application terminated successfully." << std::endl;
   return EXIT_SUCCESS;
+}
+
+void App::run() {
+  std::println("Running app...");
+  while (!window.shouldClose()) {
+    glfwPollEvents();
+
+    update();
+    render();
+  }
+  std::println("App closed.");
+}
+
+void App::update() {}
+
+void App::render() {
+  frames[currentFrame].inFlight.wait();
+  auto [swpachainState, imageIndex] =
+      swapchain.getNextImage(*frames[currentFrame].imageAvailable);
+
+  switch (swpachainState) {
+  case VK_SUBOPTIMAL_KHR:
+  case VK_ERROR_OUT_OF_DATE_KHR:
+    std::println("TODO: Recreate swapchain");
+    return;
+  case VK_SUCCESS:
+    break;
+  default: {
+    std::cerr << "Failed to acquire swapchain image." << std::endl;
+    return;
+  }
+  }
+
+  frames[currentFrame].inFlight.reset();
+
+  frames[currentFrame].commandBuffer.reset();
+  recordCommandBuffer(frames[currentFrame].commandBuffer, imageIndex);
+
+  SubmitInfoBuilder submitInfoBuilder;
+  submitInfoBuilder
+      .addWaitSemaphore(*frames[currentFrame].imageAvailable,
+                        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+      .addSignalSemaphore(*frames[currentFrame].renderFinished)
+      .addCommandBuffer(*frames[currentFrame].commandBuffer);
+
+  auto submitInfo = submitInfoBuilder.build();
+
+  if (graphicsQueue.submit(submitInfo, *frames[currentFrame].inFlight) !=
+      VK_SUCCESS) {
+    std::cerr << "Failed to submit draw command buffer." << std::endl;
+    return;
+  }
+
+  PresentInfoBuilder presentInfoBuilder =
+      PresentInfoBuilder()
+          .addWaitSemaphore(*frames[currentFrame].renderFinished)
+          .addSwapchain(*swapchain)
+          .setImageIndex(imageIndex);
+
+  auto presentInfo = presentInfoBuilder.build();
+
+  presentQueue.present(presentInfo);
+
+  currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void App::recordCommandBuffer(CommandBuffer &commandBuffer,
+                              uint32_t imageIndex) {
+  auto encoder = commandBuffer.begin();
+
+  RenderPassBeginInfoBuilder renderPassInfo(
+      *renderPass, *framebuffers[imageIndex],
+      VkRect2D{.offset = {0, 0}, .extent = swapchain.getExtent()});
+
+  renderPassInfo.addClearValue({.color = {{0.0f, 0.0f, 0.0f, 1.0f}}});
+
+  auto pass = encoder.beginRenderPass(renderPassInfo.build());
+
+  pass.bindPipeline(pipeline);
+
+  VkViewport viewport = {
+      .x = 0.0f,
+      .y = 0.0f,
+      .width = static_cast<float>(swapchain.getExtent().width),
+      .height = static_cast<float>(swapchain.getExtent().height),
+      .minDepth = 0.0f,
+      .maxDepth = 1.0f};
+
+  VkRect2D scissor = {.offset = {0, 0}, .extent = swapchain.getExtent()};
+
+  pass.setViewport(viewport);
+  pass.setScissor(scissor);
+
+  pass.draw(3);
+
+  pass.end();
+
+  encoder.end();
+}
+
+App::~App() {
+  if (moveGuard.isMoved()) {
+    return;
+  }
+
+  device.waitIdle();
+
+  glfwTerminate();
 }

@@ -18,7 +18,7 @@ public:
 
   VkResult submit(std::vector<VkSubmitInfo> &submitInfo,
                   VkFence fence = VK_NULL_HANDLE) {
-    return vkQueueSubmit(queue, submitInfo.size(), submitInfo.data(), fence);
+    return vkQueueSubmit(queue, static_cast<uint32_t>(submitInfo.size()), submitInfo.data(), fence);
   }
 };
 

@@ -29,7 +29,7 @@ public:
   }
 
   VkPipelineColorBlendStateCreateInfo build() {
-    createInfo.attachmentCount = attachments.size();
+    createInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     createInfo.pAttachments = attachments.data();
 
     return createInfo;

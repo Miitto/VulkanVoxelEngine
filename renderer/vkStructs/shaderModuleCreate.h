@@ -7,7 +7,7 @@
 
 class ShaderModuleCreateInfoBuilder {
   VkShaderModuleCreateInfo createInfo;
-  std::vector<char> code;
+  std::vector<char> m_code;
 
 public:
   bool checkCode(const std::vector<char> &code) {
@@ -35,19 +35,19 @@ public:
     createInfo.pCode = nullptr;
 
     checkCode(code);
-    this->code = code;
+    this->m_code = code;
   }
 
   ShaderModuleCreateInfoBuilder &setCode(const std::vector<char> &code) {
     checkCode(code);
-    this->code = code;
+    this->m_code = code;
 
     return *this;
   }
 
   VkShaderModuleCreateInfo build() {
-    createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+    createInfo.codeSize = m_code.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t *>(m_code.data());
 
     return createInfo;
   }

@@ -1,68 +1,25 @@
 #pragma once
+
 #include "GLFW/glfw3.h"
-#include "instance.h"
+#include "vulkan/vulkan_core.h"
 #include <cstring>
 #include <iostream>
 #include <optional>
 #include <print>
 #include <vector>
 
-class InstanceCreateInfoBuilder {
-  VkApplicationInfo appInfo;
-  VkInstanceCreateInfo createInfo;
-  bool validationLayers = false;
-  bool GLFWExtensions = false;
-
+namespace vk {
+class InstanceCreateInfo : public VkInstanceCreateInfo {
   std::vector<const char *> layers;
   std::vector<const char *> extensions;
 
-public:
-  InstanceCreateInfoBuilder(VkApplicationInfo appInfo) {
-    this->appInfo = appInfo;
-
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.pApplicationInfo = &this->appInfo;
-    createInfo.enabledLayerCount = 0;
-    createInfo.ppEnabledLayerNames = nullptr;
-    createInfo.enabledExtensionCount = 0;
-    createInfo.ppEnabledExtensionNames = nullptr;
-  }
-
-  InstanceCreateInfoBuilder &
-  setApplicationInfo(const VkApplicationInfo appInfo) {
-    this->appInfo = appInfo;
-    createInfo.pApplicationInfo = &appInfo;
-    return *this;
-  }
-
-  InstanceCreateInfoBuilder &addLayer(const char *layer) {
-    layers.push_back(layer);
-    return *this;
-  }
-
-  InstanceCreateInfoBuilder &addExtension(const char *extension) {
-    extensions.push_back(extension);
-    return *this;
-  }
-
-  InstanceCreateInfoBuilder &setFlags(VkInstanceCreateFlags flags) {
-    createInfo.flags = flags;
-    return *this;
-  }
-
-  InstanceCreateInfoBuilder &setNext(const void *next) {
-    createInfo.pNext = next;
-    return *this;
-  }
-
-  bool checkValidationLayerSupport() {
+  std::optional<const char *> checkValidationLayerSupport() {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
     if (layerCount == 0) {
-      return false;
+      return std::nullopt;
     }
+
     std::vector<VkLayerProperties> availableLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
@@ -75,78 +32,129 @@ public:
         }
       }
       if (!layerFound) {
-        std::cerr << "Validation layer " << layerName
-                  << " not found. Validation layers are not supported."
+        std::cerr << "Validation layer " << layerName << " not found."
                   << std::endl;
-        return false;
+        return layerName;
       }
     }
-    return true;
+    return std::nullopt;
   }
 
-  const std::optional<VkInstanceCreateInfo> build() {
-    if (GLFWExtensions) {
-      uint32_t glfwExtensionCount = 0;
-      const char **glfwExtensions =
-          glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-      std::vector<char *> glfwExt(glfwExtensionCount);
-      for (uint32_t i = 0; i < glfwExtensionCount; i++) {
-        glfwExt[i] = const_cast<char *>(glfwExtensions[i]);
-      }
-      std::print("Enabling {} GLFW extensions (", glfwExtensionCount);
-      for (uint32_t i = 0; i < glfwExtensionCount; i++) {
-        std::print("{}", glfwExtensions[i]);
-        if (i != glfwExtensionCount - 1) {
-          std::print(", ");
+  std::optional<const char *> checkLayers() {
+    if (layers.empty()) {
+      return std::nullopt;
+    }
+
+    return checkValidationLayerSupport();
+  }
+
+  void setupExtensions() {
+    enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    ppEnabledExtensionNames = extensions.data();
+  }
+
+  void setupLayers() {
+    auto check = checkLayers();
+
+    while (check.has_value()) {
+      std::cerr << "Removing invalid layer: " << *check << std::endl;
+
+      for (size_t i = 0; i < layers.size(); i++) {
+        if (strcmp(layers[i], *check) == 0) {
+          layers.erase(layers.begin() + i);
+          break;
         }
       }
-      std::print(")\n");
-      for (uint32_t i = 0; i < glfwExtensionCount; i++) {
-        extensions.push_back(glfwExtensions[i]);
-      }
+
+      check = checkLayers();
     }
 
-    if (validationLayers) {
-      layers.push_back("VK_LAYER_KHRONOS_validation");
-    }
-
-    if (!layers.empty() && checkValidationLayerSupport()) {
-      auto layerCount = layers.size();
-      auto layerPtr = layerCount > 0 ? layers.data() : nullptr;
-
-      createInfo.enabledLayerCount = layerCount;
-      createInfo.ppEnabledLayerNames = layerPtr;
-    }
-
-    auto extensionCount = extensions.size();
-    auto extensionPtr = extensionCount > 0 ? extensions.data() : nullptr;
-
-    createInfo.enabledExtensionCount = extensionCount;
-    createInfo.ppEnabledExtensionNames = extensionPtr;
-
-    return createInfo;
+    enabledLayerCount = static_cast<uint32_t>(layers.size());
+    ppEnabledLayerNames = layers.data();
   }
 
-  std::optional<Instance> createInstance() {
-    VkInstance instance;
-    auto info = build();
-    if (!info.has_value()) {
-      return std::nullopt;
+public:
+  enum ValidationType { NONE, DEBUG, ALWAYS };
+  InstanceCreateInfo(VkApplicationInfo &appInfo,
+                     ValidationType validation = ValidationType::DEBUG,
+                     bool glfwExtensions = true) {
+    sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    pNext = nullptr;
+    flags = 0;
+    pApplicationInfo = &appInfo;
+    enabledLayerCount = 0;
+    ppEnabledLayerNames = nullptr;
+    enabledExtensionCount = 0;
+    ppEnabledExtensionNames = nullptr;
+
+    switch (validation) {
+    case ValidationType::DEBUG: {
+#ifndef NDEBUG
+      enableValidationLayers();
+#endif
+      break;
     }
-    VkResult result = vkCreateInstance(&info.value(), nullptr, &instance);
-    if (result != VK_SUCCESS) {
-      return std::nullopt;
+    case ValidationType::ALWAYS: {
+      enableValidationLayers();
+      break;
     }
-    return instance;
+    default: {
+      break;
+    }
+    }
+
+    if (glfwExtensions) {
+      enableGLFWExtensions();
+    }
   }
 
-  InstanceCreateInfoBuilder &enableGLFWExtensions() {
-    GLFWExtensions = true;
+  InstanceCreateInfo &addLayer(const char *layer) {
+    layers.push_back(layer);
+
+    setupLayers();
     return *this;
   }
 
-  InstanceCreateInfoBuilder &enableValidationLayers() {
-    validationLayers = true;
+  InstanceCreateInfo &addExtension(const char *extension) {
+    extensions.push_back(extension);
+
+    setupExtensions();
+    return *this;
+  }
+
+  InstanceCreateInfo &enableGLFWExtensions() {
+    uint32_t glfwExtensionCount = 0;
+    const char **glfwExtensions =
+        glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    std::vector<char *> glfwExt(glfwExtensionCount);
+    for (uint32_t i = 0; i < glfwExtensionCount; i++) {
+      glfwExt[i] = const_cast<char *>(glfwExtensions[i]);
+    }
+    std::print("Enabling {} GLFW extensions (", glfwExtensionCount);
+    for (uint32_t i = 0; i < glfwExtensionCount; i++) {
+      std::print("{}", glfwExtensions[i]);
+      if (i != glfwExtensionCount - 1) {
+        std::print(", ");
+      }
+    }
+    std::print(")\n");
+    for (uint32_t i = 0; i < glfwExtensionCount; i++) {
+      extensions.push_back(glfwExtensions[i]);
+    }
+
+    setupExtensions();
+
+    return *this;
+  }
+
+  InstanceCreateInfo &enableValidationLayers() {
+    std::println("Enabling validation layers");
+
+    layers.push_back("VK_LAYER_KHRONOS_validation");
+
+    setupLayers();
+
     return *this;
   }
 };
+} // namespace vk

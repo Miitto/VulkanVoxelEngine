@@ -1,38 +1,42 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vulkan/vulkan.h>
+
+class Surface;
+class Window;
 
 class Instance {
 public:
   class Ref {
     friend class Instance;
-    std::shared_ptr<Instance *> instance;
+    std::shared_ptr<Instance *> m_instance;
 
     Ref() = delete;
     explicit Ref(Instance *instance)
-        : instance(std::make_shared<Instance *>(instance)) {}
+        : m_instance(std::make_shared<Instance *>(instance)) {}
 
   protected:
     static Ref create(Instance &instance) { return Ref(&instance); }
     static Ref create(Instance *instance) { return Ref(instance); }
 
   public:
-    void set(Instance *instance) { *this->instance = instance; }
-    Instance &operator*() { return **instance; }
+    void set(Instance *instance) { *this->m_instance = instance; }
+    Instance &operator*() { return **m_instance; }
   };
 
 private:
-  VkInstance instance;
-  Ref reference;
+  VkInstance m_instance;
+  Ref m_reference;
 
 public:
   Instance(VkInstance instance)
-      : instance(instance), reference(Ref::create(this)) {}
+      : m_instance(instance), m_reference(Ref::create(this)) {}
   ~Instance() {
-    if (instance != VK_NULL_HANDLE) {
-      vkDestroyInstance(instance, nullptr);
+    if (m_instance != VK_NULL_HANDLE) {
+      vkDestroyInstance(m_instance, nullptr);
     }
   }
 
@@ -40,11 +44,15 @@ public:
   Instance &operator=(const Instance &) = delete;
   Instance &operator=(Instance &&o) = delete;
   Instance(Instance &&o) noexcept
-      : instance(std::move(o.instance)), reference(o.reference) {
-    o.instance = VK_NULL_HANDLE;
-    reference.set(this);
+      : m_instance(std::move(o.m_instance)), m_reference(o.m_reference) {
+    o.m_instance = VK_NULL_HANDLE;
+    m_reference.set(this);
   }
 
-  VkInstance &operator*() { return instance; }
-  Ref &ref() { return reference; }
+  VkInstance &operator*() { return m_instance; }
+  Ref &ref() { return m_reference; }
+
+  static std::optional<Instance> create(VkInstanceCreateInfo &createInfo);
+
+  std::optional<Surface> createSurface(Window &window);
 };

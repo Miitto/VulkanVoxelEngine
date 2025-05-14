@@ -1,71 +1,37 @@
-#include "lib.h"
-#include "device/physicalDevice.h"
-#include "pipeline/graphics.h"
-#include "pipeline/layout.h"
-#include "pipeline/renderPass.h"
-#include "queue.h"
-#include "shaders/shader.h"
-#include "swapchain.h"
+#include "app.h"
+#include "instance.h"
 #include "vkStructs/all.h"
-#include "vkStructs/presentInfo.h"
-#include "vkStructs/renderPass.h"
-#include "vkStructs/submitInfo.h"
+
 #include <algorithm>
-#include <iostream>
-#include <print>
-#include <vulkan/vulkan_core.h>
+#include <optional>
 
 const uint32_t WIDTH = 800, HEIGHT = 600;
 
-std::optional<Instance> makeInstance() {
-  auto appInfo = ApplicationInfoBuilder().build();
-  auto instance = InstanceCreateInfoBuilder(appInfo)
-                      .enableGLFWExtensions()
-                      .enableValidationLayers()
-                      .createInstance();
-
-  return instance;
-}
-
-struct DeviceReturn {
-  PhysicalDevice device;
-  SurfaceAttributes swapchainSupport;
-};
-
-std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
+std::optional<PhysicalDevice> findDevice(Instance &instance, Surface &surface) {
   auto physicalDevices = PhysicalDevice::all(instance);
   std::println("Found {} physical devices", physicalDevices.size());
 
-  std::vector<uint32_t> ratings(physicalDevices.size(), 0);
+  std::vector<char const *> requiredExtensions = {
+      VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
+  std::vector<uint32_t> ratings(physicalDevices.size(), 1);
   for (size_t i = 0; i < physicalDevices.size(); i++) {
     auto &device = physicalDevices[i];
-    ratings[i] = 1;
-
-    std::vector<char const *> requiredExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
     auto unsupportedExtensions =
         device.findUnsupportedExtensions(requiredExtensions);
 
     if (unsupportedExtensions.size() > 0) {
-      std::cerr << "Device " << i << " does not support required extensions: ";
-      for (auto extension : unsupportedExtensions) {
-        std::cerr << extension << " ";
-      }
-      std::cerr << std::endl;
       ratings[i] = 0;
       continue;
     }
 
-    // Need to do this after extensions, since this wil fail if the device
+    // Need to do this after extensions, since this wil fail if the m_device
     // doesn't support swap chains
     auto surfaceAttrs = SurfaceAttributes(device, surface);
 
     if (surfaceAttrs.formats.size() == 0 ||
         surfaceAttrs.presentModes.size() == 0) {
-      std::cerr << "Device " << i
-                << " does not support swap chain formats or present modes."
-                << std::endl;
       ratings[i] = 0;
       continue;
     }
@@ -75,35 +41,21 @@ std::optional<DeviceReturn> findDevice(Instance &instance, Surface &surface) {
     }
   }
 
-  uint32_t maxRating = 0;
-  int maxIndex = -1;
-  for (size_t i = 0; i < ratings.size(); i++) {
-    if (ratings[i] > maxRating) {
-      maxRating = ratings[i];
-      maxIndex = i;
-    }
-  }
+  int maxIndex = static_cast<int>(
+      std::max_element(ratings.begin(), ratings.end()) - ratings.begin());
 
-  if (maxRating == 0) {
-    std::cerr << "Failed to find a suitable physical device." << std::endl;
+  if (ratings[maxIndex] == 0)
     return std::nullopt;
-  }
 
   PhysicalDevice &physicalDevice = physicalDevices[maxIndex];
 
   auto swapChainSupport = SurfaceAttributes(physicalDevice, surface);
 
-  if (physicalDevice.isDiscrete()) {
-    std::println("Found discrete device: {}",
-                 physicalDevice.getProperties().deviceName);
-  } else {
-    std::println("Found integrated device: {}",
-                 physicalDevice.getProperties().deviceName);
-  }
+  std::println("Found {} device: {}",
+               physicalDevice.isDiscrete() ? "discrete" : "integrated",
+               physicalDevice.getProperties().deviceName);
 
-  DeviceReturn deviceReturn(std::move(physicalDevice), swapChainSupport);
-
-  return std::move(deviceReturn);
+  return physicalDevice;
 }
 
 VkSurfaceFormatKHR chooseSwapSurfaceFormat(
@@ -126,42 +78,6 @@ pickPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes) {
     }
   }
   return VK_PRESENT_MODE_FIFO_KHR;
-}
-
-VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities,
-                            Window &window) {
-  if (capabilities.currentExtent.width !=
-      std::numeric_limits<uint32_t>::max()) {
-    return capabilities.currentExtent;
-  } else {
-    int width, height;
-    glfwGetFramebufferSize(*window, &width, &height);
-
-    VkExtent2D actualExtent = {.width = static_cast<uint32_t>(width),
-                               .height = static_cast<uint32_t>(height)};
-
-    actualExtent.width =
-        std::clamp(actualExtent.width, capabilities.minImageExtent.width,
-                   capabilities.maxImageExtent.width);
-    actualExtent.height =
-        std::clamp(actualExtent.height, capabilities.minImageExtent.height,
-                   capabilities.maxImageExtent.height);
-
-    return actualExtent;
-  }
-}
-
-std::optional<PipelineLayout> makePipelineLayout(Device &device) {
-  PipelineLayoutCreateInfoBuilder pipelineLayoutCreateInfo;
-
-  auto pipelineLayout =
-      PipelineLayout::create(device, pipelineLayoutCreateInfo.build());
-  if (!pipelineLayout.has_value()) {
-    std::cerr << "Failed to create pipeline layout." << std::endl;
-    return std::nullopt;
-  }
-
-  return pipelineLayout;
 }
 
 std::optional<RenderPass> createRenderPass(Device &device,
@@ -294,50 +210,52 @@ std::optional<App> App::create() {
   }
   auto &window = window_opt.value();
 
-  auto instance_opt = makeInstance();
+  vk::ApplicationInfo appInfo;
+  vk::InstanceCreateInfo createInfo(appInfo);
+  auto instance_opt = Instance::create(createInfo);
   if (!instance_opt.has_value()) {
     std::cerr << "Failed to create Vulkan instance." << std::endl;
     return std::nullopt;
   }
   auto &instance = instance_opt.value();
 
-  auto surface_opt = Surface::create(instance, window);
+  auto surface_opt = instance.createSurface(window);
   if (!surface_opt.has_value()) {
     std::cerr << "Failed to create surface." << std::endl;
     return std::nullopt;
   }
   auto &surface = surface_opt.value();
 
-  auto deviceReturn = findDevice(instance, surface);
-  if (!deviceReturn.has_value()) {
+  auto phys_device_opt = findDevice(instance, surface);
+  if (!phys_device_opt.has_value()) {
     std::cerr << "Failed to find a suitable physical device." << std::endl;
     return std::nullopt;
   }
+  auto &physicalDevice = phys_device_opt.value();
 
-  auto &physicalDevice = deviceReturn->device;
-  auto swapchainSupport = deviceReturn->swapchainSupport;
+  auto swapchainSupport = SurfaceAttributes(physicalDevice, surface);
   auto format = chooseSwapSurfaceFormat(swapchainSupport.formats);
   auto presentMode = pickPresentMode(swapchainSupport.presentModes);
-  auto extent = chooseSwapExtent(swapchainSupport.capabilities, window);
+  auto extent = window.getExtent(swapchainSupport.capabilities);
 
   auto queueFamilies = physicalDevice.getQueues();
   std::println("Found {} queue families", queueFamilies.size());
 
-  std::optional<int> graphicsQueueFamilyIndex;
-  std::optional<int> presentQueueFamilyIndex;
+  std::optional<uint32_t> graphicsQueueFamilyIndex;
+  std::optional<uint32_t> presentQueueFamilyIndex;
 
   for (size_t i = 0; i < queueFamilies.size(); i++) {
     bool graphics = queueFamilies[i].hasGraphics();
     bool present = queueFamilies[i].canPresentTo(surface);
 
     if (graphics && present) {
-      graphicsQueueFamilyIndex = i;
-      presentQueueFamilyIndex = i;
+      graphicsQueueFamilyIndex = static_cast<uint32_t>(i);
+      presentQueueFamilyIndex = static_cast<uint32_t>(i);
       break;
     } else if (graphics) {
-      graphicsQueueFamilyIndex = i;
+      graphicsQueueFamilyIndex = static_cast<uint32_t>(i);
     } else if (present) {
-      presentQueueFamilyIndex = i;
+      presentQueueFamilyIndex = static_cast<uint32_t>(i);
     }
   }
 
@@ -351,23 +269,18 @@ std::optional<App> App::create() {
     return std::nullopt;
   }
 
-  DeviceQueueCreateInfoBuilder graphicsQueueCreateInfo(
-      graphicsQueueFamilyIndex.value());
-  DeviceQueueCreateInfoBuilder presentQueueCreateInfo(
-      presentQueueFamilyIndex.value());
+  vk::DeviceQueueCreateInfo graphicsQueueInfo(*graphicsQueueFamilyIndex);
+  vk::DeviceQueueCreateInfo presentQueueInfo(*presentQueueFamilyIndex);
 
-  DeviceCreateInfoBuilder deviceCreateInfo;
-  deviceCreateInfo.setPhysicalDeviceFeatures(physicalDevice.getFeatures());
-  deviceCreateInfo.addQueueCreateInfo(
-      graphicsQueueCreateInfo.setQueueCount(1).build());
-  deviceCreateInfo.addQueueCreateInfo(
-      presentQueueCreateInfo.setQueueCount(1).build());
+  vk::DeviceCreateInfo deviceCreateInfo(physicalDevice.getFeatures());
+  deviceCreateInfo.addQueue(graphicsQueueInfo)
+      .addQueue(presentQueueInfo)
+      .enableExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-  deviceCreateInfo.enableExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+  std::println("Creating device with {} queues",
+               deviceCreateInfo.queueCreateInfoCount);
 
-  VkDeviceCreateInfo deviceCreateInfoStruct = deviceCreateInfo.build();
-
-  auto device_opt = Device::create(physicalDevice, deviceCreateInfoStruct);
+  auto device_opt = Device::create(physicalDevice, deviceCreateInfo);
 
   if (!device_opt.has_value()) {
     std::cerr << "Failed to create logical device." << std::endl;
@@ -388,7 +301,7 @@ std::optional<App> App::create() {
     return std::nullopt;
   }
 
-  SwapChainCreateInfoBuilder swapChainCreateInfo(swapchainSupport, surface);
+  SwapChainCreateInfo swapChainCreateInfo(swapchainSupport, surface);
   swapChainCreateInfo.setImageFormat(format.format)
       .setImageColorSpace(format.colorSpace)
       .setImageExtent(extent)
@@ -404,14 +317,15 @@ std::optional<App> App::create() {
     swapChainCreateInfo.setImageSharingMode(VK_SHARING_MODE_EXCLUSIVE);
   }
 
-  auto swapchain_opt = Swapchain::create(device, swapChainCreateInfo.build());
+  auto swapchain_opt = device.createSwapchain(swapChainCreateInfo);
   if (!swapchain_opt.has_value()) {
     std::cerr << "Failed to create swap chain." << std::endl;
     return std::nullopt;
   }
   auto &swapchain = swapchain_opt.value();
 
-  auto layout_opt = makePipelineLayout(device);
+  PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+  auto layout_opt = PipelineLayout::create(device, pipelineLayoutCreateInfo);
   if (!layout_opt.has_value()) {
     std::cerr << "Failed to create pipeline layout." << std::endl;
     return std::nullopt;
@@ -439,13 +353,10 @@ std::optional<App> App::create() {
   }
   auto &pipeline = pipeline_opt.value();
 
-  CommandPoolCreateInfoBuilder commandPoolCreateInfo(
-      graphicsQueueFamilyIndex.value());
+  CommandPoolCreateInfo commandPoolCreateInfo(graphicsQueueFamilyIndex.value(),
+                                              true);
 
-  commandPoolCreateInfo.resetable();
-
-  auto commandPool_opt =
-      CommandPool::create(device, commandPoolCreateInfo.build());
+  auto commandPool_opt = CommandPool::create(device, commandPoolCreateInfo);
   if (!commandPool_opt.has_value()) {
     std::cerr << "Failed to create command pool." << std::endl;
     return std::nullopt;
@@ -460,12 +371,12 @@ std::optional<App> App::create() {
   }
   auto &commandBuffers = commandBuffer_opt.value();
 
-  auto imageSem1 = Semaphore::create(device);
-  auto renderSem1 = Semaphore::create(device);
-  auto inFlightFence1 = Fence::create(device, true);
-  auto imageSem2 = Semaphore::create(device);
-  auto renderSem2 = Semaphore::create(device);
-  auto inFlightFence2 = Fence::create(device, true);
+  auto imageSem1 = device.createSemaphore();
+  auto renderSem1 = device.createSemaphore();
+  auto inFlightFence1 = device.createFence(true);
+  auto imageSem2 = device.createSemaphore();
+  auto renderSem2 = device.createSemaphore();
+  auto inFlightFence2 = device.createFence(true);
 
   if (!imageSem1.has_value() || !renderSem1.has_value() ||
       !inFlightFence1.has_value() || !imageSem2.has_value() ||
@@ -489,112 +400,4 @@ std::optional<App> App::create() {
           pipeline, commandPool, frames);
 
   return std::move(app);
-}
-
-void App::run() {
-  std::println("Running app...");
-  while (!window.shouldClose()) {
-    glfwPollEvents();
-
-    update();
-    render();
-  }
-  std::println("App closed.");
-}
-
-void App::update() {}
-
-void App::render() {
-  frames[currentFrame].inFlight.wait();
-  auto [swpachainState, imageIndex] =
-      swapchain.getNextImage(*frames[currentFrame].imageAvailable);
-
-  switch (swpachainState) {
-  case VK_SUBOPTIMAL_KHR:
-  case VK_ERROR_OUT_OF_DATE_KHR:
-    std::println("TODO: Recreate swapchain");
-    return;
-  case VK_SUCCESS:
-    break;
-  default: {
-    std::cerr << "Failed to acquire swapchain image." << std::endl;
-    return;
-  }
-  }
-
-  frames[currentFrame].inFlight.reset();
-
-  frames[currentFrame].commandBuffer.reset();
-  recordCommandBuffer(frames[currentFrame].commandBuffer, imageIndex);
-
-  SubmitInfoBuilder submitInfoBuilder;
-  submitInfoBuilder
-      .addWaitSemaphore(*frames[currentFrame].imageAvailable,
-                        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-      .addSignalSemaphore(*frames[currentFrame].renderFinished)
-      .addCommandBuffer(*frames[currentFrame].commandBuffer);
-
-  auto submitInfo = submitInfoBuilder.build();
-
-  if (graphicsQueue.submit(submitInfo, *frames[currentFrame].inFlight) !=
-      VK_SUCCESS) {
-    std::cerr << "Failed to submit draw command buffer." << std::endl;
-    return;
-  }
-
-  PresentInfoBuilder presentInfoBuilder =
-      PresentInfoBuilder()
-          .addWaitSemaphore(*frames[currentFrame].renderFinished)
-          .addSwapchain(*swapchain)
-          .setImageIndex(imageIndex);
-
-  auto presentInfo = presentInfoBuilder.build();
-
-  presentQueue.present(presentInfo);
-
-  currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-}
-
-void App::recordCommandBuffer(CommandBuffer &commandBuffer,
-                              uint32_t imageIndex) {
-  auto encoder = commandBuffer.begin();
-
-  RenderPassBeginInfoBuilder renderPassInfo(
-      *renderPass, *framebuffers[imageIndex],
-      VkRect2D{.offset = {0, 0}, .extent = swapchain.getExtent()});
-
-  renderPassInfo.addClearValue({.color = {{0.0f, 0.0f, 0.0f, 1.0f}}});
-
-  auto pass = encoder.beginRenderPass(renderPassInfo.build());
-
-  pass.bindPipeline(pipeline);
-
-  VkViewport viewport = {
-      .x = 0.0f,
-      .y = 0.0f,
-      .width = static_cast<float>(swapchain.getExtent().width),
-      .height = static_cast<float>(swapchain.getExtent().height),
-      .minDepth = 0.0f,
-      .maxDepth = 1.0f};
-
-  VkRect2D scissor = {.offset = {0, 0}, .extent = swapchain.getExtent()};
-
-  pass.setViewport(viewport);
-  pass.setScissor(scissor);
-
-  pass.draw(3);
-
-  pass.end();
-
-  encoder.end();
-}
-
-App::~App() {
-  if (moveGuard.isMoved()) {
-    return;
-  }
-
-  device.waitIdle();
-
-  glfwTerminate();
 }

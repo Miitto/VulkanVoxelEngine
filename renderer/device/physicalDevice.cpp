@@ -23,20 +23,21 @@ VkPhysicalDeviceProperties PhysicalDevice::getProperties() {
   if (properties.has_value()) {
     return *properties;
   }
-  VkPhysicalDeviceProperties properties;
-  vkGetPhysicalDeviceProperties(device, &properties);
-  this->properties = properties;
-  return properties;
+
+  VkPhysicalDeviceProperties props;
+  vkGetPhysicalDeviceProperties(device, &props);
+  properties = props;
+  return props;
 }
 
 VkPhysicalDeviceFeatures PhysicalDevice::getFeatures() {
   if (features.has_value()) {
     return *features;
   }
-  VkPhysicalDeviceFeatures features;
-  vkGetPhysicalDeviceFeatures(device, &features);
-  this->features = features;
-  return features;
+  VkPhysicalDeviceFeatures feats;
+  vkGetPhysicalDeviceFeatures(device, &feats);
+  this->features = feats;
+  return feats;
 }
 
 std::vector<VkExtensionProperties> PhysicalDevice::getExtensions() const {
@@ -79,7 +80,7 @@ std::vector<QueueFamily> PhysicalDevice::getQueues() {
 
   std::vector<QueueFamily> queueFamilies;
   for (size_t i = 0; i < queueFamilyCount; ++i) {
-    queueFamilies.emplace_back(*this, families[i], i);
+    queueFamilies.emplace_back(*this, families[i], static_cast<uint32_t>(i));
   }
 
   return queueFamilies;

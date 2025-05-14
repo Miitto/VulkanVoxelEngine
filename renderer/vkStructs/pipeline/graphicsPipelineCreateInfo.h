@@ -18,7 +18,7 @@ public:
       VkPipelineColorBlendStateCreateInfo colorBlendState,
       VkPipelineDynamicStateCreateInfo dynamicState, uint32_t subpassIndex = 0)
       : GraphicsPipelineCreateInfoBuilder(
-            pipelineLayout, renderPass, stages.size(), stages.data(),
+            pipelineLayout, renderPass, static_cast<uint32_t>(stages.size()), stages.data(),
             vertexInputState, inputAssemblyState, viewportState,
             rasterizationState, multisampleState, colorBlendState, dynamicState,
             subpassIndex) {}

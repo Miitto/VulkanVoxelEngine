@@ -1,7 +1,7 @@
 
 target_sources(renderer
   PRIVATE
-    lib.cpp
+    instance.cpp
     surface.cpp
     window.cpp
     framebuffer.cpp
@@ -21,3 +21,5 @@ target_include_directories(renderer
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 target_link_libraries(renderer PRIVATE glfw Vulkan::Vulkan)
+
+target_compile_definitions(renderer PUBLIC GLFW_INCLUDE_VULKAN)

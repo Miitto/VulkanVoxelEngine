@@ -18,6 +18,8 @@ VkShaderStageFlagBits shaderStageToFlagBits(EShaderStage &stage) {
     return VK_SHADER_STAGE_GEOMETRY_BIT;
   }
   }
+
+  std::unreachable();
 }
 
 static std::optional<std::vector<char>> readFile(const std::string &fileName) {

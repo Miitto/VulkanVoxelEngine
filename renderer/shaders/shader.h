@@ -21,7 +21,7 @@ public:
   Shader(ShaderModule &module, EShaderStage stage)
       : module(std::move(module)), stage(stage) {}
 
-  Shader(Shader &&other)
+  Shader(Shader &&other) noexcept
       : module(std::move(other.module)), stage(other.stage) {}
 
   EShaderStage getStage() { return stage; };
@@ -34,6 +34,4 @@ public:
                                         EShaderStage stage, Device &device);
   static std::optional<Shader> fromFile(const std::string &fileName,
                                         EShaderStage stage, Device &device);
-  static std::optional<Shader> fromModule(ShaderModule &module,
-                                          EShaderStage stage);
 };

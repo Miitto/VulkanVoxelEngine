@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <print>
+#include <vulkan/vulkan_core.h>
 
 class Window {
   GLFWwindow *window = nullptr;
@@ -34,4 +35,7 @@ public:
   static std::optional<Window> create(const char *name, const uint32_t width,
                                       const uint32_t height);
   bool shouldClose() { return glfwWindowShouldClose(window); }
+
+  VkExtent2D getExtent();
+  VkExtent2D getExtent(VkSurfaceCapabilitiesKHR &capabilities);
 };

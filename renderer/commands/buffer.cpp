@@ -19,11 +19,11 @@ Encoder CommandBuffer::begin(VkCommandBufferBeginInfo beginInfo) {
 
   vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-  CommandBuffer::Encoder encoder(*this);
+  CommandBuffer::Encoder enc(*this);
 
-  *this->encoder = std::move(encoder);
+  *encoder = std::move(enc);
 
-  return **this->encoder;
+  return **encoder;
 }
 
 Encoder::RenderPass Encoder::beginRenderPass(const VkRenderPassBeginInfo info,

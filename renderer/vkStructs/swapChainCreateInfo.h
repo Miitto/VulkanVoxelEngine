@@ -4,43 +4,41 @@
 #include <iostream>
 #include <vulkan/vulkan.h>
 
-class SwapChainCreateInfoBuilder {
-  VkSwapchainCreateInfoKHR createInfo;
+class SwapChainCreateInfo : public VkSwapchainCreateInfoKHR {
   SurfaceAttributes &swapChainSupport;
 
 public:
-  SwapChainCreateInfoBuilder(SurfaceAttributes &swapChainSupport,
-                             Surface &surface)
+  SwapChainCreateInfo(SurfaceAttributes &swapChainSupport, Surface &surface)
       : swapChainSupport(swapChainSupport) {
-    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.pNext = nullptr;
-    createInfo.surface = *surface;
-    createInfo.flags = 0;
-    createInfo.minImageCount = swapChainSupport.capabilities.minImageCount;
-    createInfo.imageFormat = swapChainSupport.formats[0].format;
-    createInfo.imageColorSpace = swapChainSupport.formats[0].colorSpace;
-    createInfo.imageExtent = swapChainSupport.capabilities.currentExtent;
-    createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = swapChainSupport.presentModes[0];
-    createInfo.clipped = VK_TRUE;
-    createInfo.oldSwapchain = VK_NULL_HANDLE;
+    sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    pNext = nullptr;
+    this->surface = *surface;
+    flags = 0;
+    minImageCount = swapChainSupport.capabilities.minImageCount;
+    imageFormat = swapChainSupport.formats[0].format;
+    imageColorSpace = swapChainSupport.formats[0].colorSpace;
+    imageExtent = swapChainSupport.capabilities.currentExtent;
+    imageArrayLayers = 1;
+    imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    preTransform = swapChainSupport.capabilities.currentTransform;
+    compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    presentMode = swapChainSupport.presentModes[0];
+    clipped = VK_TRUE;
+    oldSwapchain = VK_NULL_HANDLE;
   }
 
-  SwapChainCreateInfoBuilder &setImageCount(uint32_t count) {
+  SwapChainCreateInfo &setImageCount(uint32_t count) {
     if (count < swapChainSupport.capabilities.minImageCount ||
         count > swapChainSupport.capabilities.maxImageCount) {
       std::cerr
           << "Attempted to set image count to below min or above max, aborting"
           << std::endl;
     }
-    createInfo.minImageCount = count;
+    minImageCount = count;
     return *this;
   }
 
-  SwapChainCreateInfoBuilder &setImageFormat(VkFormat format) {
+  SwapChainCreateInfo &setImageFormat(VkFormat format) {
     if (format == VK_FORMAT_UNDEFINED) {
       std::cerr << "Attempted to set image format to undefined, aborting"
                 << std::endl;
@@ -48,7 +46,7 @@ public:
 
     for (const auto &availableFormat : swapChainSupport.formats) {
       if (availableFormat.format == format) {
-        createInfo.imageFormat = format;
+        imageFormat = format;
         return *this;
       }
     }
@@ -60,7 +58,7 @@ public:
     return *this;
   }
 
-  SwapChainCreateInfoBuilder &setImageColorSpace(VkColorSpaceKHR colorSpace) {
+  SwapChainCreateInfo &setImageColorSpace(VkColorSpaceKHR colorSpace) {
     if (colorSpace == VK_COLOR_SPACE_MAX_ENUM_KHR) {
       std::cerr << "Attempted to set image color space to undefined, aborting"
                 << std::endl;
@@ -68,7 +66,7 @@ public:
 
     for (const auto &availableFormat : swapChainSupport.formats) {
       if (availableFormat.colorSpace == colorSpace) {
-        createInfo.imageColorSpace = colorSpace;
+        imageColorSpace = colorSpace;
         return *this;
       }
     }
@@ -80,7 +78,7 @@ public:
     return *this;
   }
 
-  SwapChainCreateInfoBuilder &setImageExtent(VkExtent2D extent) {
+  SwapChainCreateInfo &setImageExtent(VkExtent2D extent) {
     if (extent.width == 0 || extent.height == 0) {
       std::cerr << "Attempted to set image extent to undefined, aborting"
                 << std::endl;
@@ -95,22 +93,22 @@ public:
                 << std::endl;
     }
 
-    createInfo.imageExtent = extent;
+    imageExtent = extent;
     return *this;
   }
 
-  SwapChainCreateInfoBuilder &setImageArrayLayers(uint32_t layers) {
+  SwapChainCreateInfo &setImageArrayLayers(uint32_t layers) {
     if (layers < 1) {
       std::cerr << "Attempted to set image array layers to less than 1, "
                    "aborting"
                 << std::endl;
     }
 
-    createInfo.imageArrayLayers = layers;
+    imageArrayLayers = layers;
     return *this;
   }
 
-  SwapChainCreateInfoBuilder &setPresentMode(VkPresentModeKHR presentMode) {
+  SwapChainCreateInfo &setPresentMode(VkPresentModeKHR presentMode) {
     if (presentMode == VK_PRESENT_MODE_MAX_ENUM_KHR) {
       std::cerr << "Attempted to set present mode to undefined, aborting"
                 << std::endl;
@@ -118,7 +116,7 @@ public:
 
     for (const auto &availablePresentMode : swapChainSupport.presentModes) {
       if (availablePresentMode == presentMode) {
-        createInfo.presentMode = presentMode;
+        this->presentMode = presentMode;
         return *this;
       }
     }
@@ -130,32 +128,30 @@ public:
     return *this;
   }
 
-  SwapChainCreateInfoBuilder &setClipped(VkBool32 clipped) {
-    createInfo.clipped = clipped;
+  SwapChainCreateInfo &setClipped(VkBool32 clip) {
+    clipped = clip;
     return *this;
   }
 
-  SwapChainCreateInfoBuilder &setOldSwapchain(VkSwapchainKHR oldSwapchain) {
-    createInfo.oldSwapchain = oldSwapchain;
+  SwapChainCreateInfo &setOldSwapchain(VkSwapchainKHR swapchain) {
+    oldSwapchain = swapchain;
     return *this;
   }
 
-  SwapChainCreateInfoBuilder &setImageSharingMode(VkSharingMode sharingMode) {
-    createInfo.imageSharingMode = sharingMode;
+  SwapChainCreateInfo &setImageSharingMode(VkSharingMode sharingMode) {
+    imageSharingMode = sharingMode;
     return *this;
   }
 
-  SwapChainCreateInfoBuilder &
+  SwapChainCreateInfo &
   setQueueFamilyIndices(const std::vector<uint32_t> &indices) {
     if (indices.empty()) {
       std::cerr << "Attempted to set queue family indices to empty, aborting"
                 << std::endl;
     }
 
-    createInfo.queueFamilyIndexCount = static_cast<uint32_t>(indices.size());
-    createInfo.pQueueFamilyIndices = indices.data();
+    queueFamilyIndexCount = static_cast<uint32_t>(indices.size());
+    pQueueFamilyIndices = indices.data();
     return *this;
   }
-
-  VkSwapchainCreateInfoKHR build() { return createInfo; }
 };

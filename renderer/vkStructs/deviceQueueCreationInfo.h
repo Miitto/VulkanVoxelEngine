@@ -1,36 +1,40 @@
 #pragma once
 
+#include <print>
+#include <vector>
 #include <vulkan/vulkan.h>
 
-class DeviceQueueCreateInfoBuilder {
-  float priority = 1.0f;
-  VkDeviceQueueCreateInfo queueCreateInfo;
+namespace vk {
+class DeviceQueueCreateInfo : public VkDeviceQueueCreateInfo {
+  std::vector<float> m_priorities;
 
 public:
-  DeviceQueueCreateInfoBuilder(uint32_t queueIndex) {
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.pNext = nullptr;
-    queueCreateInfo.flags = 0;
-    queueCreateInfo.queueFamilyIndex = queueIndex;
-    queueCreateInfo.queueCount = 1;
-    queueCreateInfo.pQueuePriorities = &priority;
+  DeviceQueueCreateInfo(uint32_t queueIndex, float priority = 1.0f)
+      : DeviceQueueCreateInfo(queueIndex, std::vector<float>{priority}) {}
+
+  DeviceQueueCreateInfo(uint32_t queueIndex, std::vector<float> priorities)
+      : m_priorities(std::move(priorities)) {
+    sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    pNext = nullptr;
+    flags = 0;
+    queueFamilyIndex = queueIndex;
+    queueCount = static_cast<uint32_t>(m_priorities.size());
+    pQueuePriorities = m_priorities.data();
   }
 
-  DeviceQueueCreateInfoBuilder &setQueueFamilyIndex(uint32_t queueIndex) {
-    queueCreateInfo.queueFamilyIndex = queueIndex;
+  DeviceQueueCreateInfo &setQueuePriorities(std::vector<float> priorities) {
+    this->m_priorities = std::move(priorities);
+    queueCount = static_cast<uint32_t>(m_priorities.size());
+    pQueuePriorities = m_priorities.data();
     return *this;
   }
 
-  DeviceQueueCreateInfoBuilder &setQueueCount(uint32_t queueCount) {
-    queueCreateInfo.queueCount = queueCount;
+  DeviceQueueCreateInfo &addQueue(float priority) {
+    m_priorities.push_back(priority);
+    queueCount = static_cast<uint32_t>(m_priorities.size());
+    pQueuePriorities = m_priorities.data();
+
     return *this;
   }
-
-  DeviceQueueCreateInfoBuilder &setQueuePriorities(float priority) {
-    this->priority = priority;
-    queueCreateInfo.pQueuePriorities = &priority;
-    return *this;
-  }
-
-  VkDeviceQueueCreateInfo &build() { return queueCreateInfo; }
 };
+} // namespace vk

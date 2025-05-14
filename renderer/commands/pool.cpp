@@ -1,5 +1,6 @@
 #include "pool.h"
 #include "vkStructs/commands/bufferAllocateInfo.h"
+#include <iostream>
 
 std::optional<CommandPool> CommandPool::create(Device &device,
                                                VkCommandPoolCreateInfo info) {

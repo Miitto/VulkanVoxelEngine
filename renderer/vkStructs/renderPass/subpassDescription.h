@@ -65,7 +65,7 @@ public:
 
     desc.pResolveAttachments =
         resolveReferences.size() > 0 ? resolveReferences.data() : nullptr;
-    desc.preserveAttachmentCount = preserveReferences.size();
+    desc.preserveAttachmentCount = static_cast<uint32_t>(preserveReferences.size());
     desc.pPreserveAttachments =
         preserveReferences.size() > 0 ? preserveReferences.data() : nullptr;
 

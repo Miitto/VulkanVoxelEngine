@@ -19,10 +19,11 @@ FetchContent_MakeAvailable(glfw)
 
 find_package(Vulkan REQUIRED)
 
-add_executable(engine "engine/main.cpp")
+add_executable(engine)
 target_include_directories(engine PRIVATE engine)
+add_subdirectory(engine)
 
-target_link_libraries(engine PUBLIC renderer)
+target_link_libraries(engine PRIVATE renderer)
 target_link_libraries(engine PRIVATE glfw Vulkan::Vulkan)
 
 add_library(renderer)
