@@ -1,18 +1,17 @@
 #include "buffer.h"
-#include "vkStructs/commands/bufferBeginInfo.h"
 #include <optional>
 
 using Encoder = CommandBuffer::Encoder;
 
 Encoder CommandBuffer::begin() {
-  CommandBufferBeginInfoBuilder beginInfo;
+  vk::info::CommandBufferBegin beginInfo;
 
-  begin(beginInfo.build());
+  begin(beginInfo);
 
   return **this->encoder;
 }
 
-Encoder CommandBuffer::begin(VkCommandBufferBeginInfo beginInfo) {
+Encoder CommandBuffer::begin(vk::info::CommandBufferBegin beginInfo) {
   if (encoder->has_value()) {
     return encoder->value();
   }

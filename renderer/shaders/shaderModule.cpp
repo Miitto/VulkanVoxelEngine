@@ -1,8 +1,7 @@
 #include "shaderModule.h"
-#include "vkStructs/shaderModuleCreate.h"
+#include "structs/info/shaderModuleCreate.h"
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <optional>
 #include <vector>
 
@@ -38,9 +37,7 @@ std::optional<ShaderModule> ShaderModule::fromFile(const std::string &fileName,
 
 std::optional<ShaderModule> ShaderModule::fromCode(std::vector<char> &code,
                                                    Device &device) {
-  ShaderModuleCreateInfoBuilder builder(code);
-
-  auto createInfo = builder.build();
+  vk::info::ShaderModuleCreate createInfo(code);
 
   VkShaderModule shaderModule;
   if (vkCreateShaderModule(*device, &createInfo, nullptr, &shaderModule) !=

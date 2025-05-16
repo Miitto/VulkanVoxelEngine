@@ -1,9 +1,8 @@
 #include "pool.h"
-#include "vkStructs/commands/bufferAllocateInfo.h"
 #include <iostream>
 
-std::optional<CommandPool> CommandPool::create(Device &device,
-                                               VkCommandPoolCreateInfo info) {
+std::optional<CommandPool>
+CommandPool::create(Device &device, vk::info::CommandPoolCreate info) {
   VkCommandPool commandPool;
   auto result = vkCreateCommandPool(*device, &info, nullptr, &commandPool);
   if (result != VK_SUCCESS) {
@@ -16,9 +15,7 @@ std::optional<CommandPool> CommandPool::create(Device &device,
 std::optional<CommandBuffer> CommandPool::allocBuffer(bool secondary) {
   VkCommandBuffer commandBuffer;
 
-  CommandBufferAllocateInfoBuilder allocInfo(**this, secondary);
-
-  auto bufferInfo = allocInfo.build();
+  vk::info::CommandBufferAllocate bufferInfo(**this, secondary);
 
   if (vkAllocateCommandBuffers(device.raw(), &bufferInfo, &commandBuffer) !=
       VK_SUCCESS) {
@@ -34,10 +31,7 @@ CommandPool::allocBuffers(uint32_t count, bool secondary) {
   std::vector<VkCommandBuffer> rawCommandBuffers;
   rawCommandBuffers.resize(count);
 
-  CommandBufferAllocateInfoBuilder allocInfo(**this, secondary);
-  allocInfo.setCount(count);
-
-  auto bufferInfo = allocInfo.build();
+  vk::info::CommandBufferAllocate bufferInfo(**this, count, secondary);
 
   if (vkAllocateCommandBuffers(device.raw(), &bufferInfo,
                                rawCommandBuffers.data()) != VK_SUCCESS) {

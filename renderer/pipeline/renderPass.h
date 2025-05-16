@@ -1,7 +1,8 @@
 #pragma once
 
 #include "device/device.h"
-#include "vulkan/vulkan.h"
+#include "structs/info/renderPassCreate.h"
+#include "vulkan/vulkan_core.h"
 
 class RenderPass {
   VkRenderPass renderPass;
@@ -22,7 +23,7 @@ public:
   ~RenderPass();
 
   static std::optional<RenderPass> create(Device &device,
-                                          VkRenderPassCreateInfo info);
+                                          vk::info::RenderPassCreate info);
 
   VkRenderPass operator*() { return renderPass; }
 };

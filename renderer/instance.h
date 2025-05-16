@@ -1,5 +1,6 @@
 #pragma once
 
+#include "structs/info/instanceCreate.h"
 #include <memory>
 #include <optional>
 #include <utility>
@@ -52,7 +53,7 @@ public:
   VkInstance &operator*() { return m_instance; }
   Ref &ref() { return m_reference; }
 
-  static std::optional<Instance> create(VkInstanceCreateInfo &createInfo);
+  static std::optional<Instance> create(vk::info::InstanceCreate &createInfo);
 
   std::optional<Surface> createSurface(Window &window);
 };

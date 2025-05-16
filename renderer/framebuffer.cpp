@@ -1,8 +1,8 @@
 #include "framebuffer.h"
 #include <iostream>
 
-std::optional<Framebuffer> Framebuffer::create(Device &device,
-                                               VkFramebufferCreateInfo info) {
+std::optional<Framebuffer>
+Framebuffer::create(Device &device, vk::info::FramebufferCreate info) {
 
   VkFramebuffer framebuffer;
   if (vkCreateFramebuffer(*device, &info, nullptr, &framebuffer) !=

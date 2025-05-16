@@ -1,7 +1,7 @@
 #pragma once
 
 #include "pipeline/pipeline.h"
-#include "vulkan/vulkan.h"
+#include "structs/info/pipeline/graphicsPipelineCreate.h"
 
 class GraphicsPipeline : public Pipeline {
   GraphicsPipeline() = delete;
@@ -17,7 +17,7 @@ public:
       : Pipeline(std::move(other)) {}
 
   static std::optional<GraphicsPipeline>
-  create(Device &device, VkGraphicsPipelineCreateInfo createInfo);
+  create(Device &device, vk::info::GraphicsPipelineCreate createInfo);
 
   VkPipelineBindPoint bindPoint() const override {
     return VK_PIPELINE_BIND_POINT_GRAPHICS;

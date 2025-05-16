@@ -1,7 +1,7 @@
 #include "instance.h"
 #include "surface.h"
 
-std::optional<Instance> Instance::create(VkInstanceCreateInfo &createInfo) {
+std::optional<Instance> Instance::create(vk::info::InstanceCreate &createInfo) {
   VkInstance instance;
   if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
     return std::nullopt;

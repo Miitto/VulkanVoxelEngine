@@ -1,7 +1,7 @@
 #include "app.h"
-#include "vkStructs/commands/renderPassBeginInfo.h"
-#include "vkStructs/presentInfo.h"
-#include "vkStructs/submitInfo.h"
+#include "structs/info/commands/renderPassBegin.h"
+#include "structs/info/present.h"
+#include "structs/info/submit.h"
 #include <iostream>
 
 int main() {
@@ -62,14 +62,12 @@ void App::render() {
   frames[currentFrame].commandBuffer.reset();
   recordCommandBuffer(frames[currentFrame].commandBuffer, imageIndex);
 
-  SubmitInfoBuilder submitInfoBuilder;
-  submitInfoBuilder
+  vk::info::Submit submitInfo;
+  submitInfo
       .addWaitSemaphore(*frames[currentFrame].imageAvailable,
                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
       .addSignalSemaphore(*frames[currentFrame].renderFinished)
       .addCommandBuffer(*frames[currentFrame].commandBuffer);
-
-  auto submitInfo = submitInfoBuilder.build();
 
   if (graphicsQueue.submit(submitInfo, *frames[currentFrame].inFlight) !=
       VK_SUCCESS) {
@@ -77,13 +75,11 @@ void App::render() {
     return;
   }
 
-  PresentInfoBuilder presentInfoBuilder =
-      PresentInfoBuilder()
+  vk::info::Present presentInfo =
+      vk::info::Present()
           .addWaitSemaphore(*frames[currentFrame].renderFinished)
           .addSwapchain(*swapchain)
           .setImageIndex(imageIndex);
-
-  auto presentInfo = presentInfoBuilder.build();
 
   presentQueue.present(presentInfo);
 
@@ -94,13 +90,13 @@ void App::recordCommandBuffer(CommandBuffer &commandBuffer,
                               uint32_t imageIndex) {
   auto encoder = commandBuffer.begin();
 
-  RenderPassBeginInfoBuilder renderPassInfo(
+  vk::info::RenderPassBegin renderPassInfo(
       *renderPass, *framebuffers[imageIndex],
       VkRect2D{.offset = {0, 0}, .extent = swapchain.getExtent()});
 
   renderPassInfo.addClearValue({.color = {{0.0f, 0.0f, 0.0f, 1.0f}}});
 
-  auto pass = encoder.beginRenderPass(renderPassInfo.build());
+  auto pass = encoder.beginRenderPass(renderPassInfo);
 
   pass.bindPipeline(pipeline);
 

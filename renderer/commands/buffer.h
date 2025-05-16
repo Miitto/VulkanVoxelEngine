@@ -1,7 +1,8 @@
 #pragma once
 
 #include "pipeline/pipeline.h"
-#include "vulkan/vulkan.h"
+#include "structs/info/commands/bufferBegin.h"
+#include "vulkan/vulkan_core.h"
 #include <memory>
 
 class CommandBuffer {
@@ -61,7 +62,7 @@ public:
   VkCommandBuffer &operator*() { return commandBuffer; }
 
   Encoder begin();
-  Encoder begin(VkCommandBufferBeginInfo info);
+  Encoder begin(vk::info::CommandBufferBegin info);
 
   void reset(VkCommandBufferResetFlags flags = 0) {
     vkResetCommandBuffer(commandBuffer, flags);

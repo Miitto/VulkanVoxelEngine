@@ -1,7 +1,7 @@
 #pragma once
 
 #include "device/device.h"
-#include "vulkan/vulkan.h"
+#include "vulkan/vulkan_core.h"
 
 class Pipeline {
 protected:

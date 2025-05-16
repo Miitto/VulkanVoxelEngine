@@ -1,7 +1,8 @@
 #pragma once
 
 #include "device/device.h"
-#include "vulkan/vulkan.h"
+#include "structs/info/framebufferCreate.h"
+#include "vulkan/vulkan_core.h"
 
 class Framebuffer {
   VkFramebuffer framebuffer;
@@ -29,5 +30,5 @@ public:
   VkFramebuffer operator*() { return framebuffer; }
 
   static std::optional<Framebuffer> create(Device &device,
-                                           VkFramebufferCreateInfo info);
+                                           vk::info::FramebufferCreate info);
 };

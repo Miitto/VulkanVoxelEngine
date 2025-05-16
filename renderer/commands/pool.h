@@ -2,7 +2,9 @@
 
 #include "commands/buffer.h"
 #include "device/device.h"
-#include "vulkan/vulkan.h"
+#include "structs/info/commands/bufferAllocate.h"
+#include "structs/info/commands/commandPoolCreate.h"
+#include "vulkan/vulkan_core.h"
 #include <cstdint>
 #include <optional>
 
@@ -32,9 +34,11 @@ public:
   VkCommandPool operator*() { return commandPool; }
 
   static std::optional<CommandPool> create(Device &device,
-                                           VkCommandPoolCreateInfo info);
+                                           vk::info::CommandPoolCreate info);
 
   std::optional<CommandBuffer> allocBuffer(bool secondary = false);
   std::optional<std::vector<CommandBuffer>>
   allocBuffers(uint32_t count, bool secondary = false);
+  std::optional<std::vector<CommandBuffer>>
+  allocBuffers(vk::info::CommandBufferAllocate &info);
 };

@@ -10,8 +10,6 @@ class QueueFamily;
 
 class PhysicalDevice {
   VkPhysicalDevice device;
-  std::optional<VkPhysicalDeviceProperties> properties;
-  std::optional<VkPhysicalDeviceFeatures> features;
 
 public:
   PhysicalDevice(VkPhysicalDevice device) : device(device) {}
@@ -20,15 +18,20 @@ public:
 
   static std::vector<PhysicalDevice> all(Instance &instance);
 
-  VkPhysicalDeviceProperties getProperties();
-  VkPhysicalDeviceFeatures getFeatures();
+  VkPhysicalDeviceProperties getProperties() const;
+  VkPhysicalDeviceFeatures getFeatures() const;
   std::vector<VkExtensionProperties> getExtensions() const;
+  std::vector<QueueFamily> getQueues();
+  VkPhysicalDeviceMemoryProperties getMemoryProperties() const;
+
   std::vector<char const *>
   findUnsupportedExtensions(std::vector<char const *> extensions) const;
+
+  std::optional<uint32_t>
+  findMemoryTypeIndex(uint32_t typeFilter,
+                      VkMemoryPropertyFlags properties) const;
 
   bool isDiscrete() {
     return getProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
   }
-
-  std::vector<QueueFamily> getQueues();
 };

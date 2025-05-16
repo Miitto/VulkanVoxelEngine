@@ -3,7 +3,6 @@
 #include <GLFW/glfw3.h>
 #include <cstdint>
 #include <optional>
-#include <print>
 #include <vulkan/vulkan_core.h>
 
 class Window {

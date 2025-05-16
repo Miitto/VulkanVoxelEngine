@@ -2,12 +2,16 @@
 
 #include "physicalDevice.h"
 #include "queue.h"
+#include "structs/info/deviceCreate.h"
+#include "structs/info/swapchainCreate.h"
 #include <optional>
 #include <vulkan/vulkan.h>
 
 class Swapchain;
 class Semaphore;
 class Fence;
+class Buffer;
+class DeviceMemory;
 
 class Device {
 public:
@@ -32,10 +36,13 @@ public:
 
 private:
   VkDevice m_device;
+  PhysicalDevice m_physicalDevice;
   Ref m_reference;
 
 public:
-  Device(VkDevice device) : m_device(device), m_reference(Ref::create(this)) {}
+  Device(VkDevice device, PhysicalDevice &physicalDevice)
+      : m_device(device), m_physicalDevice(physicalDevice),
+        m_reference(Ref::create(this)) {}
   void destroy() {
     if (m_device != VK_NULL_HANDLE) {
       waitIdle();
@@ -50,7 +57,9 @@ public:
   Device &operator=(Device &&o) = delete;
 
   Device(Device &&o) noexcept
-      : m_device(std::move(o.m_device)), m_reference(o.m_reference) {
+      : m_device(std::move(o.m_device)),
+        m_physicalDevice(std::move(o.m_physicalDevice)),
+        m_reference(o.m_reference) {
     o.m_device = VK_NULL_HANDLE;
     m_reference.set(this);
   }
@@ -59,13 +68,22 @@ public:
   Ref &ref() { return m_reference; }
 
   static std::optional<Device> create(PhysicalDevice &physicalDevice,
-                                      VkDeviceCreateInfo &createInfo);
+                                      vk::info::DeviceCreate &createInfo) noexcept;
+
+  PhysicalDevice &getPhysical() { return m_physicalDevice; }
 
   std::optional<Queue> getQueue(uint32_t queueFamilyIndex, uint32_t queueIndex);
 
   VkResult waitIdle() { return vkDeviceWaitIdle(m_device); }
 
-  std::optional<Swapchain> createSwapchain(VkSwapchainCreateInfoKHR &info);
+  std::optional<Swapchain> createSwapchain(vk::info::SwapchainCreate &info);
   std::optional<Semaphore> createSemaphore();
   std::optional<Fence> createFence(bool createSignaled = false);
+
+  std::optional<Buffer> createBuffer(VkBufferCreateInfo &info);
+
+  std::optional<DeviceMemory> allocateMemory(Buffer &buffer,
+                                             VkMemoryPropertyFlags properties);
+  void bindBufferMemory(Buffer &buffer, DeviceMemory &memory,
+                        uint32_t offset = 0);
 };

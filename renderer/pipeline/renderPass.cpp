@@ -2,7 +2,7 @@
 #include <optional>
 
 std::optional<RenderPass> RenderPass::create(Device &device,
-                                             VkRenderPassCreateInfo info) {
+                                             vk::info::RenderPassCreate info) {
 
   VkRenderPass renderPass;
   if (vkCreateRenderPass(*device, &info, nullptr, &renderPass) != VK_SUCCESS) {

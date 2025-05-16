@@ -1,8 +1,9 @@
 #include "swapchain.h"
-#include "vkStructs/framebufferCreateInfo.h"
+#include "structs/info/framebufferCreate.h"
+#include "structs/info/imageViewCreate.h"
 
 std::optional<Swapchain> Swapchain::create(Device &device,
-                                           VkSwapchainCreateInfoKHR info) {
+                                           vk::info::SwapchainCreate info) {
   VkSwapchainKHR swapChain;
   if (vkCreateSwapchainKHR(*device, &info, nullptr, &swapChain) != VK_SUCCESS) {
     std::cerr << "Failed to create swap chain!" << std::endl;
@@ -16,8 +17,7 @@ std::optional<Swapchain> Swapchain::create(Device &device,
 
   std::vector<VkImageView> imageViews(imageCount);
   for (size_t i = 0; i < imageCount; ++i) {
-    auto createInfo =
-        ImageViewCreateInfoBuilder(images[i], info.imageFormat).build();
+    auto createInfo = vk::info::ImageViewCreate(images[i], info.imageFormat);
     if (vkCreateImageView(*device, &createInfo, nullptr, &imageViews[i]) !=
         VK_SUCCESS) {
       std::cerr << "Failed to create image views!" << std::endl;
@@ -32,9 +32,9 @@ std::optional<std::vector<Framebuffer>>
 Swapchain::createFramebuffers(RenderPass &renderPass) {
   std::vector<Framebuffer> framebuffers;
   for (auto &imageView : imageViews) {
-    FramebufferCreateInfoBuilder builder(*renderPass, extent.width,
-                                         extent.height);
-    auto framebufferCreateInfo = builder.addAttachment(imageView).build();
+    vk::info::FramebufferCreate builder(*renderPass, extent.width,
+                                        extent.height);
+    auto framebufferCreateInfo = builder.addAttachment(imageView);
 
     auto framebuffer = Framebuffer::create(*device, framebufferCreateInfo);
     if (!framebuffer.has_value()) {

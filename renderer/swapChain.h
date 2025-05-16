@@ -2,9 +2,8 @@
 #include "device/device.h"
 #include "framebuffer.h"
 #include "pipeline/renderPass.h"
-#include "vkStructs/imageViewCreate.h"
+#include "structs/info/swapchainCreate.h"
 #include <cstdint>
-#include <iostream>
 #include <vector>
 #include <vulkan/vulkan.h>
 
@@ -49,7 +48,7 @@ public:
 
 public:
   static std::optional<Swapchain> create(Device &device,
-                                         VkSwapchainCreateInfoKHR info);
+                                         vk::info::SwapchainCreate info);
   VkExtent2D &getExtent() { return extent; }
   VkFormat &getFormat() { return format; }
 

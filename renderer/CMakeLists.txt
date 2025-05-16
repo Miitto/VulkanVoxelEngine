@@ -8,6 +8,11 @@ target_sources(renderer
     swapchain.cpp
 )
 
+FetchContent_Declare(glm GIT_REPOSITORY https://github.com/g-truc/glm.git GIT_TAG master)
+FetchContent_MakeAvailable(glm)
+target_link_libraries(renderer PUBLIC glm::glm)
+
+add_subdirectory(buffers)
 add_subdirectory(pipeline)
 add_subdirectory(device)
 add_subdirectory(commands)

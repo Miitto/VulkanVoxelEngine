@@ -1,14 +1,13 @@
 #include "fence.h"
-#include "vkStructs/sync/fenceCreateInfo.h"
 
 std::optional<Fence> Fence::create(Device &device, bool makeSignalled) {
-  FenceCreateInfoBuilder createInfo(makeSignalled);
+  vk::info::FenceCreate createInfo(makeSignalled);
 
-  return create(device, createInfo.build());
+  return create(device, createInfo);
 }
 
 std::optional<Fence> Fence::create(Device &device,
-                                   VkFenceCreateInfo createInfo) {
+                                   vk::info::FenceCreate createInfo) {
   VkFence fence;
 
   auto result = vkCreateFence(*device, &createInfo, nullptr, &fence);

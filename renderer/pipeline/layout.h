@@ -1,7 +1,8 @@
 #pragma once
 
 #include "device/device.h"
-#include <vulkan/vulkan.h>
+#include "structs/info/pipeline/layoutCreate.h"
+#include <vulkan/vulkan_core.h>
 
 class PipelineLayout {
 public:
@@ -22,8 +23,8 @@ public:
   }
   ~PipelineLayout();
 
-  static std::optional<PipelineLayout> create(Device &device,
-                                              VkPipelineLayoutCreateInfo info);
+  static std::optional<PipelineLayout>
+  create(Device &device, vk::info::PipelineLayoutCreate info);
 
   VkPipelineLayout operator*() { return layout; }
 };

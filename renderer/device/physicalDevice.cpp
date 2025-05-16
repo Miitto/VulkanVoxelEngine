@@ -19,24 +19,15 @@ std::vector<PhysicalDevice> PhysicalDevice::all(Instance &instance) {
   return physicalDevices;
 }
 
-VkPhysicalDeviceProperties PhysicalDevice::getProperties() {
-  if (properties.has_value()) {
-    return *properties;
-  }
-
+VkPhysicalDeviceProperties PhysicalDevice::getProperties() const {
   VkPhysicalDeviceProperties props;
   vkGetPhysicalDeviceProperties(device, &props);
-  properties = props;
   return props;
 }
 
-VkPhysicalDeviceFeatures PhysicalDevice::getFeatures() {
-  if (features.has_value()) {
-    return *features;
-  }
+VkPhysicalDeviceFeatures PhysicalDevice::getFeatures() const {
   VkPhysicalDeviceFeatures feats;
   vkGetPhysicalDeviceFeatures(device, &feats);
-  this->features = feats;
   return feats;
 }
 
@@ -48,6 +39,27 @@ std::vector<VkExtensionProperties> PhysicalDevice::getExtensions() const {
   vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount,
                                        extensions.data());
   return extensions;
+}
+
+VkPhysicalDeviceMemoryProperties PhysicalDevice::getMemoryProperties() const {
+  VkPhysicalDeviceMemoryProperties props;
+  vkGetPhysicalDeviceMemoryProperties(device, &props);
+  return props;
+}
+
+std::vector<QueueFamily> PhysicalDevice::getQueues() {
+  uint32_t queueFamilyCount = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+  std::vector<VkQueueFamilyProperties> families(queueFamilyCount);
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
+                                           families.data());
+
+  std::vector<QueueFamily> queueFamilies;
+  for (size_t i = 0; i < queueFamilyCount; ++i) {
+    queueFamilies.emplace_back(*this, families[i], static_cast<uint32_t>(i));
+  }
+
+  return queueFamilies;
 }
 
 std::vector<char const *> PhysicalDevice::findUnsupportedExtensions(
@@ -71,17 +83,17 @@ std::vector<char const *> PhysicalDevice::findUnsupportedExtensions(
   return unsupportedExtensions;
 }
 
-std::vector<QueueFamily> PhysicalDevice::getQueues() {
-  uint32_t queueFamilyCount = 0;
-  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-  std::vector<VkQueueFamilyProperties> families(queueFamilyCount);
-  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
-                                           families.data());
+std::optional<uint32_t>
+PhysicalDevice::findMemoryTypeIndex(uint32_t typeFilter,
+                                    VkMemoryPropertyFlags properties) const {
+  VkPhysicalDeviceMemoryProperties memProperties = getMemoryProperties();
 
-  std::vector<QueueFamily> queueFamilies;
-  for (size_t i = 0; i < queueFamilyCount; ++i) {
-    queueFamilies.emplace_back(*this, families[i], static_cast<uint32_t>(i));
+  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+    if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags &
+                                    properties) == properties) {
+      return i;
+    }
   }
 
-  return queueFamilies;
+  return std::nullopt;
 }

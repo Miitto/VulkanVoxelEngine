@@ -1,5 +1,6 @@
 #pragma once
 
+#include "structs/info/present.h"
 #include "surface.h"
 #include <vulkan/vulkan.h>
 
@@ -18,7 +19,8 @@ public:
 
   VkResult submit(std::vector<VkSubmitInfo> &submitInfo,
                   VkFence fence = VK_NULL_HANDLE) {
-    return vkQueueSubmit(queue, static_cast<uint32_t>(submitInfo.size()), submitInfo.data(), fence);
+    return vkQueueSubmit(queue, static_cast<uint32_t>(submitInfo.size()),
+                         submitInfo.data(), fence);
   }
 };
 
@@ -45,7 +47,7 @@ class PresentQueue : Queue {
 public:
   PresentQueue(VkQueue queue, int familyIndex) : Queue(queue, familyIndex) {}
   PresentQueue(Queue &&other) : Queue(std::move(other)) {}
-  VkResult present(VkPresentInfoKHR &presentInfo) {
+  VkResult present(vk::info::Present &presentInfo) {
     return vkQueuePresentKHR(queue, &presentInfo);
   }
 };

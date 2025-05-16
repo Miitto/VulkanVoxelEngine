@@ -1,6 +1,11 @@
 #include "app.h"
 #include "instance.h"
-#include "vkStructs/all.h"
+#include "structs/attachmentDescription.h"
+#include "structs/info/all.h"
+#include "structs/pipelineColorBlendAttachmentState.h"
+#include "structs/subpassDependency.h"
+#include "structs/subpassDescription.h"
+#include "vertex.h"
 
 #include <algorithm>
 #include <optional>
@@ -82,7 +87,7 @@ pickPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes) {
 
 std::optional<RenderPass> createRenderPass(Device &device,
                                            Swapchain &swapChain) {
-  AttachmentDescriptionBuilder colorAttachment(swapChain.getFormat());
+  vk::AttachmentDescription colorAttachment(swapChain.getFormat());
 
   colorAttachment.setColorDepth(VK_ATTACHMENT_LOAD_OP_CLEAR,
                                 VK_ATTACHMENT_STORE_OP_STORE);
@@ -92,30 +97,31 @@ std::optional<RenderPass> createRenderPass(Device &device,
   VkAttachmentReference colorAttachmentRef = {
       .attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
 
-  SubpassDescriptionBuilder subpassDescription;
+  vk::SubpassDescription subpassDescription;
   subpassDescription.color(colorAttachmentRef);
 
-  RenderPassCreateInfoBuilder renderPassCreateInfo;
-  renderPassCreateInfo.addAttachment(colorAttachment.build());
-  renderPassCreateInfo.addSubpass(subpassDescription.build());
+  vk::info::RenderPassCreate renderPassCreateInfo;
+  renderPassCreateInfo.addAttachment(colorAttachment);
+  renderPassCreateInfo.addSubpass(subpassDescription);
 
-  VkSubpassDependency subpassDependency =
-      SubpassDependencyBuilder(VK_SUBPASS_EXTERNAL, 0)
-          .setSrcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-          .setDstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-          .setSrcAccessMask(0)
-          .setDstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-          .build();
+  vk::SubpassDependency subpassDependency{
+      {.srcSubpass = VK_SUBPASS_EXTERNAL,
+       .dstSubpass = 0,
+       .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+       .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+       .srcAccessMask = 0,
+       .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+       .dependencyFlags = 0}};
 
   renderPassCreateInfo.addDependency(subpassDependency);
 
-  auto rp = RenderPass::create(device, renderPassCreateInfo.build());
+  auto rp = RenderPass::create(device, renderPassCreateInfo);
 
   return rp;
 }
 
 std::optional<Shader> makeShader(Device &device, const char *path,
-                                 EShaderStage stage) {
+                                 ShaderStage stage) {
   auto shader = Shader::fromFile(path, stage, device);
   if (!shader.has_value()) {
     std::cerr << "Failed to create shader." << std::endl;
@@ -129,24 +135,29 @@ std::optional<GraphicsPipeline> makePipeline(Device &device,
                                              Swapchain &swapChain,
                                              PipelineLayout &layout,
                                              RenderPass &renderPass) {
-  PipelineDynamicStateCreateInfoBuilder dynState;
+  vk::info::PipelineDynamicStateCreate dynState;
   dynState.addDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
   dynState.addDynamicState(VK_DYNAMIC_STATE_SCISSOR);
 
-  PipelineInputAssemblyStateCreateInfoBuilder inputAssembly;
+  vk::info::PipelineInputAssemblyStateCreate inputAssembly;
   inputAssembly.setTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
 
-  PipelineVertexInputStateCreateInfoBuilder vertexInput;
+  vk::info::PipelineVertexInputStateCreate vertexInput;
+  vertexInput.addBindingDescription(Vertex::getBindingDescription());
+  {
+    auto attrs = Vertex::getAttributeDescriptions();
+    vertexInput.addAttributeDescriptions(attrs);
+  }
 
-  PipelineRasterizationStateCreateInfoBuilder rasterizationState;
+  vk::info::PipelineRasterizationStateCreate rasterizationState;
 
-  PipelineMultisampleStateCreateInfoBuilder multisampleState;
+  vk::info::PipelineMultisampleStateCreate multisampleState;
 
-  PipelineColorBlendStateCreateInfoBuilder colorBlendState;
+  vk::info::PipelineColorBlendStateCreate colorBlendState;
 
-  PipelineColorBlendAttachmentStateBuilder colorBlendAttachment;
+  vk::PipelineColorBlendAttachmentState colorBlendAttachment;
 
-  colorBlendState.addAttachment(colorBlendAttachment.build());
+  colorBlendState.addAttachment(colorBlendAttachment);
 
   VkViewport viewport{.x = 0.,
                       .y = 0.,
@@ -158,13 +169,13 @@ std::optional<GraphicsPipeline> makePipeline(Device &device,
 
   VkRect2D scissor{.offset = {0, 0}, .extent = swapChain.getExtent()};
 
-  PiplineViewportStateCreateInfoBuilder viewportState;
+  vk::info::PiplineViewportStateCreate viewportState;
 
   viewportState.addViewport(viewport);
   viewportState.addScissor(scissor);
 
   auto vertexShader =
-      makeShader(device, "shaders/build/basic.vert.spv", EShaderStage::VERTEX);
+      makeShader(device, "shaders/build/basic.vert.spv", ShaderStage::Vertex);
 
   if (!vertexShader.has_value()) {
     std::cerr << "Failed to create vertex shader." << std::endl;
@@ -172,25 +183,25 @@ std::optional<GraphicsPipeline> makePipeline(Device &device,
   }
 
   auto fragmentShader =
-      makeShader(device, "shaders/build/basic.frag.spv", EShaderStage::FRAG);
+      makeShader(device, "shaders/build/basic.frag.spv", ShaderStage::Fragment);
 
   if (!fragmentShader.has_value()) {
     std::cerr << "Failed to create fragment shader." << std::endl;
     return std::nullopt;
   }
 
-  PipelineShaderStageCreateInfoBuilder vertexShaderStage(*vertexShader);
-  PipelineShaderStageCreateInfoBuilder fragmentShaderStage(*fragmentShader);
+  vk::info::PipelineShaderStageCreate vertexShaderStage(*vertexShader);
+  vk::info::PipelineShaderStageCreate fragmentShaderStage(*fragmentShader);
 
-  VkPipelineShaderStageCreateInfo shaderStages[] = {
-      vertexShaderStage.build(), fragmentShaderStage.build()};
+  VkPipelineShaderStageCreateInfo shaderStages[] = {vertexShaderStage,
+                                                    fragmentShaderStage};
 
-  GraphicsPipelineCreateInfoBuilder pipelineCreateInfo(
-      *layout, *renderPass, 2, shaderStages, vertexInput.build(),
-      inputAssembly.build(), viewportState.build(), rasterizationState.build(),
-      multisampleState.build(), colorBlendState.build(), dynState.build(), 0);
+  vk::info::GraphicsPipelineCreate pipelineCreateInfo(
+      *layout, *renderPass, 2, shaderStages, vertexInput, inputAssembly,
+      viewportState, rasterizationState, multisampleState, colorBlendState,
+      dynState, 0);
 
-  auto pipeline = GraphicsPipeline::create(device, pipelineCreateInfo.build());
+  auto pipeline = GraphicsPipeline::create(device, pipelineCreateInfo);
 
   if (!pipeline.has_value()) {
     std::cerr << "Failed to create graphics pipeline." << std::endl;
@@ -210,8 +221,8 @@ std::optional<App> App::create() {
   }
   auto &window = window_opt.value();
 
-  vk::ApplicationInfo appInfo;
-  vk::InstanceCreateInfo createInfo(appInfo);
+  vk::info::Application appInfo;
+  vk::info::InstanceCreate createInfo(appInfo);
   auto instance_opt = Instance::create(createInfo);
   if (!instance_opt.has_value()) {
     std::cerr << "Failed to create Vulkan instance." << std::endl;
@@ -269,12 +280,9 @@ std::optional<App> App::create() {
     return std::nullopt;
   }
 
-  vk::DeviceQueueCreateInfo graphicsQueueInfo(*graphicsQueueFamilyIndex);
-  vk::DeviceQueueCreateInfo presentQueueInfo(*presentQueueFamilyIndex);
-
-  vk::DeviceCreateInfo deviceCreateInfo(physicalDevice.getFeatures());
-  deviceCreateInfo.addQueue(graphicsQueueInfo)
-      .addQueue(presentQueueInfo)
+  vk::info::DeviceCreate deviceCreateInfo(physicalDevice.getFeatures());
+  deviceCreateInfo.addQueue(*graphicsQueueFamilyIndex)
+      .addQueue(*presentQueueFamilyIndex)
       .enableExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
   std::println("Creating device with {} queues",
@@ -301,7 +309,7 @@ std::optional<App> App::create() {
     return std::nullopt;
   }
 
-  SwapChainCreateInfo swapChainCreateInfo(swapchainSupport, surface);
+  vk::info::SwapchainCreate swapChainCreateInfo(swapchainSupport, surface);
   swapChainCreateInfo.setImageFormat(format.format)
       .setImageColorSpace(format.colorSpace)
       .setImageExtent(extent)
@@ -324,7 +332,7 @@ std::optional<App> App::create() {
   }
   auto &swapchain = swapchain_opt.value();
 
-  PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+  vk::info::PipelineLayoutCreate pipelineLayoutCreateInfo;
   auto layout_opt = PipelineLayout::create(device, pipelineLayoutCreateInfo);
   if (!layout_opt.has_value()) {
     std::cerr << "Failed to create pipeline layout." << std::endl;
@@ -353,8 +361,8 @@ std::optional<App> App::create() {
   }
   auto &pipeline = pipeline_opt.value();
 
-  CommandPoolCreateInfo commandPoolCreateInfo(graphicsQueueFamilyIndex.value(),
-                                              true);
+  vk::info::CommandPoolCreate commandPoolCreateInfo(
+      graphicsQueueFamilyIndex.value(), true);
 
   auto commandPool_opt = CommandPool::create(device, commandPoolCreateInfo);
   if (!commandPool_opt.has_value()) {

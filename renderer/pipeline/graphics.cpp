@@ -2,7 +2,7 @@
 
 std::optional<GraphicsPipeline>
 GraphicsPipeline::create(Device &device,
-                         VkGraphicsPipelineCreateInfo createInfo) {
+                         vk::info::GraphicsPipelineCreate createInfo) {
   VkPipeline pipeline;
   auto result = vkCreateGraphicsPipelines(*device, VK_NULL_HANDLE, 1,
                                           &createInfo, nullptr, &pipeline);

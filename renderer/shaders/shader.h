@@ -6,32 +6,49 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
-enum EShaderStage { VERTEX, FRAG, GEOM };
+class ShaderStage {
+public:
+  enum Value {
+    Vertex = VK_SHADER_STAGE_VERTEX_BIT,
+    Fragment = VK_SHADER_STAGE_FRAGMENT_BIT,
+    Geometry = VK_SHADER_STAGE_GEOMETRY_BIT,
+    TessellationControl = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+    TessellationEvaluation = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+  };
 
-VkShaderStageFlagBits shaderStageToFlagBits(EShaderStage &stage);
+private:
+  Value value;
+
+  ShaderStage() = delete;
+
+public:
+  constexpr ShaderStage(Value value) : value(value) {}
+
+  operator VkShaderStageFlagBits() const {
+    return std::bit_cast<VkShaderStageFlagBits>(value);
+  }
+};
 
 class Shader {
   ShaderModule module;
-  EShaderStage stage;
+  ShaderStage stage;
 
   Shader() = delete;
   Shader(const Shader &) = delete;
 
 public:
-  Shader(ShaderModule &module, EShaderStage stage)
+  Shader(ShaderModule &module, ShaderStage stage)
       : module(std::move(module)), stage(stage) {}
 
   Shader(Shader &&other) noexcept
       : module(std::move(other.module)), stage(other.stage) {}
 
-  EShaderStage getStage() { return stage; };
-  VkShaderStageFlagBits getStageFlagBits() {
-    return shaderStageToFlagBits(stage);
-  }
+  ShaderStage getStage() { return stage; };
+
   ShaderModule &getModule() { return module; }
 
   static std::optional<Shader> fromCode(std::vector<char> &code,
-                                        EShaderStage stage, Device &device);
+                                        ShaderStage stage, Device &device);
   static std::optional<Shader> fromFile(const std::string &fileName,
-                                        EShaderStage stage, Device &device);
+                                        ShaderStage stage, Device &device);
 };

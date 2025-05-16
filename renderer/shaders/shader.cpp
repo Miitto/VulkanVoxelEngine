@@ -6,22 +6,6 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-VkShaderStageFlagBits shaderStageToFlagBits(EShaderStage &stage) {
-  switch (stage) {
-  case EShaderStage::VERTEX: {
-    return VK_SHADER_STAGE_VERTEX_BIT;
-  }
-  case EShaderStage::FRAG: {
-    return VK_SHADER_STAGE_FRAGMENT_BIT;
-  }
-  case EShaderStage::GEOM: {
-    return VK_SHADER_STAGE_GEOMETRY_BIT;
-  }
-  }
-
-  std::unreachable();
-}
-
 static std::optional<std::vector<char>> readFile(const std::string &fileName) {
   std::ifstream file(fileName, std::ios::ate | std::ios::binary);
 
@@ -42,7 +26,7 @@ static std::optional<std::vector<char>> readFile(const std::string &fileName) {
 }
 
 std::optional<Shader> Shader::fromFile(const std::string &fileName,
-                                       EShaderStage stage, Device &device) {
+                                       ShaderStage stage, Device &device) {
   auto code = readFile(fileName);
   if (!code) {
     std::cerr << "Failed to read shader file: " << fileName << std::endl;
@@ -53,7 +37,7 @@ std::optional<Shader> Shader::fromFile(const std::string &fileName,
 }
 
 std::optional<Shader> Shader::fromCode(std::vector<char> &code,
-                                       EShaderStage stage, Device &device) {
+                                       ShaderStage stage, Device &device) {
 
   auto module_opt = ShaderModule::fromCode(code, device);
 

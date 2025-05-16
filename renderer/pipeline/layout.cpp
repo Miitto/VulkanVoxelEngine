@@ -2,7 +2,7 @@
 #include <iostream>
 
 std::optional<PipelineLayout>
-PipelineLayout::create(Device &device, VkPipelineLayoutCreateInfo info) {
+PipelineLayout::create(Device &device, vk::info::PipelineLayoutCreate info) {
   VkPipelineLayout layout;
   if (vkCreatePipelineLayout(*device, &info, nullptr, &layout) != VK_SUCCESS) {
     std::cerr << "Failed to create pipeline layout" << std::endl;

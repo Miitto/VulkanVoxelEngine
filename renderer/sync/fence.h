@@ -1,6 +1,7 @@
 #pragma once
 
 #include "device/device.h"
+#include "structs/info/sync/fenceCreate.h"
 #include "vulkan/vulkan.h"
 #include <optional>
 
@@ -31,7 +32,8 @@ public:
 
   static std::optional<Fence> create(Device &device,
                                      bool makeSignalled = false);
-  static std::optional<Fence> create(Device &device, VkFenceCreateInfo info);
+  static std::optional<Fence> create(Device &device,
+                                     vk::info::FenceCreate info);
 
   void wait(bool autoReset = false, uint64_t timeout = UINT64_MAX) {
     vkWaitForFences(**device, 1, &fence, VK_TRUE, timeout);
