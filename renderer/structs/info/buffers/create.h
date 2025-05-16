@@ -25,14 +25,14 @@ public:
   }
 };
 
-class VertexBufferCreateInfo : public BufferCreate {
+class VertexBufferCreate : public BufferCreate {
 public:
-  VertexBufferCreateInfo() : BufferCreate() {
+  VertexBufferCreate() : BufferCreate() {
     usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
   }
 
-  VertexBufferCreateInfo(uint32_t size,
-                         VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE)
+  VertexBufferCreate(uint32_t size,
+                     VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE)
       : BufferCreate(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, size, sharingMode) {}
 };
 } // namespace info

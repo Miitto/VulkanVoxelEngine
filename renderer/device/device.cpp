@@ -1,6 +1,7 @@
 #include "device.h"
-#include "device.h"
 #include "buffers/buffer.h"
+#include "buffers/vertex.h"
+#include "device.h"
 #include "device/memory.h"
 #include "structs/info/memoryAllocate.h"
 #include "swapchain.h"
@@ -8,7 +9,9 @@
 #include "sync/semaphore.h"
 #include <optional>
 
-std::optional<Device> Device::create(PhysicalDevice& physicalDevice, vk::info::DeviceCreate& createInfo) noexcept {
+std::optional<Device>
+Device::create(PhysicalDevice &physicalDevice,
+               vk::info::DeviceCreate &createInfo) noexcept {
 
   VkDevice device;
   VkResult result =
@@ -42,8 +45,13 @@ std::optional<Fence> Device::createFence(bool signaled) {
   return Fence::create(*this, signaled);
 }
 
-std::optional<Buffer> Device::createBuffer(VkBufferCreateInfo &info) {
+std::optional<Buffer> Device::createBuffer(vk::info::BufferCreate &info) {
   return Buffer::create(*this, info);
+}
+
+std::optional<VertexBuffer>
+Device::createVertexBuffer(vk::info::VertexBufferCreate &info) {
+  return VertexBuffer::create(*this, info);
 }
 
 std::optional<DeviceMemory>

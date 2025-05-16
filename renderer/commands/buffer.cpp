@@ -1,4 +1,6 @@
 #include "buffer.h"
+#include "buffers/vertex.h"
+#include <cstdint>
 #include <optional>
 
 using Encoder = CommandBuffer::Encoder;
@@ -59,6 +61,26 @@ void Encoder::RenderPass::setViewport(const VkViewport &viewport) {
 
 void Encoder::RenderPass::setScissor(const VkRect2D &scissor) {
   vkCmdSetScissor(**encoder->commandBuffer, 0, 1, &scissor);
+}
+
+void Encoder::RenderPass::bindVertexBuffer(uint32_t binding,
+                                           VertexBuffer &buffer,
+                                           VkDeviceSize offset) {
+  vkCmdBindVertexBuffers(**encoder->commandBuffer, binding, 1, &*buffer,
+                         &offset);
+}
+
+void Encoder::RenderPass::bindVertexBuffers(
+    uint32_t binding, const std::span<VertexBuffer> &buffers,
+    const std::span<VkDeviceSize> &offsets) {
+  std::vector<VkBuffer> bufferHandles(buffers.size());
+  for (size_t i = 0; i < buffers.size(); i++) {
+    bufferHandles[i] = *buffers[i];
+  }
+
+  vkCmdBindVertexBuffers(**encoder->commandBuffer, binding,
+                         static_cast<uint32_t>(buffers.size()),
+                         bufferHandles.data(), offsets.data());
 }
 
 void Encoder::RenderPass::draw(uint32_t vertexCount, uint32_t instanceCount,

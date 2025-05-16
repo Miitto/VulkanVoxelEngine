@@ -2,6 +2,7 @@
 
 #include "physicalDevice.h"
 #include "queue.h"
+#include "structs/info/buffers/create.h"
 #include "structs/info/deviceCreate.h"
 #include "structs/info/swapchainCreate.h"
 #include <optional>
@@ -12,6 +13,7 @@ class Semaphore;
 class Fence;
 class Buffer;
 class DeviceMemory;
+class VertexBuffer;
 
 class Device {
 public:
@@ -32,6 +34,8 @@ public:
 
     Device &operator*() { return **m_device; }
     VkDevice &raw() { return ***m_device; }
+    operator Device &() { return **m_device; }
+    operator VkDevice() { return ***m_device; }
   };
 
 private:
@@ -67,8 +71,9 @@ public:
   VkDevice &operator*() { return m_device; }
   Ref &ref() { return m_reference; }
 
-  static std::optional<Device> create(PhysicalDevice &physicalDevice,
-                                      vk::info::DeviceCreate &createInfo) noexcept;
+  static std::optional<Device>
+  create(PhysicalDevice &physicalDevice,
+         vk::info::DeviceCreate &createInfo) noexcept;
 
   PhysicalDevice &getPhysical() { return m_physicalDevice; }
 
@@ -80,7 +85,9 @@ public:
   std::optional<Semaphore> createSemaphore();
   std::optional<Fence> createFence(bool createSignaled = false);
 
-  std::optional<Buffer> createBuffer(VkBufferCreateInfo &info);
+  std::optional<Buffer> createBuffer(vk::info::BufferCreate &info);
+  std::optional<VertexBuffer>
+  createVertexBuffer(vk::info::VertexBufferCreate &info);
 
   std::optional<DeviceMemory> allocateMemory(Buffer &buffer,
                                              VkMemoryPropertyFlags properties);

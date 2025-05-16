@@ -1,7 +1,10 @@
 #pragma once
 
+#include "buffers/vertex.h"
 #include "commands/buffer.h"
 #include "commands/pool.h"
+#include "device/device.h"
+#include "device/memory.h"
 #include "pipeline/graphics.h"
 #include "pipeline/layout.h"
 #include "swapchain.h"
@@ -66,12 +69,15 @@ private:
   GraphicsPipeline pipeline;
   CommandPool commandPool;
   std::array<Frame, MAX_FRAMES_IN_FLIGHT> frames;
+  VertexBuffer vertexBuffer;
+  DeviceMemory vertexBufferMemory;
 
   App(Window &window, Instance &instance, Surface &surface, Device &device,
       Queue graphicsQueue, PresentQueue presentQueue, Swapchain &swapchain,
       PipelineLayout &pipelineLayout, RenderPass &renderPass,
       std::vector<Framebuffer> &framebuffers, GraphicsPipeline &pipeline,
-      CommandPool &commandPool, std::array<Frame, MAX_FRAMES_IN_FLIGHT> &frames)
+      CommandPool &commandPool, std::array<Frame, MAX_FRAMES_IN_FLIGHT> &frames,
+      VertexBuffer &vertexBuffer, DeviceMemory &vertexBufferMemory)
       : window(std::move(window)), instance(std::move(instance)),
         surface(std::move(surface)), device(std::move(device)),
         graphicsQueue(graphicsQueue), presentQueue(presentQueue),
@@ -79,5 +85,7 @@ private:
         pipelineLayout(std::move(pipelineLayout)),
         renderPass(std::move(renderPass)),
         framebuffers(std::move(framebuffers)), pipeline(std::move(pipeline)),
-        commandPool(std::move(commandPool)), frames(std::move(frames)) {}
+        commandPool(std::move(commandPool)), frames(std::move(frames)),
+        vertexBuffer(std::move(vertexBuffer)),
+        vertexBufferMemory(std::move(vertexBufferMemory)) {}
 };

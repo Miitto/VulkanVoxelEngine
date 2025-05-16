@@ -6,6 +6,7 @@ target_sources(renderer
     window.cpp
     framebuffer.cpp
     swapchain.cpp
+    mapping.cpp
 )
 
 FetchContent_Declare(glm GIT_REPOSITORY https://github.com/g-truc/glm.git GIT_TAG master)

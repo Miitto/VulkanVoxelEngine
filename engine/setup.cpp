@@ -403,9 +403,48 @@ std::optional<App> App::create() {
         .renderFinished = std::move(renderSem2.value()),
         .inFlight = std::move(inFlightFence2.value())}}};
 
+  vk::info::VertexBufferCreate vBufferInfo(4 * sizeof(Vertex));
+  auto vBuf_opt = device.createVertexBuffer(vBufferInfo);
+  if (!vBuf_opt.has_value()) {
+    std::cerr << "Failed to create vertex buffer." << std::endl;
+    return std::nullopt;
+  }
+  auto &vBuf = vBuf_opt.value();
+
+  auto memory_opt =
+      device.allocateMemory(vBuf, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  if (!memory_opt.has_value()) {
+    std::cerr << "Failed to allocate vertex buffer memory." << std::endl;
+    return std::nullopt;
+  }
+  auto &memory = memory_opt.value();
+
+  if (vBuf.bind(memory) != VK_SUCCESS) {
+    std::cerr << "Failed to bind vertex buffer memory." << std::endl;
+    return std::nullopt;
+  }
+
+  {
+    auto mapping_opt = vBuf.map();
+    if (!mapping_opt.has_value()) {
+      std::cerr << "Failed to map vertex buffer." << std::endl;
+      return std::nullopt;
+    }
+    auto &mapping = mapping_opt.value();
+
+    std::array<Vertex, 3> vertices = {{
+        {.position = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}},
+        {.position = {0.5f, -0.5f, 0.0f}, .color = {0.0f, 1.0f, 0.0f}},
+        {.position = {0.5f, 0.5f, 0.0f}, .color = {0.0f, 0.0f, 1.0f}},
+    }};
+
+    mapping.write(vertices.data(), sizeof(vertices));
+  }
+
   App app(window, instance, surface, device, graphicsQueue.value(),
           presentQueue.value(), swapchain, layout, renderPass, framebuffers,
-          pipeline, commandPool, frames);
+          pipeline, commandPool, frames, vBuf, memory);
 
   return std::move(app);
 }

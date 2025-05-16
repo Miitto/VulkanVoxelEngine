@@ -1,5 +1,7 @@
 #pragma once
 
+#include "structs/vertexInputAttributeDescription.h"
+#include "structs/vertexInputBindingDescription.h"
 #include <span>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -9,8 +11,9 @@ namespace info {
 class PipelineVertexInputStateCreate
     : public VkPipelineVertexInputStateCreateInfo {
 
-  std::vector<VkVertexInputBindingDescription> m_vertexBindingDescriptions;
-  std::vector<VkVertexInputAttributeDescription> m_vertexAttributeDescriptions;
+  std::vector<vk::VertexInputBindingDescription> m_vertexBindingDescriptions;
+  std::vector<vk::VertexInputAttributeDescription>
+      m_vertexAttributeDescriptions;
 
   void setupBindingDescriptions() {
     vertexBindingDescriptionCount =
@@ -36,14 +39,14 @@ public:
             .pVertexAttributeDescriptions = nullptr} {}
 
   PipelineVertexInputStateCreate &addBindingDescription(
-      const VkVertexInputBindingDescription &bindingDescription) {
+      const vk::VertexInputBindingDescription &bindingDescription) {
     m_vertexBindingDescriptions.push_back(bindingDescription);
     setupBindingDescriptions();
     return *this;
   }
 
   PipelineVertexInputStateCreate &addBindingDescriptions(
-      const std::span<VkVertexInputBindingDescription> &bindingDescriptions) {
+      const std::span<vk::VertexInputBindingDescription> &bindingDescriptions) {
     m_vertexBindingDescriptions.insert(m_vertexBindingDescriptions.end(),
                                        bindingDescriptions.begin(),
                                        bindingDescriptions.end());
@@ -52,14 +55,14 @@ public:
   }
 
   PipelineVertexInputStateCreate &addAttributeDescription(
-      const VkVertexInputAttributeDescription &attributeDescription) {
+      const vk::VertexInputAttributeDescription &attributeDescription) {
     m_vertexAttributeDescriptions.push_back(attributeDescription);
     setupAttributeDescriptions();
     return *this;
   }
 
   PipelineVertexInputStateCreate &
-  addAttributeDescriptions(const std::span<VkVertexInputAttributeDescription>
+  addAttributeDescriptions(const std::span<vk::VertexInputAttributeDescription>
                                &attributeDescriptions) {
     m_vertexAttributeDescriptions.insert(m_vertexAttributeDescriptions.end(),
                                          attributeDescriptions.begin(),
