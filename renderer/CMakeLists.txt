@@ -29,3 +29,13 @@ target_include_directories(renderer
 target_link_libraries(renderer PRIVATE glfw Vulkan::Vulkan)
 
 target_compile_definitions(renderer PUBLIC GLFW_INCLUDE_VULKAN)
+
+set_target_properties(renderer
+    PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/out/Debug/renderer/lib"
+    LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/out/Debug/renderer/lib"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/out/Debug/renderer/bin"
+    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/out/Release/renderer/lib"
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/out/Release/renderer/lib"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/out/Release/renderer/bin"
+)
