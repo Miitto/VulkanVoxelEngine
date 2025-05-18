@@ -299,11 +299,8 @@ std::optional<App::VBufferParts> createVertexBuffers(Device &device,
   vk::info::CommandBufferBegin cmdBufBegin{};
   cmdBufBegin.oneTime();
   {
-    LOG("Beggining");
     auto encoder = cmdBuf.begin(cmdBufBegin);
-    LOG("Encoding");
     encoder.copyBuffer(staging, vBuf, vk::BufferCopy{{0, 0, bufSize}});
-    LOG("Ending");
   }
 
   auto fence_opt = device.createFence();
@@ -322,8 +319,6 @@ std::optional<App::VBufferParts> createVertexBuffers(Device &device,
       .vertexBuffer = std::move(vBuf),
       .vertexBufferMemory = std::move(vBufMemory),
   };
-
-  LOG("Waiting for fence");
 
   return parts;
 }
