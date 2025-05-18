@@ -12,6 +12,7 @@ protected:
   VkBuffer m_buffer;
   Device::Ref m_device;
   VkDeviceSize m_size;
+  VkBufferUsageFlags m_usage;
 
   struct MemoryLocation {
     DeviceMemory::Ref memory;
@@ -20,8 +21,10 @@ protected:
 
   std::optional<MemoryLocation> m_memory;
 
-  Buffer(VkBuffer buffer, Device &device, VkDeviceSize size) noexcept
-      : m_buffer(buffer), m_device(device.ref()), m_size(size) {}
+  Buffer(VkBuffer buffer, Device &device, VkDeviceSize size,
+         VkBufferUsageFlags usage) noexcept
+      : m_buffer(buffer), m_device(device.ref()), m_size(size), m_usage(usage) {
+  }
 
   Buffer(const Buffer &) = delete;
   Buffer &operator=(const Buffer &) = delete;
@@ -54,4 +57,20 @@ public:
   std::optional<Mapping> map(VkDeviceSize size = VK_WHOLE_SIZE,
                              VkDeviceSize offset = 0,
                              VkMemoryMapFlags flags = 0);
+
+  bool isBound() const {
+    return m_memory.has_value() && m_memory.value().memory.has_value();
+  }
+
+  bool canMap() const {
+    return isBound() && m_memory.value().memory.value().mappable();
+  }
+
+  bool canCopyFrom() const {
+    return isBound() && m_usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+  }
+
+  bool canCopyTo() const {
+    return isBound() && m_usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+  }
 };

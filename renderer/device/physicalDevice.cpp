@@ -83,15 +83,15 @@ std::vector<char const *> PhysicalDevice::findUnsupportedExtensions(
   return unsupportedExtensions;
 }
 
-std::optional<uint32_t>
-PhysicalDevice::findMemoryTypeIndex(uint32_t typeFilter,
-                                    VkMemoryPropertyFlags properties) const {
+std::optional<PhysicalDevice::MemoryProperties>
+PhysicalDevice::findMemoryType(uint32_t typeFilter,
+                               VkMemoryPropertyFlags properties) const {
   VkPhysicalDeviceMemoryProperties memProperties = getMemoryProperties();
 
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
     if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags &
                                     properties) == properties) {
-      return i;
+      return PhysicalDevice::MemoryProperties{i, memProperties.memoryTypes[i]};
     }
   }
 

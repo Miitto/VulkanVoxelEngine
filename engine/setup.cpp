@@ -1,5 +1,6 @@
 #include "app.h"
 #include "instance.h"
+#include "log.h"
 #include "structs/attachmentDescription.h"
 #include "structs/info/all.h"
 #include "structs/pipelineColorBlendAttachmentState.h"
@@ -211,6 +212,122 @@ std::optional<GraphicsPipeline> makePipeline(Device &device,
   return pipeline;
 }
 
+std::optional<App::VBufferParts> createVertexBuffers(Device &device,
+                                                     Queue &transferQueue) {
+  VkDeviceSize bufSize = 3 * sizeof(Vertex);
+  vk::info::BufferCreate stagingBufInfo(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                        bufSize);
+
+  auto staging_opt = device.createBuffer(stagingBufInfo);
+  if (!staging_opt.has_value()) {
+    std::cerr << "Failed to create staging vertex buffer." << std::endl;
+    return std::nullopt;
+  }
+  auto &staging = staging_opt.value();
+
+  auto stagingMemory_opt =
+      device.allocateMemory(staging, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  if (!stagingMemory_opt.has_value()) {
+    std::cerr << "Failed to allocate staging vertex buffer memory."
+              << std::endl;
+    return std::nullopt;
+  }
+  auto &stagingMemory = stagingMemory_opt.value();
+
+  if (staging.bind(stagingMemory) != VK_SUCCESS) {
+    LOG_ERR("Failed to bind staging vertex buffer memory");
+    return std::nullopt;
+  }
+
+  {
+    auto mapping_opt = staging.map();
+    if (!mapping_opt.has_value()) {
+      LOG_ERR("Failed to map vertex staging buffer");
+      return std::nullopt;
+    }
+    auto &mapping = mapping_opt.value();
+
+    std::array<Vertex, 3> vertices = {{
+        {.position = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}},
+        {.position = {0.5f, -0.5f, 0.0f}, .color = {0.0f, 1.0f, 0.0f}},
+        {.position = {0.5f, 0.5f, 0.0f}, .color = {0.0f, 0.0f, 1.0f}},
+    }};
+
+    mapping.write(vertices.data(), sizeof(vertices));
+  }
+
+  vk::info::VertexBufferCreate vBufInfo(bufSize,
+                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+  auto vBuf_opt = device.createVertexBuffer(vBufInfo);
+  if (!vBuf_opt.has_value()) {
+    std::cerr << "Failed to create vertex buffer." << std::endl;
+    return std::nullopt;
+  }
+  auto &vBuf = vBuf_opt.value();
+
+  auto vBufMemory_opt =
+      device.allocateMemory(vBuf, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  if (!vBufMemory_opt.has_value()) {
+    std::cerr << "Failed to allocate vertex buffer memory." << std::endl;
+    return std::nullopt;
+  }
+  auto &vBufMemory = vBufMemory_opt.value();
+
+  if (vBuf.bind(vBufMemory) != VK_SUCCESS) {
+    std::cerr << "Failed to bind vertex buffer memory." << std::endl;
+    return std::nullopt;
+  }
+
+  vk::info::CommandPoolCreate cmdPoolInfo(transferQueue.getFamilyIndex(), false,
+                                          true);
+  auto cmdPool_opt = device.createCommandPool(cmdPoolInfo);
+  if (!cmdPool_opt.has_value()) {
+    std::cerr << "Failed to create command pool." << std::endl;
+    return std::nullopt;
+  }
+  auto &cmdPool = cmdPool_opt.value();
+
+  auto cmdBuf_opt = cmdPool.allocBuffer();
+  if (!cmdBuf_opt.has_value()) {
+    std::cerr << "Failed to create command buffer." << std::endl;
+    return std::nullopt;
+  }
+  auto &cmdBuf = cmdBuf_opt.value();
+
+  vk::info::CommandBufferBegin cmdBufBegin{};
+  cmdBufBegin.oneTime();
+  {
+    LOG("Beggining");
+    auto encoder = cmdBuf.begin(cmdBufBegin);
+    LOG("Encoding");
+    encoder.copyBuffer(staging, vBuf, vk::BufferCopy{{0, 0, bufSize}});
+    LOG("Ending");
+  }
+
+  auto fence_opt = device.createFence();
+  if (!fence_opt.has_value()) {
+    std::cerr << "Failed to create fence." << std::endl;
+    return std::nullopt;
+  }
+  auto &fence = fence_opt.value();
+
+  transferQueue.submit(cmdBuf, fence);
+  transferQueue.waitIdle();
+
+
+
+  App::VBufferParts parts{
+      .vertexBuffer = std::move(vBuf),
+      .vertexBufferMemory = std::move(vBufMemory),
+  };
+
+  LOG("Waiting for fence");
+
+  return parts;
+}
+
 std::optional<App> App::create() {
   glfwInit();
 
@@ -403,48 +520,17 @@ std::optional<App> App::create() {
         .renderFinished = std::move(renderSem2.value()),
         .inFlight = std::move(inFlightFence2.value())}}};
 
-  vk::info::VertexBufferCreate vBufferInfo(4 * sizeof(Vertex));
-  auto vBuf_opt = device.createVertexBuffer(vBufferInfo);
+  auto vBuf_opt = createVertexBuffers(device, graphicsQueue.value());
   if (!vBuf_opt.has_value()) {
     std::cerr << "Failed to create vertex buffer." << std::endl;
     return std::nullopt;
   }
+
   auto &vBuf = vBuf_opt.value();
-
-  auto memory_opt =
-      device.allocateMemory(vBuf, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-  if (!memory_opt.has_value()) {
-    std::cerr << "Failed to allocate vertex buffer memory." << std::endl;
-    return std::nullopt;
-  }
-  auto &memory = memory_opt.value();
-
-  if (vBuf.bind(memory) != VK_SUCCESS) {
-    std::cerr << "Failed to bind vertex buffer memory." << std::endl;
-    return std::nullopt;
-  }
-
-  {
-    auto mapping_opt = vBuf.map();
-    if (!mapping_opt.has_value()) {
-      std::cerr << "Failed to map vertex buffer." << std::endl;
-      return std::nullopt;
-    }
-    auto &mapping = mapping_opt.value();
-
-    std::array<Vertex, 3> vertices = {{
-        {.position = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}},
-        {.position = {0.5f, -0.5f, 0.0f}, .color = {0.0f, 1.0f, 0.0f}},
-        {.position = {0.5f, 0.5f, 0.0f}, .color = {0.0f, 0.0f, 1.0f}},
-    }};
-
-    mapping.write(vertices.data(), sizeof(vertices));
-  }
 
   App app(window, instance, surface, device, graphicsQueue.value(),
           presentQueue.value(), swapchain, layout, renderPass, framebuffers,
-          pipeline, commandPool, frames, vBuf, memory);
+          pipeline, commandPool, frames, vBuf);
 
   return std::move(app);
 }

@@ -2,51 +2,31 @@
 
 #include "physicalDevice.h"
 #include "queue.h"
+#include "refs/refable.h"
 #include "structs/info/buffers/create.h"
+#include "structs/info/commands/commandPoolCreate.h"
 #include "structs/info/deviceCreate.h"
 #include "structs/info/swapchainCreate.h"
 #include <optional>
 #include <vulkan/vulkan.h>
 
 class Swapchain;
+class CommandPool;
 class Semaphore;
 class Fence;
 class Buffer;
 class DeviceMemory;
 class VertexBuffer;
 
-class Device {
-public:
-  class Ref {
-    friend class Device;
-    std::shared_ptr<Device *> m_device;
-
-    Ref() = delete;
-    explicit Ref(Device *device)
-        : m_device(std::make_shared<Device *>(device)) {}
-
-  protected:
-    static Ref create(Device &device) { return Ref(&device); }
-    static Ref create(Device *device) { return Ref(device); }
-
-  public:
-    void set(Device *device) { *this->m_device = device; }
-
-    Device &operator*() { return **m_device; }
-    VkDevice &raw() { return ***m_device; }
-    operator Device &() { return **m_device; }
-    operator VkDevice() { return ***m_device; }
-  };
-
-private:
+class Device : public RawRefable<Device, VkDevice> {
   VkDevice m_device;
   PhysicalDevice m_physicalDevice;
-  Ref m_reference;
 
 public:
+  using Ref = RawRef<Device, VkDevice>;
+
   Device(VkDevice device, PhysicalDevice &physicalDevice)
-      : m_device(device), m_physicalDevice(physicalDevice),
-        m_reference(Ref::create(this)) {}
+      : RawRefable(), m_device(device), m_physicalDevice(physicalDevice) {}
   void destroy() {
     if (m_device != VK_NULL_HANDLE) {
       waitIdle();
@@ -61,15 +41,12 @@ public:
   Device &operator=(Device &&o) = delete;
 
   Device(Device &&o) noexcept
-      : m_device(std::move(o.m_device)),
-        m_physicalDevice(std::move(o.m_physicalDevice)),
-        m_reference(o.m_reference) {
+      : RawRefable(std::move(o)), m_device(std::move(o.m_device)),
+        m_physicalDevice(std::move(o.m_physicalDevice)) {
     o.m_device = VK_NULL_HANDLE;
-    m_reference.set(this);
   }
 
   VkDevice &operator*() { return m_device; }
-  Ref &ref() { return m_reference; }
 
   static std::optional<Device>
   create(PhysicalDevice &physicalDevice,
@@ -81,6 +58,8 @@ public:
 
   VkResult waitIdle() { return vkDeviceWaitIdle(m_device); }
 
+  std::optional<CommandPool>
+  createCommandPool(vk::info::CommandPoolCreate &info);
   std::optional<Swapchain> createSwapchain(vk::info::SwapchainCreate &info);
   std::optional<Semaphore> createSemaphore();
   std::optional<Fence> createFence(bool createSignaled = false);

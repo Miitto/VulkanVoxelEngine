@@ -46,6 +46,7 @@ public:
   void reset() { vkResetFences(**device, 1, &fence); }
 
   VkFence operator*() { return fence; }
+  operator VkFence() { return fence; }
 
   ~Fence() {
     if (fence != VK_NULL_HANDLE) {

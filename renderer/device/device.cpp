@@ -1,6 +1,7 @@
 #include "device.h"
 #include "buffers/buffer.h"
 #include "buffers/vertex.h"
+#include "commands/pool.h"
 #include "device.h"
 #include "device/memory.h"
 #include "structs/info/memoryAllocate.h"
@@ -37,6 +38,11 @@ Device::createSwapchain(vk::info::SwapchainCreate &info) {
   return Swapchain::create(*this, info);
 }
 
+std::optional<CommandPool>
+Device::createCommandPool(vk::info::CommandPoolCreate &info) {
+  return CommandPool::create(*this, info);
+}
+
 std::optional<Semaphore> Device::createSemaphore() {
   return Semaphore::create(*this);
 }
@@ -58,16 +64,16 @@ std::optional<DeviceMemory>
 Device::allocateMemory(Buffer &buffer, VkMemoryPropertyFlags properties) {
   auto memoryReqs = buffer.getMemoryRequirements();
 
-  auto memoryTypeIndex = m_physicalDevice.findMemoryTypeIndex(
-      memoryReqs.memoryTypeBits, properties);
+  auto memoryType =
+      m_physicalDevice.findMemoryType(memoryReqs.memoryTypeBits, properties);
 
-  if (!memoryTypeIndex) {
+  if (!memoryType) {
     return std::nullopt;
   }
 
-  vk::info::MemoryAllocate info(memoryReqs.size, *memoryTypeIndex);
+  vk::info::MemoryAllocate info(memoryReqs.size, memoryType->index);
 
-  return DeviceMemory::create(*this, info);
+  return DeviceMemory::create(*this, info, memoryType.value());
 }
 
 void Device::bindBufferMemory(Buffer &buffer, DeviceMemory &memory,

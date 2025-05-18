@@ -35,6 +35,7 @@ public:
                                          VkSemaphoreCreateInfo info);
 
   VkSemaphore operator*() { return semaphore; }
+  operator VkSemaphore() { return semaphore; }
 
   ~Semaphore() {
     if (semaphore != VK_NULL_HANDLE) {

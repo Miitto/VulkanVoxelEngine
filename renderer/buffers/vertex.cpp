@@ -7,5 +7,5 @@ VertexBuffer::create(Device &device, vk::info::VertexBufferCreate &createInfo) {
     return std::nullopt;
   }
 
-  return VertexBuffer(buffer, device, createInfo.size);
+  return VertexBuffer(buffer, device, createInfo.size, createInfo.usage);
 }

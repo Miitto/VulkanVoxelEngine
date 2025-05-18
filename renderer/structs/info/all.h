@@ -1,4 +1,5 @@
 #include "application.h"
+#include "bufferCopy.h"
 #include "commands.h"
 #include "deviceCreate.h"
 #include "deviceQueueCreation.h"

@@ -4,53 +4,31 @@
 
 #include "device/device.h"
 
-class DeviceMemory {
-public:
-  class Ref {
-    friend class DeviceMemory;
-    std::shared_ptr<DeviceMemory *> m_memory;
-
-    Ref() = delete;
-    explicit Ref(DeviceMemory *memory)
-        : m_memory(std::make_shared<DeviceMemory *>(memory)) {}
-
-  protected:
-    static Ref create(DeviceMemory &memory) { return Ref(&memory); }
-    static Ref create(DeviceMemory *memory) { return Ref(memory); }
-
-  public:
-    void set(DeviceMemory *memory) { *this->m_memory = memory; }
-
-    DeviceMemory &operator*() { return **m_memory; }
-    operator DeviceMemory &() { return **m_memory; }
-    operator VkDeviceMemory() { return ***m_memory; }
-  };
-
-private:
+class DeviceMemory : public RawRefable<DeviceMemory, VkDeviceMemory> {
   VkDeviceMemory m_memory;
   Device::Ref m_device;
-  Ref m_reference;
 
   VkDeviceSize m_size;
-  bool m_isCoherent;
+
+  PhysicalDevice::MemoryProperties m_memoryType;
 
   DeviceMemory() = delete;
   DeviceMemory(const DeviceMemory &) = delete;
   DeviceMemory &operator=(const DeviceMemory &) = delete;
 
 public:
+  using Ref = RawRef<DeviceMemory, VkDeviceMemory>;
   DeviceMemory(DeviceMemory &&o) noexcept
-      : m_memory(std::move(o.m_memory)), m_device(std::move(o.m_device)),
-        m_reference(o.m_reference), m_size(o.m_size),
-        m_isCoherent(o.m_isCoherent) {
+      : RawRefable(std::move(o)), m_memory(std::move(o.m_memory)),
+        m_device(std::move(o.m_device)), m_size(o.m_size),
+        m_memoryType(o.m_memoryType) {
     o.m_memory = VK_NULL_HANDLE;
-    m_reference.set(this);
   }
 
   DeviceMemory(Device &device, VkDeviceMemory memory, VkDeviceSize size,
-               bool coherent)
-      : m_memory(memory), m_device(device.ref()),
-        m_reference(Ref::create(*this)), m_size(size), m_isCoherent(coherent) {}
+               PhysicalDevice::MemoryProperties &memoryType)
+      : RawRefable(), m_memory(memory), m_device(device.ref()), m_size(size),
+        m_memoryType(memoryType) {}
 
   ~DeviceMemory() {
     if (m_memory != VK_NULL_HANDLE) {
@@ -59,13 +37,22 @@ public:
     }
   }
 
-  static std::optional<DeviceMemory> create(Device &device,
-                                            VkMemoryAllocateInfo &info);
+  static std::optional<DeviceMemory>
+  create(Device &device, VkMemoryAllocateInfo &info,
+         PhysicalDevice::MemoryProperties &memoryType);
 
   VkDeviceMemory operator*() { return m_memory; }
   operator VkDeviceMemory() { return m_memory; }
-  Ref &ref() { return m_reference; }
 
-  bool isCoherent() const { return m_isCoherent; }
+  bool isCoherent() const {
+    return (m_memoryType.memType.propertyFlags &
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+  }
+
+  bool mappable() const {
+    return (m_memoryType.memType.propertyFlags &
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
+  }
+
   uint32_t getSize() const { return m_size; }
 };

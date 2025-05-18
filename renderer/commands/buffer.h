@@ -2,33 +2,43 @@
 
 #include "buffers/vertex.h"
 #include "pipeline/pipeline.h"
+#include "structs/info/bufferCopy.h"
 #include "structs/info/commands/bufferBegin.h"
 #include "vulkan/vulkan_core.h"
 #include <cstdint>
-#include <memory>
 #include <span>
 
 class CommandBuffer {
   VkCommandBuffer commandBuffer;
 
 public:
-  class Encoder {
-    friend class CommandBuffer;
+  class Encoder : public Refable<Encoder> {
     CommandBuffer *commandBuffer;
 
   public:
     Encoder(CommandBuffer &commandBuffer)
-        : commandBuffer(&commandBuffer),
-          activeRenderPass(
-              std::make_shared<std::optional<RenderPass>>(std::nullopt)) {}
+        : Refable(), commandBuffer(&commandBuffer), activeRenderPass(nullptr) {}
 
-    class RenderPass {
-      friend class Encoder;
+    Encoder(const Encoder &) = delete;
+    Encoder &operator=(const Encoder &) = delete;
+    Encoder(Encoder &&o)
+        : Refable(std::move(o)), commandBuffer(o.commandBuffer),
+          activeRenderPass(o.activeRenderPass) {}
+
+    operator bool() const { return commandBuffer != nullptr; }
+
+    class RenderPass : public Refable<RenderPass> {
       Encoder *encoder;
       RenderPass() = delete;
 
     public:
-      RenderPass(Encoder &encoder) : encoder(&encoder) {}
+      RenderPass(Encoder &encoder) : Refable(), encoder(&encoder) {}
+      RenderPass(const RenderPass &) = delete;
+      RenderPass &operator=(const RenderPass &) = delete;
+      RenderPass(RenderPass &&o) : Refable(std::move(o)), encoder(o.encoder) {
+        o.encoder = nullptr;
+      }
+      operator bool() const { return encoder != nullptr && !!*encoder; }
 
       void bindPipeline(const VkPipelineBindPoint bindPoint,
                         const VkPipeline &pipeline);
@@ -48,26 +58,32 @@ public:
                 uint32_t firstVertex = 0, uint32_t firstInstance = 0);
 
       void end();
+      ~RenderPass();
     };
-    friend class Encoder::RenderPass;
-    std::shared_ptr<std::optional<Encoder::RenderPass>> activeRenderPass;
+
+    Ref<RenderPass> activeRenderPass;
 
     RenderPass beginRenderPass(
         const VkRenderPassBeginInfo info,
         const VkSubpassContents contents = VK_SUBPASS_CONTENTS_INLINE);
 
+    void copyBuffer(Buffer &src, Buffer &dst, const VkBufferCopy &region);
+    void copyBuffer(Buffer &src, Buffer &dst,
+                    const std::span<vk::BufferCopy> &regions);
+
     VkResult end();
+
+    ~Encoder();
   };
 
 private:
-  std::shared_ptr<std::optional<CommandBuffer::Encoder>> encoder;
+  Ref<Encoder> encoder;
 
   CommandBuffer() = delete;
 
 public:
   CommandBuffer(VkCommandBuffer commandBuffer)
-      : commandBuffer(commandBuffer),
-        encoder(std::make_shared<std::optional<Encoder>>(std::nullopt)) {}
+      : commandBuffer(commandBuffer), encoder(Ref<Encoder>(nullptr)) {}
 
   VkCommandBuffer &operator*() { return commandBuffer; }
 

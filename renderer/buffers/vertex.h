@@ -3,8 +3,9 @@
 #include "buffers/buffer.h"
 
 class VertexBuffer : public Buffer {
-  VertexBuffer(VkBuffer buffer, Device &device, VkDeviceSize size) noexcept
-      : Buffer(buffer, device, size) {}
+  VertexBuffer(VkBuffer buffer, Device &device, VkDeviceSize size,
+               VkBufferUsageFlags usage) noexcept
+      : Buffer(buffer, device, size, usage) {}
 
   VertexBuffer(const VertexBuffer &) = delete;
   VertexBuffer &operator=(const VertexBuffer &) = delete;

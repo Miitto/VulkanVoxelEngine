@@ -1,4 +1,5 @@
 #include "buffer.h"
+#include "log.h"
 
 std::optional<Buffer> Buffer::create(Device &device,
                                      VkBufferCreateInfo &createInfo) {
@@ -7,7 +8,7 @@ std::optional<Buffer> Buffer::create(Device &device,
     return std::nullopt;
   }
 
-  return Buffer(buffer, device, createInfo.size);
+  return Buffer(buffer, device, createInfo.size, createInfo.usage);
 }
 
 VkResult Buffer::bind(DeviceMemory &memory, VkDeviceSize offset) {
@@ -31,18 +32,23 @@ std::optional<Mapping> Buffer::map(VkDeviceSize size, VkDeviceSize offset,
 
   auto memory = m_memory.value();
 
-  if (*memory.memory == VK_NULL_HANDLE) {
-    std::cerr << "Buffer memory is null." << std::endl;
+  if (!memory.memory.has_value()) {
+    LOG_ERR("Buffer memory is not valid.");
     return std::nullopt;
   }
 
-  VkDeviceSize bufferSize = (*memory.memory).getSize();
+  if (!memory.memory.value().mappable()) {
+    LOG_ERR("Buffer memory is not mappable.");
+    return std::nullopt;
+  }
+
+  VkDeviceSize memorySize = (*memory.memory).getSize();
 
   // Ensure that the requested size and offset are within the bounds of the
   // buffer and the device memory
-  if (bufferSize + memory.offset <
+  if (memorySize + memory.offset <
       (size == VK_WHOLE_SIZE ? m_size : size) + offset) {
-    std::cerr << "Buffer memory is smaller than requested size." << std::endl;
+    LOG_ERR("Buffer memory is smaller than requested size.");
     return std::nullopt;
   }
 

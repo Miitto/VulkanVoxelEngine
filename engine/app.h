@@ -53,6 +53,11 @@ public:
     Fence inFlight;
   };
 
+  struct VBufferParts {
+    VertexBuffer vertexBuffer;
+    DeviceMemory vertexBufferMemory;
+  };
+
 private:
   int currentFrame = 0;
 
@@ -69,15 +74,14 @@ private:
   GraphicsPipeline pipeline;
   CommandPool commandPool;
   std::array<Frame, MAX_FRAMES_IN_FLIGHT> frames;
-  VertexBuffer vertexBuffer;
-  DeviceMemory vertexBufferMemory;
+  VBufferParts vertexBuffer;
 
   App(Window &window, Instance &instance, Surface &surface, Device &device,
       Queue graphicsQueue, PresentQueue presentQueue, Swapchain &swapchain,
       PipelineLayout &pipelineLayout, RenderPass &renderPass,
       std::vector<Framebuffer> &framebuffers, GraphicsPipeline &pipeline,
       CommandPool &commandPool, std::array<Frame, MAX_FRAMES_IN_FLIGHT> &frames,
-      VertexBuffer &vertexBuffer, DeviceMemory &vertexBufferMemory)
+      VBufferParts &vertexBuffer)
       : window(std::move(window)), instance(std::move(instance)),
         surface(std::move(surface)), device(std::move(device)),
         graphicsQueue(graphicsQueue), presentQueue(presentQueue),
@@ -86,6 +90,5 @@ private:
         renderPass(std::move(renderPass)),
         framebuffers(std::move(framebuffers)), pipeline(std::move(pipeline)),
         commandPool(std::move(commandPool)), frames(std::move(frames)),
-        vertexBuffer(std::move(vertexBuffer)),
-        vertexBufferMemory(std::move(vertexBufferMemory)) {}
+        vertexBuffer(std::move(vertexBuffer)) {}
 };

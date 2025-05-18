@@ -113,7 +113,7 @@ void App::recordCommandBuffer(CommandBuffer &commandBuffer,
   pass.setViewport(viewport);
   pass.setScissor(scissor);
 
-  pass.bindVertexBuffer(0, vertexBuffer);
+  pass.bindVertexBuffer(0, vertexBuffer.vertexBuffer);
 
   pass.draw(3);
 

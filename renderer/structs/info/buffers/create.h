@@ -31,9 +31,10 @@ public:
     usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
   }
 
-  VertexBufferCreate(uint32_t size,
+  VertexBufferCreate(uint32_t size, VkBufferUsageFlags additionalUsage = 0,
                      VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE)
-      : BufferCreate(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, size, sharingMode) {}
+      : BufferCreate(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | additionalUsage, size,
+                     sharingMode) {}
 };
 } // namespace info
 } // namespace vk

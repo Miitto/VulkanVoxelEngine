@@ -1,27 +1,38 @@
 #pragma once
 
 #include "structs/info/present.h"
+#include "structs/info/submit.h"
 #include "surface.h"
+#include <cstdint>
 #include <vulkan/vulkan.h>
+
+class CommandBuffer;
 
 class Queue {
 protected:
   VkQueue queue;
-  int familyIndex;
+  uint32_t familyIndex;
 
 public:
   Queue(VkQueue queue, int familyIndex)
       : queue(VkQueue(queue)), familyIndex(familyIndex) {}
 
-  VkResult submit(VkSubmitInfo &submitInfo, VkFence fence = VK_NULL_HANDLE) {
+  VkResult submit(vk::info::Submit &submitInfo,
+                  VkFence fence = VK_NULL_HANDLE) {
     return vkQueueSubmit(queue, 1, &submitInfo, fence);
   }
 
-  VkResult submit(std::vector<VkSubmitInfo> &submitInfo,
+  VkResult submit(std::vector<vk::info::Submit> &submitInfo,
                   VkFence fence = VK_NULL_HANDLE) {
     return vkQueueSubmit(queue, static_cast<uint32_t>(submitInfo.size()),
                          submitInfo.data(), fence);
   }
+
+  VkResult submit(CommandBuffer &cmdBuffer, VkFence fence = VK_NULL_HANDLE);
+
+  VkResult waitIdle() { return vkQueueWaitIdle(queue); }
+
+  uint32_t getFamilyIndex() const { return familyIndex; }
 };
 
 class QueueFamily {

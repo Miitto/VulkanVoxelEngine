@@ -15,7 +15,7 @@ CommandPool::create(Device &device, vk::info::CommandPoolCreate info) {
 std::optional<CommandBuffer> CommandPool::allocBuffer(bool secondary) {
   VkCommandBuffer commandBuffer;
 
-  vk::info::CommandBufferAllocate bufferInfo(**this, secondary);
+  vk::info::CommandBufferAllocate bufferInfo(**this, 1, secondary);
 
   if (vkAllocateCommandBuffers(device.raw(), &bufferInfo, &commandBuffer) !=
       VK_SUCCESS) {

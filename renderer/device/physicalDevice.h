@@ -22,14 +22,19 @@ public:
   VkPhysicalDeviceFeatures getFeatures() const;
   std::vector<VkExtensionProperties> getExtensions() const;
   std::vector<QueueFamily> getQueues();
+
+  struct MemoryProperties {
+    uint32_t index;
+    VkMemoryType memType;
+  };
+
   VkPhysicalDeviceMemoryProperties getMemoryProperties() const;
 
   std::vector<char const *>
   findUnsupportedExtensions(std::vector<char const *> extensions) const;
 
-  std::optional<uint32_t>
-  findMemoryTypeIndex(uint32_t typeFilter,
-                      VkMemoryPropertyFlags properties) const;
+  std::optional<PhysicalDevice::MemoryProperties>
+  findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
 
   bool isDiscrete() {
     return getProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
