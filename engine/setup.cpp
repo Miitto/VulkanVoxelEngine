@@ -1,4 +1,5 @@
 #include "app.h"
+#include "commands/buffer.h"
 #include "instance.h"
 #include "log.h"
 #include "structs/attachmentDescription.h"
@@ -214,69 +215,54 @@ std::optional<GraphicsPipeline> makePipeline(Device &device,
 
 std::optional<App::VBufferParts> createVertexBuffers(Device &device,
                                                      Queue &transferQueue) {
-  VkDeviceSize bufSize = 3 * sizeof(Vertex);
-  vk::info::BufferCreate stagingBufInfo(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                        bufSize);
+  using VertexT = Vertex;
+  using IndexT = uint16_t;
+  const int VERTEX_COUNT = 4;
+  const int INDEX_COUNT = 6;
 
-  auto staging_opt = device.createBuffer(stagingBufInfo);
-  if (!staging_opt.has_value()) {
-    std::cerr << "Failed to create staging vertex buffer." << std::endl;
-    return std::nullopt;
-  }
-  auto &staging = staging_opt.value();
-
-  auto stagingMemory_opt =
-      device.allocateMemory(staging, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-  if (!stagingMemory_opt.has_value()) {
-    std::cerr << "Failed to allocate staging vertex buffer memory."
-              << std::endl;
-    return std::nullopt;
-  }
-  auto &stagingMemory = stagingMemory_opt.value();
-
-  if (staging.bind(stagingMemory) != VK_SUCCESS) {
-    LOG_ERR("Failed to bind staging vertex buffer memory");
-    return std::nullopt;
-  }
-
-  {
-    auto mapping_opt = staging.map();
-    if (!mapping_opt.has_value()) {
-      LOG_ERR("Failed to map vertex staging buffer");
-      return std::nullopt;
-    }
-    auto &mapping = mapping_opt.value();
-
-    std::array<Vertex, 3> vertices = {{
-        {.position = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}},
-        {.position = {0.5f, -0.5f, 0.0f}, .color = {0.0f, 1.0f, 0.0f}},
-        {.position = {0.5f, 0.5f, 0.0f}, .color = {0.0f, 0.0f, 1.0f}},
-    }};
-
-    mapping.write(vertices.data(), sizeof(vertices));
-  }
+  VkDeviceSize bufSize = VERTEX_COUNT * sizeof(VertexT);
+  LOG("Buffer size: {}", bufSize);
 
   vk::info::VertexBufferCreate vBufInfo(bufSize,
                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
   auto vBuf_opt = device.createVertexBuffer(vBufInfo);
   if (!vBuf_opt.has_value()) {
-    std::cerr << "Failed to create vertex buffer." << std::endl;
+    LOG_ERR("Failed to create vertex buffer");
     return std::nullopt;
   }
   auto &vBuf = vBuf_opt.value();
 
-  auto vBufMemory_opt =
-      device.allocateMemory(vBuf, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-  if (!vBufMemory_opt.has_value()) {
-    std::cerr << "Failed to allocate vertex buffer memory." << std::endl;
+  VkDeviceSize indexBufSize = INDEX_COUNT * sizeof(IndexT);
+  LOG("Index buffer size: {}", indexBufSize);
+
+  vk::info::IndexBufferCreate indexBufInfo(indexBufSize,
+                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+  auto indexBuf_opt = device.createIndexBuffer(indexBufInfo);
+  if (!indexBuf_opt.has_value()) {
+    LOG_ERR("Failed to create index buffer");
     return std::nullopt;
   }
-  auto &vBufMemory = vBufMemory_opt.value();
+  auto &indexBuf = indexBuf_opt.value();
 
-  if (vBuf.bind(vBufMemory) != VK_SUCCESS) {
-    std::cerr << "Failed to bind vertex buffer memory." << std::endl;
+  std::array<Buffer *, 2> buffers = {&vBuf, &indexBuf};
+  std::span<Buffer *> buffersSpan(buffers);
+
+  auto memory_opt =
+      device.allocateMemory(buffersSpan, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  if (!memory_opt.has_value()) {
+    LOG_ERR("Failed to allocate vertex buffer memory");
+    return std::nullopt;
+  }
+  auto &memory = memory_opt.value();
+
+  if (vBuf.bind(memory) != VK_SUCCESS) {
+    LOG_ERR("Failed to bind vertex buffer memory");
+    return std::nullopt;
+  }
+
+  if (indexBuf.bind(memory, bufSize) != VK_SUCCESS) {
+    LOG_ERR("Failed to bind index buffer memory");
     return std::nullopt;
   }
 
@@ -284,40 +270,68 @@ std::optional<App::VBufferParts> createVertexBuffers(Device &device,
                                           true);
   auto cmdPool_opt = device.createCommandPool(cmdPoolInfo);
   if (!cmdPool_opt.has_value()) {
-    std::cerr << "Failed to create command pool." << std::endl;
+    LOG_ERR("Failed to create command pool");
     return std::nullopt;
   }
   auto &cmdPool = cmdPool_opt.value();
 
   auto cmdBuf_opt = cmdPool.allocBuffer();
   if (!cmdBuf_opt.has_value()) {
-    std::cerr << "Failed to create command buffer." << std::endl;
+    LOG_ERR("Failed to allocate command buffer");
     return std::nullopt;
   }
   auto &cmdBuf = cmdBuf_opt.value();
 
   vk::info::CommandBufferBegin cmdBufBegin{};
   cmdBufBegin.oneTime();
+
+  std::vector<CommandBuffer::Encoder::TemporaryStaging> writes{};
+  writes.reserve(2);
+
   {
     auto encoder = cmdBuf.begin(cmdBufBegin);
-    encoder.copyBuffer(staging, vBuf, vk::BufferCopy{{0, 0, bufSize}});
+
+    {
+      std::array<VertexT, VERTEX_COUNT> vertices = {
+          {{.position = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}},
+           {.position = {0.5f, -0.5f, 0.0f}, .color = {0.0f, 1.0f, 0.0f}},
+           {.position = {0.5f, 0.5f, 0.0f}, .color = {0.0f, 0.0f, 1.0f}},
+           {.position = {-0.5f, 0.5f, 0.0f}, .color = {1.0f, 1.0f, 1.0f}}}};
+      std::span<VertexT> verticesSpan(vertices);
+
+      auto write = encoder.writeBufferWithStaging(verticesSpan, vBuf);
+      if (!write.has_value()) {
+        LOG_ERR("Failed to write buffer with staging");
+        return std::nullopt;
+      }
+      writes.push_back(std::move(write.value()));
+    }
+    {
+      std::array<IndexT, INDEX_COUNT> indices = {{0, 1, 2, 0, 2, 3}};
+      std::span<IndexT> indicesSpan(indices);
+      auto write = encoder.writeBufferWithStaging(indicesSpan, indexBuf);
+      if (!write.has_value()) {
+        LOG_ERR("Failed to write index buffer with staging");
+        return std::nullopt;
+      }
+      writes.push_back(std::move(write.value()));
+    }
   }
 
   auto fence_opt = device.createFence();
   if (!fence_opt.has_value()) {
-    std::cerr << "Failed to create fence." << std::endl;
+    LOG_ERR("Failed to create fence");
     return std::nullopt;
   }
   auto &fence = fence_opt.value();
 
   transferQueue.submit(cmdBuf, fence);
-  transferQueue.waitIdle();
-
-
+  fence.wait();
 
   App::VBufferParts parts{
       .vertexBuffer = std::move(vBuf),
-      .vertexBufferMemory = std::move(vBufMemory),
+      .indexBuffer = std::move(indexBuf),
+      .memory = std::move(memory),
   };
 
   return parts;

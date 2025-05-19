@@ -12,10 +12,10 @@ CommandPool::create(Device &device, vk::info::CommandPoolCreate info) {
   return CommandPool(commandPool, device);
 }
 
-std::optional<CommandBuffer> CommandPool::allocBuffer(bool secondary) {
+std::optional<CommandBuffer> CommandPool::allocBuffer(bool secondary) const {
   VkCommandBuffer commandBuffer;
 
-  vk::info::CommandBufferAllocate bufferInfo(**this, 1, secondary);
+  vk::info::CommandBufferAllocate bufferInfo(commandPool, 1, secondary);
 
   if (vkAllocateCommandBuffers(device.raw(), &bufferInfo, &commandBuffer) !=
       VK_SUCCESS) {
@@ -27,11 +27,11 @@ std::optional<CommandBuffer> CommandPool::allocBuffer(bool secondary) {
 }
 
 std::optional<std::vector<CommandBuffer>>
-CommandPool::allocBuffers(uint32_t count, bool secondary) {
+CommandPool::allocBuffers(uint32_t count, bool secondary) const {
   std::vector<VkCommandBuffer> rawCommandBuffers;
   rawCommandBuffers.resize(count);
 
-  vk::info::CommandBufferAllocate bufferInfo(**this, count, secondary);
+  vk::info::CommandBufferAllocate bufferInfo(commandPool, count, secondary);
 
   if (vkAllocateCommandBuffers(device.raw(), &bufferInfo,
                                rawCommandBuffers.data()) != VK_SUCCESS) {

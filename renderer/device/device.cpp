@@ -1,5 +1,6 @@
 #include "device.h"
 #include "buffers/buffer.h"
+#include "buffers/index.h"
 #include "buffers/vertex.h"
 #include "commands/pool.h"
 #include "device.h"
@@ -52,6 +53,7 @@ std::optional<Fence> Device::createFence(bool signaled) {
 }
 
 std::optional<Buffer> Device::createBuffer(vk::info::BufferCreate &info) {
+  LOG("Creating buffer with size: {} and usage: {}", info.size, info.usage);
   return Buffer::create(*this, info);
 }
 
@@ -60,18 +62,50 @@ Device::createVertexBuffer(vk::info::VertexBufferCreate &info) {
   return VertexBuffer::create(*this, info);
 }
 
+std::optional<IndexBuffer>
+Device::createIndexBuffer(vk::info::IndexBufferCreate &info) {
+  return IndexBuffer::create(*this, info);
+}
+
 std::optional<DeviceMemory>
 Device::allocateMemory(Buffer &buffer, VkMemoryPropertyFlags properties) {
   auto memoryReqs = buffer.getMemoryRequirements();
 
+  return allocateMemory(memoryReqs, properties);
+}
+
+std::optional<DeviceMemory>
+Device::allocateMemory(std::span<Buffer *> buffers,
+                       VkMemoryPropertyFlags properties) {
+  if (buffers.empty()) {
+    return std::nullopt;
+  }
+
+  if (buffers.size() == 1) {
+    return allocateMemory(*buffers[0], properties);
+  }
+
+  auto memoryReqs = buffers[0]->getMemoryRequirements();
+  for (size_t i = 1; i < buffers.size(); i++) {
+    VkMemoryRequirements reqs = buffers[i]->getMemoryRequirements();
+    memoryReqs.size += reqs.size;
+    memoryReqs.memoryTypeBits &= reqs.memoryTypeBits;
+  }
+
+  return allocateMemory(memoryReqs, properties);
+}
+
+std::optional<DeviceMemory>
+Device::allocateMemory(VkMemoryRequirements reqs,
+                       VkMemoryPropertyFlags properties) {
   auto memoryType =
-      m_physicalDevice.findMemoryType(memoryReqs.memoryTypeBits, properties);
+      m_physicalDevice.findMemoryType(reqs.memoryTypeBits, properties);
 
   if (!memoryType) {
     return std::nullopt;
   }
 
-  vk::info::MemoryAllocate info(memoryReqs.size, memoryType->index);
+  vk::info::MemoryAllocate info(reqs.size, memoryType->index);
 
   return DeviceMemory::create(*this, info, memoryType.value());
 }

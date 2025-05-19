@@ -1,3 +1,5 @@
+#pragma once
+
 #include <format>
 #include <ostream>
 #include <source_location>
@@ -26,17 +28,19 @@ public:
 } // namespace Color
 
 #ifndef NDEBUG
-#define LOG(expr)                                                          \
-  std::cout << Color::Modifier(Color::FG_BLUE) << "LOG "                        \
+#define LOG(...)                                                               \
+  std::cout << Color::Modifier(Color::FG_BLUE) << "LOG "                       \
             << std::source_location::current().file_name() << ":"              \
             << std::source_location::current().line() << " | "                 \
-            << Color::Modifier(Color::FG_DEFAULT) << expr << std::endl;
+            << Color::Modifier(Color::FG_DEFAULT) << std::format(__VA_ARGS__)  \
+            << std::endl;
 #elif
 #define LOG(expr)
 #endif
 
-#define LOG_ERR(expr)                                                          \
+#define LOG_ERR(...)                                                           \
   std::cerr << Color::Modifier(Color::FG_RED) << "ERR "                        \
             << std::source_location::current().file_name() << ":"              \
             << std::source_location::current().line() << " | "                 \
-            << Color::Modifier(Color::FG_DEFAULT) << expr << std::endl;
+            << Color::Modifier(Color::FG_DEFAULT) << std::format(__VA_ARGS__)  \
+            << std::endl;

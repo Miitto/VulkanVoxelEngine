@@ -114,8 +114,9 @@ void App::recordCommandBuffer(CommandBuffer &commandBuffer,
   pass.setScissor(scissor);
 
   pass.bindVertexBuffer(0, vertexBuffer.vertexBuffer);
+  pass.bindIndexBuffer(vertexBuffer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-  pass.draw(3);
+  pass.drawIndexed(6);
 
   pass.end();
 

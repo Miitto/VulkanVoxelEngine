@@ -1,5 +1,6 @@
 #pragma once
 
+#include "buffers/index.h"
 #include "buffers/vertex.h"
 #include "commands/buffer.h"
 #include "commands/pool.h"
@@ -55,7 +56,8 @@ public:
 
   struct VBufferParts {
     VertexBuffer vertexBuffer;
-    DeviceMemory vertexBufferMemory;
+    IndexBuffer indexBuffer;
+    DeviceMemory memory;
   };
 
 private:

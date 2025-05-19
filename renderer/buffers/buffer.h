@@ -32,7 +32,7 @@ protected:
 public:
   Buffer(Buffer &&o) noexcept
       : m_buffer(o.m_buffer), m_device(o.m_device), m_size(o.m_size),
-        m_memory(std::move(o.m_memory)) {
+        m_usage(o.m_usage), m_memory(std::move(o.m_memory)) {
     o.m_buffer = VK_NULL_HANDLE;
   }
   ~Buffer() {
@@ -42,10 +42,14 @@ public:
   }
 
   static std::optional<Buffer> create(Device &device,
-                                      VkBufferCreateInfo &createInfo);
+                                      vk::info::BufferCreate &createInfo);
 
   VkBuffer &operator*() { return m_buffer; }
   operator VkBuffer() { return m_buffer; }
+
+  VkDeviceSize size() { return m_size; }
+
+  Device::Ref &getDevice() { return m_device; }
 
   VkMemoryRequirements getMemoryRequirements() {
     VkMemoryRequirements memoryRequirements;
@@ -71,6 +75,6 @@ public:
   }
 
   bool canCopyTo() const {
-    return isBound() && m_usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    return isBound() && (m_usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT) != 0;
   }
 };

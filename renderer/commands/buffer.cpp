@@ -1,7 +1,7 @@
 #include "buffer.h"
+#include "buffers/index.h"
 #include "buffers/vertex.h"
 #include <cstdint>
-#include "log.h"
 
 using Encoder = CommandBuffer::Encoder;
 
@@ -83,6 +83,14 @@ void Encoder::RenderPass::bindVertexBuffer(uint32_t binding,
                          &offset);
 }
 
+void Encoder::RenderPass::bindIndexBuffer(IndexBuffer &buffer,
+                                          VkDeviceSize offset,
+                                          VkIndexType indexType) {
+  if (!*this)
+    return;
+  vkCmdBindIndexBuffer(**encoder->commandBuffer, *buffer, offset, indexType);
+}
+
 void Encoder::RenderPass::bindVertexBuffers(
     uint32_t binding, const std::span<VertexBuffer> &buffers,
     const std::span<VkDeviceSize> &offsets) {
@@ -104,6 +112,16 @@ void Encoder::RenderPass::draw(uint32_t vertexCount, uint32_t instanceCount,
     return;
   vkCmdDraw(**encoder->commandBuffer, vertexCount, instanceCount, firstVertex,
             firstInstance);
+}
+
+void Encoder::RenderPass::drawIndexed(uint32_t indexCount,
+                                      uint32_t instanceCount,
+                                      uint32_t firstIndex, int32_t vertexOffset,
+                                      uint32_t firstInstance) {
+  if (!*this)
+    return;
+  vkCmdDrawIndexed(**encoder->commandBuffer, indexCount, instanceCount,
+                   firstIndex, vertexOffset, firstInstance);
 }
 
 void Encoder::copyBuffer(Buffer &src, Buffer &dst, const VkBufferCopy &region) {

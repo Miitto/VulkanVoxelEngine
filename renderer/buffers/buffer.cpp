@@ -2,7 +2,9 @@
 #include "log.h"
 
 std::optional<Buffer> Buffer::create(Device &device,
-                                     VkBufferCreateInfo &createInfo) {
+                                     vk::info::BufferCreate &createInfo) {
+  LOG("Creating buffer with size: {} and usage: {}", createInfo.size,
+      createInfo.usage);
   VkBuffer buffer;
   if (vkCreateBuffer(*device, &createInfo, nullptr, &buffer) != VK_SUCCESS) {
     return std::nullopt;

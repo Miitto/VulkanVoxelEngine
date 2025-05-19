@@ -5,6 +5,7 @@
 #include "structs/MappedMemoryRange.h"
 #include "vulkan/vulkan_core.h"
 #include <cstdint>
+#include <span>
 
 class Mapping {
   Device::Ref m_device;
@@ -43,6 +44,16 @@ public:
 
   const void *get() const { return m_ptr; }
   uint32_t getSize() const { return m_size; }
+
+  template <typename T> bool write(std::span<T> data, VkDeviceSize offset = 0) {
+    VkDeviceSize size = data.size() * sizeof(T);
+    if (offset + size > m_size) {
+      return false;
+    }
+
+    writeUnchecked(data.data(), size, offset);
+    return true;
+  }
 
   bool write(void *data, uint32_t size, uint32_t offset = 0) {
     if (offset + size > m_size) {

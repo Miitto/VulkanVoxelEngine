@@ -8,6 +8,7 @@
 #include "structs/info/deviceCreate.h"
 #include "structs/info/swapchainCreate.h"
 #include <optional>
+#include <span>
 #include <vulkan/vulkan.h>
 
 class Swapchain;
@@ -17,6 +18,7 @@ class Fence;
 class Buffer;
 class DeviceMemory;
 class VertexBuffer;
+class IndexBuffer;
 
 class Device : public RawRefable<Device, VkDevice> {
   VkDevice m_device;
@@ -67,9 +69,18 @@ public:
   std::optional<Buffer> createBuffer(vk::info::BufferCreate &info);
   std::optional<VertexBuffer>
   createVertexBuffer(vk::info::VertexBufferCreate &info);
+  std::optional<IndexBuffer>
+  createIndexBuffer(vk::info::IndexBufferCreate &info);
 
   std::optional<DeviceMemory> allocateMemory(Buffer &buffer,
                                              VkMemoryPropertyFlags properties);
+
+  std::optional<DeviceMemory> allocateMemory(std::span<Buffer *> buffers,
+                                             VkMemoryPropertyFlags properties);
+
+  std::optional<DeviceMemory> allocateMemory(VkMemoryRequirements memReqs,
+                                             VkMemoryPropertyFlags porperties);
+
   void bindBufferMemory(Buffer &buffer, DeviceMemory &memory,
                         uint32_t offset = 0);
 };

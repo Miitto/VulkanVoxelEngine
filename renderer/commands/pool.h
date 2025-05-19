@@ -32,13 +32,16 @@ public:
   }
 
   VkCommandPool operator*() { return commandPool; }
+  operator VkCommandPool() { return commandPool; }
+
+  const Device::Ref &getDevice() const { return device; }
 
   static std::optional<CommandPool> create(Device &device,
                                            vk::info::CommandPoolCreate info);
 
-  std::optional<CommandBuffer> allocBuffer(bool secondary = false);
+  std::optional<CommandBuffer> allocBuffer(bool secondary = false) const;
   std::optional<std::vector<CommandBuffer>>
-  allocBuffers(uint32_t count, bool secondary = false);
+  allocBuffers(uint32_t count, bool secondary = false) const;
   std::optional<std::vector<CommandBuffer>>
-  allocBuffers(vk::info::CommandBufferAllocate &info);
+  allocBuffers(vk::info::CommandBufferAllocate &info) const;
 };
