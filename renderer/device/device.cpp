@@ -5,6 +5,7 @@
 #include "commands/pool.h"
 #include "device.h"
 #include "device/memory.h"
+#include "pipeline/descriptorSetLayout.h"
 #include "structs/info/memoryAllocate.h"
 #include "swapchain.h"
 #include "sync/fence.h"
@@ -113,4 +114,9 @@ Device::allocateMemory(VkMemoryRequirements reqs,
 void Device::bindBufferMemory(Buffer &buffer, DeviceMemory &memory,
                               uint32_t offset) {
   vkBindBufferMemory(m_device, *buffer, *memory, offset);
+}
+
+std::optional<vk::DescriptorSetLayout>
+Device::createDescriptorSetLayout(vk::info::DescriptorSetLayoutCreate &info) {
+  return vk::DescriptorSetLayout::create(*this, info);
 }

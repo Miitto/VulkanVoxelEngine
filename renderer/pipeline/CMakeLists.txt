@@ -3,4 +3,5 @@ target_sources(renderer
     layout.cpp
     graphics.cpp
     renderPass.cpp
+    descriptorSetLayout.cpp
 )

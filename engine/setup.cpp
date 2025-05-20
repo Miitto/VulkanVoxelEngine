@@ -458,7 +458,21 @@ std::optional<App> App::create() {
   }
   auto &swapchain = swapchain_opt.value();
 
+  vk::DescriptorSetLayoutBinding cameraBinding(
+      0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+  vk::info::DescriptorSetLayoutCreate descriptorSetLayoutCreateInfo;
+  descriptorSetLayoutCreateInfo.addBinding(cameraBinding);
+
+  auto descriptorSetLayout_opt =
+      device.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
+  if (!descriptorSetLayout_opt.has_value()) {
+    std::cerr << "Failed to create descriptor set layout." << std::endl;
+    return std::nullopt;
+  }
+  auto &descriptorSetLayout = descriptorSetLayout_opt.value();
+
   vk::info::PipelineLayoutCreate pipelineLayoutCreateInfo;
+  pipelineLayoutCreateInfo.addSetLayout(descriptorSetLayout);
   auto layout_opt = PipelineLayout::create(device, pipelineLayoutCreateInfo);
   if (!layout_opt.has_value()) {
     std::cerr << "Failed to create pipeline layout." << std::endl;

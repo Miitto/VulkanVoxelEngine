@@ -3,6 +3,7 @@
 #include "physicalDevice.h"
 #include "queue.h"
 #include "refs/refable.h"
+#include "structs/descriptorSetLayout.h"
 #include "structs/info/buffers/create.h"
 #include "structs/info/commands/commandPoolCreate.h"
 #include "structs/info/deviceCreate.h"
@@ -19,6 +20,10 @@ class Buffer;
 class DeviceMemory;
 class VertexBuffer;
 class IndexBuffer;
+
+namespace vk {
+class DescriptorSetLayout;
+}
 
 class Device : public RawRefable<Device, VkDevice> {
   VkDevice m_device;
@@ -49,6 +54,7 @@ public:
   }
 
   VkDevice &operator*() { return m_device; }
+  operator VkDevice() { return m_device; }
 
   static std::optional<Device>
   create(PhysicalDevice &physicalDevice,
@@ -83,4 +89,7 @@ public:
 
   void bindBufferMemory(Buffer &buffer, DeviceMemory &memory,
                         uint32_t offset = 0);
+
+  std::optional<vk::DescriptorSetLayout>
+  createDescriptorSetLayout(vk::info::DescriptorSetLayoutCreate &createInfo);
 };
