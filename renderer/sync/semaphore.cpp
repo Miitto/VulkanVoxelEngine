@@ -21,5 +21,5 @@ std::optional<Semaphore> Semaphore::create(Device &device,
 
   Semaphore sem(semaphore, device);
 
-  return std::move(sem);
+  return sem;
 }

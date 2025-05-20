@@ -555,5 +555,5 @@ std::optional<App> App::create() {
           presentQueue.value(), swapchain, layout, renderPass, framebuffers,
           pipeline, commandPool, frames, vBuf);
 
-  return std::move(app);
+  return app;
 }

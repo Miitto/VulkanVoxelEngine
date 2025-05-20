@@ -44,5 +44,5 @@ Swapchain::createFramebuffers(RenderPass &renderPass) {
     framebuffers.push_back(std::move(framebuffer.value()));
   }
 
-  return std::move(framebuffers);
+  return framebuffers;
 }
