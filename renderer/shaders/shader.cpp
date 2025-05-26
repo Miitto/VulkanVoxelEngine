@@ -49,6 +49,6 @@ std::optional<Shader> Shader::fromCode(std::vector<char> &code,
 
   Shader shader(module, stage);
 
-  return std::move(shader);
+  return shader;
 }
 } // namespace vk

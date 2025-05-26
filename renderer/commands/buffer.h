@@ -78,7 +78,7 @@ public:
       ~RenderPass();
     };
 
-    Ref<RenderPass> activeRenderPass;
+    Reference<RenderPass> activeRenderPass;
 
     RenderPass beginRenderPass(
         const VkRenderPassBeginInfo info,
@@ -160,13 +160,13 @@ public:
   };
 
 private:
-  Ref<Encoder> encoder;
+  Reference<Encoder> encoder;
 
   CommandBuffer() = delete;
 
 public:
   CommandBuffer(VkCommandBuffer commandBuffer)
-      : commandBuffer(commandBuffer), encoder(Ref<Encoder>(nullptr)) {}
+      : commandBuffer(commandBuffer), encoder(Reference<Encoder>(nullptr)) {}
 
   VkCommandBuffer &operator*() { return commandBuffer; }
 

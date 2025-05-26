@@ -12,7 +12,7 @@ std::optional<RenderPass> RenderPass::create(Device &device,
 
   RenderPass pass(device.ref(), renderPass);
 
-  return std::move(pass);
+  return pass;
 }
 
 RenderPass::~RenderPass() {

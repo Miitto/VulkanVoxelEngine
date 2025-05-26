@@ -1,5 +1,5 @@
 #include "framebuffer.h"
-#include <iostream>
+#include "log.h"
 
 namespace vk {
 std::optional<Framebuffer>
@@ -8,7 +8,7 @@ Framebuffer::create(Device &device, vk::info::FramebufferCreate info) {
   VkFramebuffer framebuffer;
   if (vkCreateFramebuffer(*device, &info, nullptr, &framebuffer) !=
       VK_SUCCESS) {
-    std::cerr << "Failed to create framebuffer" << std::endl;
+    LOG_ERR("Failed to create framebuffer");
     return std::nullopt;
   }
 

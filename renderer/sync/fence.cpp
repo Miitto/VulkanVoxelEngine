@@ -18,6 +18,6 @@ std::optional<Fence> Fence::create(Device &device,
 
   Fence f(fence, device);
 
-  return std::move(f);
+  return f;
 }
 } // namespace vk

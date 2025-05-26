@@ -2,16 +2,16 @@
 
 #include <memory>
 
-template <class T> class Ref {
+template <class T> class Reference {
 protected:
   std::shared_ptr<T *> m_ref;
 
-  Ref() = delete;
+  Reference() = delete;
 
 public:
-  explicit Ref(T *ref) : m_ref(std::make_shared<T *>(ref)) {}
-  static Ref create(T &ref) { return Ref(&ref); }
-  static Ref create(T *ref) { return Ref(ref); }
+  explicit Reference(T *ref) : m_ref(std::make_shared<T *>(ref)) {}
+  static Reference create(T &ref) { return Reference(&ref); }
+  static Reference create(T *ref) { return Reference(ref); }
 
   bool is(const T *const ref) const { return *m_ref == ref; }
   void set(T *ref) { *this->m_ref = ref; }
@@ -26,9 +26,9 @@ public:
   operator T &() const { return **m_ref; }
 };
 
-template <class T, typename Raw> class RawRef : public Ref<T> {
+template <class T, typename Raw> class RawRef : public Reference<T> {
 public:
-  explicit RawRef(T *ref) : Ref<T>(ref) {}
+  explicit RawRef(T *ref) : Reference<T>(ref) {}
   Raw raw() const { return ***this->m_ref; }
   operator Raw() const { return ***this->m_ref; }
 };

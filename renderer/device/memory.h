@@ -35,7 +35,7 @@ class Mapping : public Refable<Mapping> {
           vk::DeviceSize offset, vk::DeviceSize size);
 
 public:
-  using Ref = Ref<Mapping>;
+  using Ref = Reference<Mapping>;
   static std::optional<Mapping> map(Device &device, DeviceMemory &memory,
                                     VkDeviceSize size, VkDeviceSize offset = 0,
                                     VkMemoryMapFlags flags = 0);

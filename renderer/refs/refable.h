@@ -4,12 +4,12 @@
 
 template <class T> class Refable {
 protected:
-  Ref<T> m_ref = Ref<T>(nullptr);
+  Reference<T> m_ref = Reference<T>(nullptr);
 
 public:
   Refable() : m_ref(static_cast<T *>(this)) {}
 
-  Ref<T> &ref() { return m_ref; }
+  Reference<T> &ref() { return m_ref; }
 
   Refable(const Refable &) = delete;
   Refable &operator=(const Refable &) = delete;

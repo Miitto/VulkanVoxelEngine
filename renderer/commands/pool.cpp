@@ -24,7 +24,7 @@ std::optional<CommandBuffer> CommandPool::allocBuffer(bool secondary) const {
     return std::nullopt;
   }
 
-  return std::move(commandBuffer);
+  return commandBuffer;
 }
 
 std::optional<std::vector<CommandBuffer>>
@@ -59,6 +59,6 @@ CommandPool::allocBuffers(uint32_t count, bool secondary) const {
     return std::nullopt;
   }
 
-  return std::move(commandBuffers);
+  return commandBuffers;
 }
 } // namespace vk

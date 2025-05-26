@@ -1,5 +1,6 @@
 #include "window.h"
 #include <algorithm>
+#include <limits>
 #include <vulkan/vulkan_core.h>
 
 namespace vk {
@@ -7,7 +8,9 @@ Window::Window(const char *name, const uint32_t width, const uint32_t height) {
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-  this->window = glfwCreateWindow(width, height, name, nullptr, nullptr);
+  this->window =
+      glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), name,
+                       nullptr, nullptr);
 }
 
 std::optional<Window> Window::create(const char *name, const uint32_t width,
@@ -18,7 +21,7 @@ std::optional<Window> Window::create(const char *name, const uint32_t width,
     return std::nullopt;
   }
 
-  return std::move(window);
+  return window;
 }
 
 VkExtent2D Window::getExtent() {
@@ -33,21 +36,20 @@ VkExtent2D Window::getExtent(VkSurfaceCapabilitiesKHR &capabilities) {
   if (capabilities.currentExtent.width !=
       std::numeric_limits<uint32_t>::max()) {
     return capabilities.currentExtent;
-  } else {
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-
-    VkExtent2D actualExtent = {.width = static_cast<uint32_t>(width),
-                               .height = static_cast<uint32_t>(height)};
-
-    actualExtent.width =
-        std::clamp(actualExtent.width, capabilities.minImageExtent.width,
-                   capabilities.maxImageExtent.width);
-    actualExtent.height =
-        std::clamp(actualExtent.height, capabilities.minImageExtent.height,
-                   capabilities.maxImageExtent.height);
-
-    return actualExtent;
   }
+  int width, height;
+  glfwGetFramebufferSize(window, &width, &height);
+
+  VkExtent2D actualExtent = {.width = static_cast<uint32_t>(width),
+                             .height = static_cast<uint32_t>(height)};
+
+  actualExtent.width =
+      std::clamp(actualExtent.width, capabilities.minImageExtent.width,
+                 capabilities.maxImageExtent.width);
+  actualExtent.height =
+      std::clamp(actualExtent.height, capabilities.minImageExtent.height,
+                 capabilities.maxImageExtent.height);
+
+  return actualExtent;
 }
 } // namespace vk

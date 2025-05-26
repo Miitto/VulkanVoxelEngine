@@ -12,7 +12,7 @@ PipelineLayout::create(Device &device, vk::info::PipelineLayoutCreate info) {
 
   PipelineLayout pipelineLayout(layout, device.ref());
 
-  return std::move(pipelineLayout);
+  return pipelineLayout;
 }
 
 PipelineLayout::~PipelineLayout() {
