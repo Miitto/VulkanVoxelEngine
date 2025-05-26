@@ -3,6 +3,7 @@
 #include "buffers/vertex.h"
 #include <cstdint>
 
+namespace vk {
 using Encoder = CommandBuffer::Encoder;
 
 Encoder CommandBuffer::begin() {
@@ -39,14 +40,8 @@ Encoder::RenderPass Encoder::beginRenderPass(const VkRenderPassBeginInfo info,
 void Encoder::RenderPass::bindPipeline(const Pipeline &pipeline) {
   if (!*this)
     return;
-  return bindPipeline(pipeline.bindPoint(), *pipeline);
-}
-
-void Encoder::RenderPass::bindPipeline(const VkPipelineBindPoint bindPoint,
-                                       const VkPipeline &pipeline) {
-  if (!*this)
-    return;
-  vkCmdBindPipeline(**encoder->commandBuffer, bindPoint, pipeline);
+  m_pipeline = pipeline.ref();
+  vkCmdBindPipeline(**encoder->commandBuffer, pipeline.bindPoint(), pipeline);
 }
 
 void Encoder::RenderPass::end() {
@@ -89,6 +84,59 @@ void Encoder::RenderPass::bindIndexBuffer(IndexBuffer &buffer,
   if (!*this)
     return;
   vkCmdBindIndexBuffer(**encoder->commandBuffer, *buffer, offset, indexType);
+}
+
+void Encoder::RenderPass::bindDescriptorSet(
+    const DescriptorSet &set, const std::span<uint32_t> dynamicOffsets) {
+  if (!*this)
+    return;
+
+  if (!m_pipeline.has_value()) {
+    LOG_ERR("No pipeline bound to render pass, cannot bind descriptor set.");
+    return;
+  }
+
+  if (!m_pipeline.value().has_value()) {
+    LOG_ERR("Pipeline is not valid, cannot bind descriptor set.");
+    return;
+  }
+
+  auto &pipeline = m_pipeline.value().value();
+
+  VkDescriptorSet rawSet = set;
+
+  vkCmdBindDescriptorSets(**encoder->commandBuffer, pipeline.bindPoint(),
+                          pipeline.layout(), 0, 1, &rawSet,
+                          dynamicOffsets.size(), dynamicOffsets.data());
+}
+
+void Encoder::RenderPass::bindDescriptorSets(
+    const std::span<DescriptorSet> &sets, uint32_t firstSet,
+    const std::span<uint32_t> dynamicOffsets) {
+  if (!*this)
+    return;
+
+  if (!m_pipeline.has_value()) {
+    LOG_ERR("No pipeline bound to render pass, cannot bind descriptor sets.");
+    return;
+  }
+
+  if (!m_pipeline.value().has_value()) {
+    LOG_ERR("Pipeline is not valid, cannot bind descriptor sets.");
+    return;
+  }
+
+  auto &pipeline = m_pipeline.value().value();
+
+  std::vector<VkDescriptorSet> rawSets(sets.size());
+  for (size_t i = 0; i < sets.size(); i++) {
+    rawSets[i] = *sets[i];
+  }
+
+  vkCmdBindDescriptorSets(**encoder->commandBuffer, pipeline.bindPoint(),
+                          pipeline.layout(), firstSet,
+                          static_cast<uint32_t>(sets.size()), rawSets.data(),
+                          dynamicOffsets.size(), dynamicOffsets.data());
 }
 
 void Encoder::RenderPass::bindVertexBuffers(
@@ -152,3 +200,4 @@ Encoder::~Encoder() {
     end();
   }
 }
+} // namespace vk

@@ -3,6 +3,7 @@
 #include <cstring>
 #include <vector>
 
+namespace vk {
 std::vector<PhysicalDevice> PhysicalDevice::all(Instance &instance) {
   uint32_t deviceCount = 0;
   vkEnumeratePhysicalDevices(*instance, &deviceCount, nullptr);
@@ -97,3 +98,4 @@ PhysicalDevice::findMemoryType(uint32_t typeFilter,
 
   return std::nullopt;
 }
+} // namespace vk

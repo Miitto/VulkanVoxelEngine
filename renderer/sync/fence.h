@@ -5,6 +5,7 @@
 #include "vulkan/vulkan.h"
 #include <optional>
 
+namespace vk {
 class Fence {
   VkFence fence;
   Device::Ref device;
@@ -55,3 +56,4 @@ public:
     }
   }
 };
+} // namespace vk

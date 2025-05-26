@@ -6,8 +6,8 @@ target_sources(renderer
     window.cpp
     framebuffer.cpp
     swapchain.cpp
-    mapping.cpp
     queue.cpp
+    descriptors.cpp
 )
 
 FetchContent_Declare(glm GIT_REPOSITORY https://github.com/g-truc/glm.git GIT_TAG master)
@@ -27,7 +27,7 @@ target_include_directories(renderer
     $<INSTALL_INTERFACE:include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
-target_link_libraries(renderer PRIVATE glfw Vulkan::Vulkan)
+target_link_libraries(renderer PUBLIC glfw Vulkan::Vulkan)
 
 target_compile_definitions(renderer PUBLIC GLFW_INCLUDE_VULKAN)
 

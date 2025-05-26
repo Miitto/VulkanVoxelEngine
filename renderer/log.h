@@ -1,7 +1,7 @@
 #pragma once
 
 #include <format>
-#include <ostream>
+#include <iostream>
 #include <source_location>
 namespace Color {
 enum Code {

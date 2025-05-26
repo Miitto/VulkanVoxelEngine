@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
+namespace vk {
 class ShaderStage {
 public:
   enum Value {
@@ -52,3 +53,4 @@ public:
   static std::optional<Shader> fromFile(const std::string &fileName,
                                         ShaderStage stage, Device &device);
 };
+} // namespace vk

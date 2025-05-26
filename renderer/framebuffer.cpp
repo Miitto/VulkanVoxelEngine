@@ -1,6 +1,7 @@
 #include "framebuffer.h"
 #include <iostream>
 
+namespace vk {
 std::optional<Framebuffer>
 Framebuffer::create(Device &device, vk::info::FramebufferCreate info) {
 
@@ -13,3 +14,4 @@ Framebuffer::create(Device &device, vk::info::FramebufferCreate info) {
 
   return Framebuffer(framebuffer, device);
 }
+} // namespace vk

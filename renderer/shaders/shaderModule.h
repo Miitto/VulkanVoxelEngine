@@ -4,13 +4,14 @@
 #include <string>
 #include <vulkan/vulkan.h>
 
+namespace vk {
 class ShaderModule {
   Device::Ref device;
   VkShaderModule module;
 
 public:
-  ShaderModule(VkShaderModule module, Device::Ref &device)
-      : device(device), module(module) {}
+  ShaderModule(VkShaderModule module, Device &device)
+      : device(device.ref()), module(module) {}
 
   ShaderModule(const ShaderModule &) = delete;
   ShaderModule &operator=(const ShaderModule &) = delete;
@@ -35,3 +36,4 @@ public:
   static std::optional<ShaderModule> fromFile(const std::string &fileName,
                                               Device &device);
 };
+} // namespace vk

@@ -1,5 +1,6 @@
 #include "index.h"
 
+namespace vk {
 std::optional<IndexBuffer>
 IndexBuffer::create(Device &device, vk::info::IndexBufferCreate &createInfo) {
   VkBuffer buffer;
@@ -9,3 +10,4 @@ IndexBuffer::create(Device &device, vk::info::IndexBufferCreate &createInfo) {
 
   return IndexBuffer(buffer, device, createInfo.size, createInfo.usage);
 }
+} // namespace vk

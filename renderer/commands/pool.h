@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <optional>
 
+namespace vk {
 class CommandPool {
   VkCommandPool commandPool;
   Device::Ref device;
@@ -45,3 +46,4 @@ public:
   std::optional<std::vector<CommandBuffer>>
   allocBuffers(vk::info::CommandBufferAllocate &info) const;
 };
+} // namespace vk

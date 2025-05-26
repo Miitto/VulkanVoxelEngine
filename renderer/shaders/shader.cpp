@@ -6,7 +6,8 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-static std::optional<std::vector<char>> readFile(const std::string &fileName) {
+namespace vk {
+std::optional<std::vector<char>> readFile(const std::string &fileName) {
   std::ifstream file(fileName, std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
@@ -50,3 +51,4 @@ std::optional<Shader> Shader::fromCode(std::vector<char> &code,
 
   return std::move(shader);
 }
+} // namespace vk

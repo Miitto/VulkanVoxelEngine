@@ -3,6 +3,7 @@
 #include "pipeline/pipeline.h"
 #include "structs/info/pipeline/graphicsPipelineCreate.h"
 
+namespace vk {
 class GraphicsPipeline : public Pipeline {
   GraphicsPipeline() = delete;
   GraphicsPipeline(const GraphicsPipeline &) = delete;
@@ -10,8 +11,8 @@ class GraphicsPipeline : public Pipeline {
   GraphicsPipeline &operator=(GraphicsPipeline &&) = delete;
 
 public:
-  GraphicsPipeline(VkPipeline pipeline, Device &device)
-      : Pipeline(pipeline, device) {}
+  GraphicsPipeline(VkPipeline pipeline, Device &device, PipelineLayout &layout)
+      : Pipeline(pipeline, device, layout) {}
 
   GraphicsPipeline(GraphicsPipeline &&other) noexcept
       : Pipeline(std::move(other)) {}
@@ -23,3 +24,4 @@ public:
     return VK_PIPELINE_BIND_POINT_GRAPHICS;
   }
 };
+} // namespace vk

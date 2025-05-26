@@ -1,6 +1,7 @@
 #include "pipeline/layout.h"
 #include <iostream>
 
+namespace vk {
 std::optional<PipelineLayout>
 PipelineLayout::create(Device &device, vk::info::PipelineLayoutCreate info) {
   VkPipelineLayout layout;
@@ -19,3 +20,4 @@ PipelineLayout::~PipelineLayout() {
     vkDestroyPipelineLayout(**device, layout, nullptr);
   }
 }
+} // namespace vk

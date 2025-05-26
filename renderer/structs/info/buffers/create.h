@@ -47,5 +47,18 @@ public:
       : BufferCreate(size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | additionalUsage,
                      sharingMode) {}
 };
+
+class UniformBufferCreate : public BufferCreate {
+public:
+  UniformBufferCreate() : BufferCreate() {
+    usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+  }
+
+  UniformBufferCreate(VkDeviceSize size, VkBufferUsageFlags additionalUsage = 0,
+                      VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE)
+      : BufferCreate(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | additionalUsage,
+                     sharingMode) {}
+};
+
 } // namespace info
 } // namespace vk

@@ -1,6 +1,7 @@
 #include "pipeline/renderPass.h"
 #include <optional>
 
+namespace vk {
 std::optional<RenderPass> RenderPass::create(Device &device,
                                              vk::info::RenderPassCreate info) {
 
@@ -19,3 +20,4 @@ RenderPass::~RenderPass() {
     vkDestroyRenderPass(**device, renderPass, nullptr);
   }
 }
+} // namespace vk

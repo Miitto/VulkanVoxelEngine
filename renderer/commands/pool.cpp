@@ -1,6 +1,7 @@
 #include "pool.h"
 #include <iostream>
 
+namespace vk {
 std::optional<CommandPool>
 CommandPool::create(Device &device, vk::info::CommandPoolCreate info) {
   VkCommandPool commandPool;
@@ -60,3 +61,4 @@ CommandPool::allocBuffers(uint32_t count, bool secondary) const {
 
   return std::move(commandBuffers);
 }
+} // namespace vk

@@ -4,6 +4,7 @@
 #include "structs/info/framebufferCreate.h"
 #include "vulkan/vulkan_core.h"
 
+namespace vk {
 class Framebuffer {
   VkFramebuffer framebuffer;
   Device::Ref device;
@@ -32,3 +33,4 @@ public:
   static std::optional<Framebuffer> create(Device &device,
                                            vk::info::FramebufferCreate info);
 };
+} // namespace vk

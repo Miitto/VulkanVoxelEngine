@@ -2,6 +2,7 @@
 
 #include "buffers/buffer.h"
 
+namespace vk {
 class VertexBuffer : public Buffer {
   VertexBuffer(VkBuffer buffer, Device &device, VkDeviceSize size,
                VkBufferUsageFlags usage) noexcept
@@ -20,3 +21,4 @@ public:
   VkBuffer &operator*() { return m_buffer; }
   operator VkBuffer() { return m_buffer; }
 };
+} // namespace vk

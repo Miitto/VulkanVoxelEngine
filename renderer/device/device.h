@@ -3,7 +3,6 @@
 #include "physicalDevice.h"
 #include "queue.h"
 #include "refs/refable.h"
-#include "structs/descriptorSetLayout.h"
 #include "structs/info/buffers/create.h"
 #include "structs/info/commands/commandPoolCreate.h"
 #include "structs/info/deviceCreate.h"
@@ -12,6 +11,7 @@
 #include <span>
 #include <vulkan/vulkan.h>
 
+namespace vk {
 class Swapchain;
 class CommandPool;
 class Semaphore;
@@ -20,10 +20,15 @@ class Buffer;
 class DeviceMemory;
 class VertexBuffer;
 class IndexBuffer;
+class UniformBuffer;
 
-namespace vk {
 class DescriptorSetLayout;
-}
+class DescriptorPool;
+
+namespace info {
+class DescriptorSetLayoutCreate;
+class DescriptorPoolCreate;
+} // namespace info
 
 class Device : public RawRefable<Device, VkDevice> {
   VkDevice m_device;
@@ -77,6 +82,8 @@ public:
   createVertexBuffer(vk::info::VertexBufferCreate &info);
   std::optional<IndexBuffer>
   createIndexBuffer(vk::info::IndexBufferCreate &info);
+  std::optional<UniformBuffer>
+  createUniformBuffer(vk::info::UniformBufferCreate &info);
 
   std::optional<DeviceMemory> allocateMemory(Buffer &buffer,
                                              VkMemoryPropertyFlags properties);
@@ -92,4 +99,7 @@ public:
 
   std::optional<vk::DescriptorSetLayout>
   createDescriptorSetLayout(vk::info::DescriptorSetLayoutCreate &createInfo);
+  std::optional<DescriptorPool>
+  createDescriptorPool(info::DescriptorPoolCreate &createInfo);
 };
+} // namespace vk

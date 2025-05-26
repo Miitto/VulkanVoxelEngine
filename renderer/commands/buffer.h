@@ -2,6 +2,7 @@
 
 #include "buffers/vertex.h"
 #include "log.h"
+#include "pipeline/layout.h"
 #include "pipeline/pipeline.h"
 #include "structs/info/bufferCopy.h"
 #include "structs/info/commands/bufferBegin.h"
@@ -10,6 +11,7 @@
 #include <cstdint>
 #include <span>
 
+namespace vk {
 class CommandBuffer {
   VkCommandBuffer commandBuffer;
 
@@ -32,6 +34,7 @@ public:
     class RenderPass : public Refable<RenderPass> {
       Encoder *encoder;
       RenderPass() = delete;
+      std::optional<Pipeline::Ref> m_pipeline;
 
     public:
       RenderPass(Encoder &encoder) : Refable(), encoder(&encoder) {}
@@ -42,9 +45,7 @@ public:
       }
       operator bool() const { return encoder != nullptr && !!*encoder; }
 
-      void bindPipeline(const VkPipelineBindPoint bindPoint,
-                        const VkPipeline &pipeline);
-      void bindPipeline(const Pipeline &pipeline);
+      void bindPipeline(const vk::Pipeline &pipeline);
 
       void setViewport(const VkViewport &viewport);
       void setScissor(const VkRect2D &scissor);
@@ -59,6 +60,12 @@ public:
       void bindIndexBuffer(
           IndexBuffer &buffer, VkDeviceSize offset = 0,
           VkIndexType indexType = VkIndexType::VK_INDEX_TYPE_UINT32);
+
+      void bindDescriptorSet(const DescriptorSet &set,
+                             const std::span<uint32_t> dynamicOffsets = {});
+      void bindDescriptorSets(const std::span<DescriptorSet> &sets,
+                              uint32_t firstSet = 0,
+                              const std::span<uint32_t> dynamicOffsets = {});
 
       void draw(uint32_t vertexCount, uint32_t instanceCount = 1,
                 uint32_t firstVertex = 0, uint32_t firstInstance = 0);
@@ -99,8 +106,6 @@ public:
       assert(size > 0);
       assert(dst.size() >= size + offset);
 
-      LOG("Size: {}", size);
-
       auto &device = *dst.getDevice();
 
       auto stagingBufInfo =
@@ -111,8 +116,6 @@ public:
         return std::nullopt;
       }
       auto &stagingBuffer = stagingBuf_opt.value();
-
-      LOG("Staging buffer size: {}", stagingBuffer.size());
 
       auto stagingMemory_opt = device.allocateMemory(
           stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -129,7 +132,7 @@ public:
       }
 
       {
-        auto mapping_opt = stagingBuffer.map();
+        auto mapping_opt = stagingMemory.map();
         if (!mapping_opt.has_value()) {
           LOG_ERR("Failed to map staging buffer");
           return std::nullopt;
@@ -174,3 +177,4 @@ public:
     vkResetCommandBuffer(commandBuffer, flags);
   }
 };
+} // namespace vk

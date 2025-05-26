@@ -3,6 +3,7 @@
 #include "buffers/buffer.h"
 #include <vulkan/vulkan_core.h>
 
+namespace vk {
 class IndexBuffer : public Buffer {
   IndexBuffer(VkBuffer buffer, Device &device, VkDeviceSize size,
               VkBufferUsageFlags usage) noexcept
@@ -21,3 +22,4 @@ public:
   VkBuffer &operator*() { return m_buffer; }
   operator VkBuffer() { return m_buffer; }
 };
+} // namespace vk

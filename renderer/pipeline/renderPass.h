@@ -4,6 +4,7 @@
 #include "structs/info/renderPassCreate.h"
 #include "vulkan/vulkan_core.h"
 
+namespace vk {
 class RenderPass {
   VkRenderPass renderPass;
   Device::Ref device;
@@ -27,3 +28,4 @@ public:
 
   VkRenderPass operator*() { return renderPass; }
 };
+} // namespace vk

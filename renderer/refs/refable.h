@@ -40,7 +40,7 @@ protected:
 public:
   RawRefable() : m_ref(static_cast<T *>(this)) {}
 
-  RawRef<T, Raw> &ref() { return m_ref; }
+  RawRef<T, Raw> ref() const { return m_ref; }
 
   RawRefable(const RawRefable &) = delete;
   RawRefable &operator=(const RawRefable &) = delete;
@@ -48,6 +48,8 @@ public:
   RawRefable(RawRefable &&o) noexcept : m_ref(o.m_ref) {
     m_ref.set(static_cast<T *>(this));
   }
+
+  operator bool() const { return m_ref.is(static_cast<const T *>(this)); }
 
   RawRefable &operator=(RawRefable &&o) noexcept {
     if (this != &o) {

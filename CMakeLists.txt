@@ -24,15 +24,14 @@ target_include_directories(engine PRIVATE engine)
 add_subdirectory(engine)
 
 target_link_libraries(engine PRIVATE renderer)
-target_link_libraries(engine PRIVATE glfw Vulkan::Vulkan)
 
 
 add_library(renderer)
 add_subdirectory(renderer)
 
 if(MSVC)
-  target_compile_options(engine PRIVATE /W4)
-  target_compile_options(renderer PRIVATE /W4)
+  target_compile_options(engine PRIVATE /W4 /WE)
+  target_compile_options(renderer PRIVATE /W4 /WE)
 else()
   target_compile_options(engine PRIVATE -Wall -Wextra -Wpedantic -Werror)
   target_compile_options(renderer PRIVATE -Wall -Wextra -Wpedantic -Werror)

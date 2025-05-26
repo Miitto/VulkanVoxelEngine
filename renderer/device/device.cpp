@@ -3,15 +3,16 @@
 #include "buffers/index.h"
 #include "buffers/vertex.h"
 #include "commands/pool.h"
+#include "descriptors.h"
 #include "device.h"
 #include "device/memory.h"
-#include "pipeline/descriptorSetLayout.h"
 #include "structs/info/memoryAllocate.h"
 #include "swapchain.h"
 #include "sync/fence.h"
 #include "sync/semaphore.h"
 #include <optional>
 
+namespace vk {
 std::optional<Device>
 Device::create(PhysicalDevice &physicalDevice,
                vk::info::DeviceCreate &createInfo) noexcept {
@@ -54,7 +55,6 @@ std::optional<Fence> Device::createFence(bool signaled) {
 }
 
 std::optional<Buffer> Device::createBuffer(vk::info::BufferCreate &info) {
-  LOG("Creating buffer with size: {} and usage: {}", info.size, info.usage);
   return Buffer::create(*this, info);
 }
 
@@ -66,6 +66,11 @@ Device::createVertexBuffer(vk::info::VertexBufferCreate &info) {
 std::optional<IndexBuffer>
 Device::createIndexBuffer(vk::info::IndexBufferCreate &info) {
   return IndexBuffer::create(*this, info);
+}
+
+std::optional<UniformBuffer>
+Device::createUniformBuffer(vk::info::UniformBufferCreate &info) {
+  return UniformBuffer::create(*this, info);
 }
 
 std::optional<DeviceMemory>
@@ -120,3 +125,9 @@ std::optional<vk::DescriptorSetLayout>
 Device::createDescriptorSetLayout(vk::info::DescriptorSetLayoutCreate &info) {
   return vk::DescriptorSetLayout::create(*this, info);
 }
+
+std::optional<vk::DescriptorPool>
+Device::createDescriptorPool(vk::info::DescriptorPoolCreate &info) {
+  return vk::DescriptorPool::create(*this, info);
+}
+} // namespace vk

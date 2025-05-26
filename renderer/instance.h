@@ -6,6 +6,7 @@
 #include <utility>
 #include <vulkan/vulkan.h>
 
+namespace vk {
 class Surface;
 class Window;
 
@@ -37,3 +38,4 @@ public:
 
   std::optional<Surface> createSurface(Window &window);
 };
+} // namespace vk

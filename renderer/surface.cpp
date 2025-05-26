@@ -1,8 +1,8 @@
 #include "surface.h"
 
-#include <iostream>
 #include <vulkan/vulkan.h>
 
+namespace vk {
 std::optional<Surface> Surface::create(Instance &instance, Window &window) {
   VkSurfaceKHR surface;
   if (glfwCreateWindowSurface(*instance, *window, nullptr, &surface) !=
@@ -36,3 +36,4 @@ SurfaceAttributes::SurfaceAttributes(PhysicalDevice &physicalDevice,
         *physicalDevice, *surface, &presentModeCount, presentModes.data());
   }
 }
+} // namespace vk

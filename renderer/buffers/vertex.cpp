@@ -1,5 +1,6 @@
 #include "vertex.h"
 
+namespace vk {
 std::optional<VertexBuffer>
 VertexBuffer::create(Device &device, vk::info::VertexBufferCreate &createInfo) {
   VkBuffer buffer;
@@ -9,3 +10,4 @@ VertexBuffer::create(Device &device, vk::info::VertexBufferCreate &createInfo) {
 
   return VertexBuffer(buffer, device, createInfo.size, createInfo.usage);
 }
+} // namespace vk

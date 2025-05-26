@@ -1,12 +1,12 @@
 #pragma once
 
-#include "mapping.h"
 #include "vulkan/vulkan_core.h"
 #include <optional>
 
 #include "device/device.h"
 #include "device/memory.h"
 
+namespace vk {
 class Buffer {
 protected:
   VkBuffer m_buffer;
@@ -35,6 +35,17 @@ public:
         m_usage(o.m_usage), m_memory(std::move(o.m_memory)) {
     o.m_buffer = VK_NULL_HANDLE;
   }
+  Buffer &operator=(Buffer &&o) noexcept {
+    if (this != &o) {
+      m_buffer = o.m_buffer;
+      m_device = o.m_device;
+      m_size = o.m_size;
+      m_usage = o.m_usage;
+      m_memory = o.m_memory;
+      o.m_buffer = VK_NULL_HANDLE;
+    }
+    return *this;
+  }
   ~Buffer() {
     if (m_buffer != VK_NULL_HANDLE) {
       vkDestroyBuffer(**m_device, m_buffer, nullptr);
@@ -58,9 +69,6 @@ public:
   }
 
   VkResult bind(DeviceMemory &memory, VkDeviceSize offset = 0);
-  std::optional<Mapping> map(VkDeviceSize size = VK_WHOLE_SIZE,
-                             VkDeviceSize offset = 0,
-                             VkMemoryMapFlags flags = 0);
 
   bool isBound() const {
     return m_memory.has_value() && m_memory.value().memory.has_value();
@@ -78,3 +86,4 @@ public:
     return isBound() && (m_usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT) != 0;
   }
 };
+} // namespace vk

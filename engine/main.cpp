@@ -1,4 +1,6 @@
 #include "app.h"
+#include "camera.h"
+#include "glm/gtc/matrix_transform.hpp"
 #include "structs/info/commands/renderPassBegin.h"
 #include "structs/info/present.h"
 #include "structs/info/submit.h"
@@ -31,15 +33,17 @@ void App::run() {
   while (!window.shouldClose()) {
     glfwPollEvents();
 
-    update();
-    render();
+    if (!update())
+      return;
+    if (!render())
+      return;
   }
   std::println("App closed.");
 }
 
-void App::update() {}
+bool App::update() { return true; }
 
-void App::render() {
+bool App::render() {
   frames[currentFrame].inFlight.wait();
   auto [swpachainState, imageIndex] =
       swapchain.getNextImage(*frames[currentFrame].imageAvailable);
@@ -48,16 +52,31 @@ void App::render() {
   case VK_SUBOPTIMAL_KHR:
   case VK_ERROR_OUT_OF_DATE_KHR:
     std::println("TODO: Recreate swapchain");
-    return;
+    return false;
   case VK_SUCCESS:
     break;
   default: {
     std::cerr << "Failed to acquire swapchain image." << std::endl;
-    return;
+    return false;
   }
   }
-
   frames[currentFrame].inFlight.reset();
+
+  auto &uniform = uniforms.objects[currentFrame];
+
+  CameraMatrices matrices{
+      .model = glm::mat4(1.0f),
+      .view = glm::lookAt(glm::vec3(3., 3., 3.), {0., 0., 0.}, {0., 0., 1.}),
+      .projection =
+          glm::perspective(glm::radians(90.0f),
+                           static_cast<float>(swapchain.getExtent().width) /
+                               swapchain.getExtent().height,
+                           0.1f, 100.0f),
+  };
+  matrices.projection[1][1] *= -1; // Vulkan uses a different Y-axis
+
+  if (!uniform.bufferMapping.write(&matrices, sizeof(matrices)))
+    return false;
 
   frames[currentFrame].commandBuffer.reset();
   recordCommandBuffer(frames[currentFrame].commandBuffer, imageIndex);
@@ -72,7 +91,7 @@ void App::render() {
   if (graphicsQueue.submit(submitInfo, *frames[currentFrame].inFlight) !=
       VK_SUCCESS) {
     std::cerr << "Failed to submit draw command buffer." << std::endl;
-    return;
+    return false;
   }
 
   vk::info::Present presentInfo =
@@ -84,9 +103,11 @@ void App::render() {
   presentQueue.present(presentInfo);
 
   currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+  return true;
 }
 
-void App::recordCommandBuffer(CommandBuffer &commandBuffer,
+void App::recordCommandBuffer(vk::CommandBuffer &commandBuffer,
                               uint32_t imageIndex) {
   auto encoder = commandBuffer.begin();
 
@@ -115,6 +136,8 @@ void App::recordCommandBuffer(CommandBuffer &commandBuffer,
 
   pass.bindVertexBuffer(0, vertexBuffer.vertexBuffer);
   pass.bindIndexBuffer(vertexBuffer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+  pass.bindDescriptorSet(uniforms.objects[currentFrame].descriptorSet);
 
   pass.drawIndexed(6);
 

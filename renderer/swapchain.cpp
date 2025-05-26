@@ -2,6 +2,7 @@
 #include "structs/info/framebufferCreate.h"
 #include "structs/info/imageViewCreate.h"
 
+namespace vk {
 std::optional<Swapchain> Swapchain::create(Device &device,
                                            vk::info::SwapchainCreate info) {
   VkSwapchainKHR swapChain;
@@ -46,3 +47,4 @@ Swapchain::createFramebuffers(RenderPass &renderPass) {
 
   return std::move(framebuffers);
 }
+} // namespace vk

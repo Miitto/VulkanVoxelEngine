@@ -4,6 +4,7 @@
 #include "vulkan/vulkan.h"
 #include <optional>
 
+namespace vk {
 class Semaphore {
   VkSemaphore semaphore;
   Device::Ref device;
@@ -44,3 +45,4 @@ public:
     }
   }
 };
+} // namespace vk

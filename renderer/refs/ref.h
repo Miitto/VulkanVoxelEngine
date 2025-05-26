@@ -4,7 +4,7 @@
 
 template <class T> class Ref {
 protected:
-  std::shared_ptr<T *> m_ref = std::make_shared<T *>(nullptr);
+  std::shared_ptr<T *> m_ref;
 
   Ref() = delete;
 
@@ -13,11 +13,13 @@ public:
   static Ref create(T &ref) { return Ref(&ref); }
   static Ref create(T *ref) { return Ref(ref); }
 
-  bool is(T *ref) const { return *m_ref == ref; }
+  bool is(const T *const ref) const { return *m_ref == ref; }
   void set(T *ref) { *this->m_ref = ref; }
   void reset() { *this->m_ref = nullptr; }
 
   bool has_value() const { return *m_ref && **m_ref; }
+
+  T *rawPtr() const { return *m_ref; }
 
   T &operator*() const { return **m_ref; }
   T &value() const { return **m_ref; }

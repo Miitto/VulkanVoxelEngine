@@ -6,6 +6,7 @@
 
 #include "instance.h"
 
+namespace vk {
 class QueueFamily;
 
 class PhysicalDevice {
@@ -40,3 +41,4 @@ public:
     return getProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
   }
 };
+} // namespace vk

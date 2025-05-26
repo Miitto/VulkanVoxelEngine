@@ -1,0 +1,5 @@
+Diagnostics:
+  UnusedIncludes: Strict
+  ClangTidy:
+    Add: [bugprone-*, cert-*, modernize-*, performance-*]
+    Remove: [bugprone-easily-swappable-parameters, modernize-use-trailing-return-type]

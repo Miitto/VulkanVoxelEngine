@@ -1,5 +1,6 @@
 #include "graphics.h"
 
+namespace vk {
 std::optional<GraphicsPipeline>
 GraphicsPipeline::create(Device &device,
                          vk::info::GraphicsPipelineCreate createInfo) {
@@ -10,5 +11,6 @@ GraphicsPipeline::create(Device &device,
     return std::nullopt;
   }
 
-  return GraphicsPipeline(pipeline, device);
+  return GraphicsPipeline(pipeline, device, createInfo.getLayout());
 }
+} // namespace vk

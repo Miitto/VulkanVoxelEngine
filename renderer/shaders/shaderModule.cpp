@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 
+namespace vk {
 static std::optional<std::vector<char>> readFile(const std::string &fileName) {
   std::ifstream file(fileName, std::ios::ate | std::ios::binary);
 
@@ -46,6 +47,7 @@ std::optional<ShaderModule> ShaderModule::fromCode(std::vector<char> &code,
     return std::nullopt;
   }
 
-  ShaderModule module(shaderModule, device.ref());
+  ShaderModule module(shaderModule, device);
   return module;
 }
+} // namespace vk

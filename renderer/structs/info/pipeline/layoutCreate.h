@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pipeline/descriptorSetLayout.h"
+#include "descriptors.h"
 #include "vulkan/vulkan_core.h"
 #include <vector>
 

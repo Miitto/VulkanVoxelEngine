@@ -1,5 +1,6 @@
 #include "semaphore.h"
 
+namespace vk {
 std::optional<Semaphore> Semaphore::create(Device &device) {
   VkSemaphoreCreateInfo createInfo = {
       .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -23,3 +24,4 @@ std::optional<Semaphore> Semaphore::create(Device &device,
 
   return std::move(sem);
 }
+} // namespace vk

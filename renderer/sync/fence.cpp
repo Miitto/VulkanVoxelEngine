@@ -1,5 +1,6 @@
 #include "fence.h"
 
+namespace vk {
 std::optional<Fence> Fence::create(Device &device, bool makeSignalled) {
   vk::info::FenceCreate createInfo(makeSignalled);
 
@@ -19,3 +20,4 @@ std::optional<Fence> Fence::create(Device &device,
 
   return std::move(f);
 }
+} // namespace vk

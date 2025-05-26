@@ -5,6 +5,7 @@
 #include <optional>
 #include <vulkan/vulkan_core.h>
 
+namespace vk {
 class Window {
   GLFWwindow *window = nullptr;
 
@@ -38,3 +39,4 @@ public:
   VkExtent2D getExtent();
   VkExtent2D getExtent(VkSurfaceCapabilitiesKHR &capabilities);
 };
+} // namespace vk

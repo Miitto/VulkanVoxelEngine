@@ -7,6 +7,7 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
+namespace vk {
 class Swapchain {
   Device::Ref device;
   VkSwapchainKHR swapchain;
@@ -69,3 +70,4 @@ public:
     return {result, imageIndex};
   }
 };
+} // namespace vk

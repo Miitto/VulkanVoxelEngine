@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <vulkan/vulkan.h>
 
+namespace vk {
 class CommandBuffer;
 
 class Queue {
@@ -62,3 +63,4 @@ public:
     return vkQueuePresentKHR(queue, &presentInfo);
   }
 };
+} // namespace vk

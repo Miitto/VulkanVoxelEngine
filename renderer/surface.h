@@ -7,6 +7,7 @@
 #include <utility>
 #include <vulkan/vulkan.h>
 
+namespace vk {
 class Surface {
   Instance::Ref instance;
   VkSurfaceKHR surface;
@@ -42,3 +43,4 @@ public:
 
   SurfaceAttributes(PhysicalDevice &device, Surface &surface);
 };
+} // namespace vk

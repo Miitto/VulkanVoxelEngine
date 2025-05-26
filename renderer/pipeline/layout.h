@@ -4,8 +4,10 @@
 #include "structs/info/pipeline/layoutCreate.h"
 #include <vulkan/vulkan_core.h>
 
-class PipelineLayout {
+namespace vk {
+class PipelineLayout : public RawRefable<PipelineLayout, VkPipelineLayout> {
 public:
+  using Ref = RawRef<PipelineLayout, VkPipelineLayout>;
   VkPipelineLayout layout;
   Device::Ref device;
 
@@ -14,11 +16,12 @@ public:
   PipelineLayout &operator=(PipelineLayout &&) = delete;
 
   PipelineLayout(VkPipelineLayout layout, Device::Ref device)
-      : layout(layout), device(device) {}
+      : RawRefable(), layout(layout), device(device) {}
 
 public:
   PipelineLayout(PipelineLayout &&other) noexcept
-      : layout(other.layout), device(other.device) {
+      : RawRefable(std::move(other)), layout(other.layout),
+        device(other.device) {
     other.layout = VK_NULL_HANDLE;
   }
   ~PipelineLayout();
@@ -27,4 +30,6 @@ public:
   create(Device &device, vk::info::PipelineLayoutCreate info);
 
   VkPipelineLayout operator*() { return layout; }
+  operator VkPipelineLayout() { return layout; }
 };
+} // namespace vk
