@@ -1,80 +1,48 @@
-#pragma once
+module;
 
-#include "buffers/index.h"
-#include "buffers/uniform.h"
-#include "buffers/vertex.h"
-#include "commands/buffer.h"
-#include "commands/pool.h"
-#include "device/device.h"
-#include "device/memory.h"
-#include "pipeline/graphics.h"
-#include "pipeline/layout.h"
-#include "swapchain.h"
-#include "sync/fence.h"
-#include "sync/semaphore.h"
 #include <array>
 #include <optional>
 
-const int MAX_FRAMES_IN_FLIGHT = 2;
+#include "commands/pool.h"
+#include "descriptors.h"
+#include "device/device.h"
+#include "instance.h"
+#include "pipeline/graphics.h"
+#include "pipeline/layout.h"
+#include "queue.h"
+#include "surface.h"
+#include "swapchain.h"
+#include "window.h"
+
+export module app:cls;
+
+import :common;
 
 class MoveGuard {
   bool moved = false;
 
+public:
   MoveGuard(const MoveGuard &) = delete;
   MoveGuard &operator=(const MoveGuard &) = delete;
-
-public:
   MoveGuard() = default;
   MoveGuard(MoveGuard &&o) noexcept : moved(o.moved) { o.moved = true; }
 
-  bool isMoved() const { return moved; }
+  [[nodiscard]] bool isMoved() const { return moved; }
 };
 
-class App {
+export class App {
   MoveGuard moveGuard;
-
-  void recordCommandBuffer(vk::CommandBuffer &commandBuffer,
-                           uint32_t imageIndex);
 
 public:
   static std::optional<App> create();
-  void run();
 
   // Since we have move-only members, we also need to be move-only
   App(const App &) = delete;
   App &operator=(const App &) = delete;
   App(App &&o) = default;
-  ~App();
 
-  bool update();
-  bool render();
+  void poll() const { glfwPollEvents(); }
 
-  struct UObject {
-    vk::UniformBuffer buffer;
-    vk::MappingSegment bufferMapping;
-    vk::DescriptorSet descriptorSet;
-  };
-
-  struct UObjects {
-    vk::DeviceMemory memory;
-    vk::Mapping mapping;
-    std::array<UObject, MAX_FRAMES_IN_FLIGHT> objects;
-  };
-
-  struct Frame {
-    vk::CommandBuffer commandBuffer;
-    vk::Semaphore imageAvailable;
-    vk::Semaphore renderFinished;
-    vk::Fence inFlight;
-  };
-
-  struct VBufferParts {
-    vk::VertexBuffer vertexBuffer;
-    vk::IndexBuffer indexBuffer;
-    vk::DeviceMemory memory;
-  };
-
-private:
   int currentFrame = 0;
 
   vk::Window window;
@@ -114,4 +82,14 @@ private:
         vertexBuffer(std::move(vertexBuffer)),
         descriptorPool(std::move(descriptorPool)),
         uniforms(std::move(uniforms)) {}
+
+  ~App() {
+    if (moveGuard.isMoved()) {
+      return;
+    }
+
+    device.waitIdle();
+
+    glfwTerminate();
+  }
 };

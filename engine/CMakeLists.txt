@@ -1,7 +1,14 @@
 target_sources(engine PRIVATE
   main.cpp
-  setup.cpp
   vertex.cpp
+)
+
+target_sources(engine PUBLIC FILE_SET modules BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} TYPE CXX_MODULES
+  FILES
+    app/app.ixx
+    app/common.ixx
+    app/setup.ixx
+    app/class.ixx
 )
 
 set_target_properties(engine

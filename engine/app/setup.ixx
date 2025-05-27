@@ -1,25 +1,41 @@
-#include "app.h"
-#include "commands/buffer.h"
+module;
+
+#include <array>
+#include <optional>
+#include <vector>
+
+#include "commands/pool.h"
+#include "descriptors.h"
+#include "device/device.h"
 #include "instance.h"
-#include "log.h"
+#include "pipeline/graphics.h"
+#include "pipeline/layout.h"
+#include "queue.h"
+#include "shaders/shader.h"
 #include "structs/attachmentDescription.h"
 #include "structs/info/all.h"
-#include "structs/info/memoryAllocate.h"
 #include "structs/pipelineColorBlendAttachmentState.h"
 #include "structs/subpassDependency.h"
 #include "structs/subpassDescription.h"
-#include "vertex.h"
+#include "surface.h"
+#include "swapchain.h"
+#include "window.h"
 
+#include "vertex.h"
 #include <algorithm>
 #include <optional>
 #include <vulkan/vulkan_core.h>
 
 const uint32_t WIDTH = 800, HEIGHT = 600;
 
-using namespace vk;
+export module app:setup;
 
-std::optional<PhysicalDevice> findDevice(Instance &instance, Surface &surface) {
-  auto physicalDevices = PhysicalDevice::all(instance);
+import :common;
+import :cls;
+
+std::optional<vk::PhysicalDevice> findDevice(vk::Instance &instance,
+                                             vk::Surface &surface) {
+  auto physicalDevices = vk::PhysicalDevice::all(instance);
   std::println("Found {} physical devices", physicalDevices.size());
 
   std::vector<char const *> requiredExtensions = {
@@ -39,7 +55,7 @@ std::optional<PhysicalDevice> findDevice(Instance &instance, Surface &surface) {
 
     // Need to do this after extensions, since this wil fail if the m_device
     // doesn't support swap chains
-    auto surfaceAttrs = SurfaceAttributes(device, surface);
+    auto surfaceAttrs = vk::SurfaceAttributes(device, surface);
 
     if (surfaceAttrs.formats.size() == 0 ||
         surfaceAttrs.presentModes.size() == 0) {
@@ -58,9 +74,9 @@ std::optional<PhysicalDevice> findDevice(Instance &instance, Surface &surface) {
   if (ratings[maxIndex] == 0)
     return std::nullopt;
 
-  PhysicalDevice &physicalDevice = physicalDevices[maxIndex];
+  vk::PhysicalDevice &physicalDevice = physicalDevices[maxIndex];
 
-  auto swapChainSupport = SurfaceAttributes(physicalDevice, surface);
+  auto swapChainSupport = vk::SurfaceAttributes(physicalDevice, surface);
 
   std::println("Found {} device: {}",
                physicalDevice.isDiscrete() ? "discrete" : "integrated",
@@ -91,9 +107,9 @@ pickPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes) {
   return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-std::optional<RenderPass> createRenderPass(Device &device,
-                                           Swapchain &swapChain) {
-  AttachmentDescription colorAttachment(swapChain.getFormat());
+std::optional<vk::RenderPass> createRenderPass(vk::Device &device,
+                                               vk::Swapchain &swapChain) {
+  vk::AttachmentDescription colorAttachment(swapChain.getFormat());
 
   colorAttachment.setColorDepth(VK_ATTACHMENT_LOAD_OP_CLEAR,
                                 VK_ATTACHMENT_STORE_OP_STORE);
@@ -103,14 +119,14 @@ std::optional<RenderPass> createRenderPass(Device &device,
   VkAttachmentReference colorAttachmentRef = {
       .attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
 
-  SubpassDescription subpassDescription;
+  vk::SubpassDescription subpassDescription;
   subpassDescription.color(colorAttachmentRef);
 
-  info::RenderPassCreate renderPassCreateInfo;
+  vk::info::RenderPassCreate renderPassCreateInfo;
   renderPassCreateInfo.addAttachment(colorAttachment);
   renderPassCreateInfo.addSubpass(subpassDescription);
 
-  SubpassDependency subpassDependency{
+  vk::SubpassDependency subpassDependency{
       {.srcSubpass = VK_SUBPASS_EXTERNAL,
        .dstSubpass = 0,
        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -121,14 +137,14 @@ std::optional<RenderPass> createRenderPass(Device &device,
 
   renderPassCreateInfo.addDependency(subpassDependency);
 
-  auto rp = RenderPass::create(device, renderPassCreateInfo);
+  auto rp = vk::RenderPass::create(device, renderPassCreateInfo);
 
   return rp;
 }
 
-std::optional<Shader> makeShader(Device &device, const char *path,
-                                 ShaderStage stage) {
-  auto shader = Shader::fromFile(path, stage, device);
+std::optional<vk::Shader> makeShader(vk::Device &device, const char *path,
+                                     vk::ShaderStage stage) {
+  auto shader = vk::Shader::fromFile(path, stage, device);
   if (!shader.has_value()) {
     std::cerr << "Failed to create shader." << std::endl;
     return std::nullopt;
@@ -137,34 +153,34 @@ std::optional<Shader> makeShader(Device &device, const char *path,
   return shader;
 }
 
-std::optional<GraphicsPipeline> makePipeline(Device &device,
-                                             Swapchain &swapChain,
-                                             PipelineLayout &layout,
-                                             RenderPass &renderPass) {
-  info::PipelineDynamicStateCreate dynState;
+std::optional<vk::GraphicsPipeline> makePipeline(vk::Device &device,
+                                                 vk::Swapchain &swapChain,
+                                                 vk::PipelineLayout &layout,
+                                                 vk::RenderPass &renderPass) {
+  vk::info::PipelineDynamicStateCreate dynState;
   dynState.addDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
   dynState.addDynamicState(VK_DYNAMIC_STATE_SCISSOR);
 
-  info::PipelineInputAssemblyStateCreate inputAssembly;
+  vk::info::PipelineInputAssemblyStateCreate inputAssembly;
   inputAssembly.setTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
 
-  info::PipelineVertexInputStateCreate vertexInput;
+  vk::info::PipelineVertexInputStateCreate vertexInput;
   vertexInput.addBindingDescription(Vertex::getBindingDescription());
   {
     auto attrs = Vertex::getAttributeDescriptions();
     vertexInput.addAttributeDescriptions(attrs);
   }
 
-  info::PipelineRasterizationStateCreate rasterizationState;
+  vk::info::PipelineRasterizationStateCreate rasterizationState;
   rasterizationState.setPolygonMode(VK_POLYGON_MODE_FILL);
   rasterizationState.setCullMode(VK_CULL_MODE_NONE,
                                  VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
-  info::PipelineMultisampleStateCreate multisampleState;
+  vk::info::PipelineMultisampleStateCreate multisampleState;
 
-  info::PipelineColorBlendStateCreate colorBlendState;
+  vk::info::PipelineColorBlendStateCreate colorBlendState;
 
-  PipelineColorBlendAttachmentState colorBlendAttachment;
+  vk::PipelineColorBlendAttachmentState colorBlendAttachment;
 
   colorBlendState.addAttachment(colorBlendAttachment);
 
@@ -178,39 +194,39 @@ std::optional<GraphicsPipeline> makePipeline(Device &device,
 
   VkRect2D scissor{.offset = {0, 0}, .extent = swapChain.getExtent()};
 
-  info::PiplineViewportStateCreate viewportState;
+  vk::info::PiplineViewportStateCreate viewportState;
 
   viewportState.addViewport(viewport);
   viewportState.addScissor(scissor);
 
-  auto vertexShader =
-      makeShader(device, "shaders/build/basic.vert.spv", ShaderStage::Vertex);
+  auto vertexShader = makeShader(device, "shaders/build/basic.vert.spv",
+                                 vk::ShaderStage::Vertex);
 
   if (!vertexShader.has_value()) {
     std::cerr << "Failed to create vertex shader." << std::endl;
     return std::nullopt;
   }
 
-  auto fragmentShader =
-      makeShader(device, "shaders/build/basic.frag.spv", ShaderStage::Fragment);
+  auto fragmentShader = makeShader(device, "shaders/build/basic.frag.spv",
+                                   vk::ShaderStage::Fragment);
 
   if (!fragmentShader.has_value()) {
     std::cerr << "Failed to create fragment shader." << std::endl;
     return std::nullopt;
   }
 
-  info::PipelineShaderStageCreate vertexShaderStage(*vertexShader);
-  info::PipelineShaderStageCreate fragmentShaderStage(*fragmentShader);
+  vk::info::PipelineShaderStageCreate vertexShaderStage(*vertexShader);
+  vk::info::PipelineShaderStageCreate fragmentShaderStage(*fragmentShader);
 
   VkPipelineShaderStageCreateInfo shaderStages[] = {vertexShaderStage,
                                                     fragmentShaderStage};
 
-  info::GraphicsPipelineCreate pipelineCreateInfo(
+  vk::info::GraphicsPipelineCreate pipelineCreateInfo(
       layout, *renderPass, 2, shaderStages, vertexInput, inputAssembly,
       viewportState, rasterizationState, multisampleState, colorBlendState,
       dynState, 0);
 
-  auto pipeline = GraphicsPipeline::create(device, pipelineCreateInfo);
+  auto pipeline = vk::GraphicsPipeline::create(device, pipelineCreateInfo);
 
   if (!pipeline.has_value()) {
     std::cerr << "Failed to create graphics pipeline." << std::endl;
@@ -220,8 +236,8 @@ std::optional<GraphicsPipeline> makePipeline(Device &device,
   return pipeline;
 }
 
-std::optional<App::VBufferParts> createVertexBuffers(Device &device,
-                                                     Queue &transferQueue) {
+std::optional<VBufferParts> createVertexBuffers(vk::Device &device,
+                                                vk::Queue &transferQueue) {
   using VertexT = Vertex;
   using IndexT = uint16_t;
   const int VERTEX_COUNT = 4;
@@ -229,7 +245,8 @@ std::optional<App::VBufferParts> createVertexBuffers(Device &device,
 
   VkDeviceSize bufSize = VERTEX_COUNT * sizeof(VertexT);
 
-  info::VertexBufferCreate vBufInfo(bufSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+  vk::info::VertexBufferCreate vBufInfo(bufSize,
+                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
   auto vBuf_opt = device.createVertexBuffer(vBufInfo);
   if (!vBuf_opt.has_value()) {
@@ -240,8 +257,8 @@ std::optional<App::VBufferParts> createVertexBuffers(Device &device,
 
   VkDeviceSize indexBufSize = INDEX_COUNT * sizeof(IndexT);
 
-  info::IndexBufferCreate indexBufInfo(indexBufSize,
-                                       VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+  vk::info::IndexBufferCreate indexBufInfo(indexBufSize,
+                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT);
   auto indexBuf_opt = device.createIndexBuffer(indexBufInfo);
   if (!indexBuf_opt.has_value()) {
     LOG_ERR("Failed to create index buffer");
@@ -249,8 +266,8 @@ std::optional<App::VBufferParts> createVertexBuffers(Device &device,
   }
   auto &indexBuf = indexBuf_opt.value();
 
-  std::array<Buffer *, 2> buffers = {&vBuf, &indexBuf};
-  std::span<Buffer *> buffersSpan(buffers);
+  std::array<vk::Buffer *, 2> buffers = {&vBuf, &indexBuf};
+  std::span<vk::Buffer *> buffersSpan(buffers);
 
   auto memory_opt =
       device.allocateMemory(buffersSpan, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -270,8 +287,8 @@ std::optional<App::VBufferParts> createVertexBuffers(Device &device,
     return std::nullopt;
   }
 
-  info::CommandPoolCreate cmdPoolInfo(transferQueue.getFamilyIndex(), false,
-                                      true);
+  vk::info::CommandPoolCreate cmdPoolInfo(transferQueue.getFamilyIndex(), false,
+                                          true);
   auto cmdPool_opt = device.createCommandPool(cmdPoolInfo);
   if (!cmdPool_opt.has_value()) {
     LOG_ERR("Failed to create command pool");
@@ -286,10 +303,10 @@ std::optional<App::VBufferParts> createVertexBuffers(Device &device,
   }
   auto &cmdBuf = cmdBuf_opt.value();
 
-  info::CommandBufferBegin cmdBufBegin{};
+  vk::info::CommandBufferBegin cmdBufBegin{};
   cmdBufBegin.oneTime();
 
-  std::vector<CommandBuffer::Encoder::TemporaryStaging> writes{};
+  std::vector<vk::CommandBuffer::Encoder::TemporaryStaging> writes{};
   writes.reserve(2);
 
   {
@@ -332,7 +349,7 @@ std::optional<App::VBufferParts> createVertexBuffers(Device &device,
   transferQueue.submit(cmdBuf, fence);
   fence.wait();
 
-  App::VBufferParts parts{
+  VBufferParts parts{
       .vertexBuffer = std::move(vBuf),
       .indexBuffer = std::move(indexBuf),
       .memory = std::move(memory),
@@ -342,16 +359,16 @@ std::optional<App::VBufferParts> createVertexBuffers(Device &device,
 }
 
 struct UniformReturn {
-  PipelineLayout layout;
-  DescriptorPool pool;
-  App::UObjects uniforms;
+  vk::PipelineLayout layout;
+  vk::DescriptorPool pool;
+  UObjects uniforms;
 };
 
-std::optional<UniformReturn> setupUniforms(Device &device) {
-  DescriptorSetLayoutBinding cameraBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                           VK_SHADER_STAGE_VERTEX_BIT);
+std::optional<UniformReturn> setupUniforms(vk::Device &device) {
+  vk::DescriptorSetLayoutBinding cameraBinding(
+      0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
 
-  info::DescriptorSetLayoutCreate descriptorSetLayoutCreateInfo;
+  vk::info::DescriptorSetLayoutCreate descriptorSetLayoutCreateInfo;
   descriptorSetLayoutCreateInfo.addBinding(cameraBinding);
 
   auto descriptorSetLayout_opt =
@@ -363,16 +380,17 @@ std::optional<UniformReturn> setupUniforms(Device &device) {
   auto &descriptorSetLayout = descriptorSetLayout_opt.value();
   LOG("Created set layout");
 
-  info::PipelineLayoutCreate pipelineLayoutCreateInfo;
+  vk::info::PipelineLayoutCreate pipelineLayoutCreateInfo;
   pipelineLayoutCreateInfo.addSetLayout(descriptorSetLayout);
-  auto layout_opt = PipelineLayout::create(device, pipelineLayoutCreateInfo);
+  auto layout_opt =
+      vk::PipelineLayout::create(device, pipelineLayoutCreateInfo);
   if (!layout_opt.has_value()) {
     LOG_ERR("Failed to create pipeline layout.");
     return std::nullopt;
   }
 
-  info::DescriptorPoolCreate descriptorPoolInfo(MAX_FRAMES_IN_FLIGHT);
-  vk::DescriptorPoolSize poolSize(enums::DescriptorType::UniformBuffer,
+  vk::info::DescriptorPoolCreate descriptorPoolInfo(MAX_FRAMES_IN_FLIGHT);
+  vk::DescriptorPoolSize poolSize(vk::enums::DescriptorType::UniformBuffer,
                                   MAX_FRAMES_IN_FLIGHT);
   descriptorPoolInfo.addPoolSize(poolSize);
   auto descriptorPool_opt = device.createDescriptorPool(descriptorPoolInfo);
@@ -391,9 +409,9 @@ std::optional<UniformReturn> setupUniforms(Device &device) {
 
   const uint32_t UNIFORM_BUFFER_SIZE = 3 * sizeof(glm::mat4);
 
-  info::UniformBufferCreate bufferInfo(UNIFORM_BUFFER_SIZE);
+  vk::info::UniformBufferCreate bufferInfo(UNIFORM_BUFFER_SIZE);
 
-  std::vector<UniformBuffer> buffers;
+  std::vector<vk::UniformBuffer> buffers;
   buffers.reserve(MAX_FRAMES_IN_FLIGHT);
 
   for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -406,8 +424,8 @@ std::optional<UniformReturn> setupUniforms(Device &device) {
   }
   LOG("Created uniform buffers");
 
-  std::array<Buffer *, MAX_FRAMES_IN_FLIGHT> buffersRef = {&buffers[0],
-                                                           &buffers[1]};
+  std::array<vk::Buffer *, MAX_FRAMES_IN_FLIGHT> buffersRef = {&buffers[0],
+                                                               &buffers[1]};
 
   auto memory_opt = device.allocateMemory(
       buffersRef, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -428,8 +446,8 @@ std::optional<UniformReturn> setupUniforms(Device &device) {
   LOG("Bound uniform buffer memory");
 
   for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    info::DescriptorBuffer bufInfo(buffers[i]);
-    DescriptorSetWriteBuffer write(descriptorSets[i], 0);
+    vk::info::DescriptorBuffer bufInfo(buffers[i]);
+    vk::DescriptorSetWriteBuffer write(descriptorSets[i], 0);
     write.addBuffer(bufInfo);
     descriptorSets[i].update(write);
   }
@@ -444,11 +462,11 @@ std::optional<UniformReturn> setupUniforms(Device &device) {
 
   LOG("Mapped uniform buffer memory");
 
-  std::vector<App::UObject> uObjs;
+  std::vector<UObject> uObjs;
   uObjs.reserve(MAX_FRAMES_IN_FLIGHT);
 
   for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    App::UObject uObj{
+    UObject uObj{
         .buffer = std::move(buffers[i]),
         .bufferMapping = vk::MappingSegment(mapping, i * UNIFORM_BUFFER_SIZE,
                                             UNIFORM_BUFFER_SIZE),
@@ -458,10 +476,10 @@ std::optional<UniformReturn> setupUniforms(Device &device) {
     uObjs.push_back(std::move(uObj));
   }
 
-  std::array<App::UObject, MAX_FRAMES_IN_FLIGHT> uniforms{std::move(uObjs[0]),
-                                                          std::move(uObjs[1])};
+  std::array<UObject, MAX_FRAMES_IN_FLIGHT> uniforms{std::move(uObjs[0]),
+                                                     std::move(uObjs[1])};
 
-  App::UObjects uObjects{
+  UObjects uObjects{
       .memory = std::move(memory),
       .mapping = std::move(mapping),
       .objects = std::move(uniforms),
@@ -477,16 +495,16 @@ std::optional<UniformReturn> setupUniforms(Device &device) {
 std::optional<App> App::create() {
   glfwInit();
 
-  auto window_opt = Window::create("Vulkan App", WIDTH, HEIGHT);
+  auto window_opt = vk::Window::create("Vulkan App", WIDTH, HEIGHT);
   if (!window_opt.has_value()) {
     LOG_ERR("Failed to create window.");
     return std::nullopt;
   }
   auto &window = window_opt.value();
 
-  info::Application appInfo;
-  info::InstanceCreate createInfo(appInfo);
-  auto instance_opt = Instance::create(createInfo);
+  vk::info::Application appInfo;
+  vk::info::InstanceCreate createInfo(appInfo);
+  auto instance_opt = vk::Instance::create(createInfo);
   if (!instance_opt.has_value()) {
     LOG_ERR("Failed to create Vulkan instance.");
     return std::nullopt;
@@ -509,7 +527,7 @@ std::optional<App> App::create() {
   }
   auto &physicalDevice = phys_device_opt.value();
 
-  auto swapchainSupport = SurfaceAttributes(physicalDevice, surface);
+  auto swapchainSupport = vk::SurfaceAttributes(physicalDevice, surface);
   auto format = chooseSwapSurfaceFormat(swapchainSupport.formats);
   auto presentMode = pickPresentMode(swapchainSupport.presentModes);
   auto extent = window.getExtent(swapchainSupport.capabilities);
@@ -545,7 +563,7 @@ std::optional<App> App::create() {
     return std::nullopt;
   }
 
-  info::DeviceCreate deviceCreateInfo(physicalDevice.getFeatures());
+  vk::info::DeviceCreate deviceCreateInfo(physicalDevice.getFeatures());
   deviceCreateInfo.addQueue(*graphicsQueueFamilyIndex)
       .addQueue(*presentQueueFamilyIndex)
       .enableExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
@@ -553,7 +571,7 @@ std::optional<App> App::create() {
   std::println("Creating device with {} queues",
                deviceCreateInfo.queueCreateInfoCount);
 
-  auto device_opt = Device::create(physicalDevice, deviceCreateInfo);
+  auto device_opt = vk::Device::create(physicalDevice, deviceCreateInfo);
 
   if (!device_opt.has_value()) {
     std::cerr << "Failed to create logical device." << std::endl;
@@ -567,7 +585,7 @@ std::optional<App> App::create() {
     return std::nullopt;
   }
 
-  std::optional<PresentQueue> presentQueue =
+  std::optional<vk::PresentQueue> presentQueue =
       device.getQueue(presentQueueFamilyIndex.value(), 0);
   if (!presentQueue.has_value()) {
     std::cerr << "Failed to create present queue." << std::endl;
@@ -575,7 +593,7 @@ std::optional<App> App::create() {
   }
   LOG("Created Device and retrieved queues");
 
-  info::SwapchainCreate swapChainCreateInfo(swapchainSupport, surface);
+  vk::info::SwapchainCreate swapChainCreateInfo(swapchainSupport, surface);
   swapChainCreateInfo.setImageFormat(format.format)
       .setImageColorSpace(format.colorSpace)
       .setImageExtent(extent)
@@ -629,10 +647,10 @@ std::optional<App> App::create() {
   }
   auto &pipeline = pipeline_opt.value();
 
-  info::CommandPoolCreate commandPoolCreateInfo(
+  vk::info::CommandPoolCreate commandPoolCreateInfo(
       graphicsQueueFamilyIndex.value(), true);
 
-  auto commandPool_opt = CommandPool::create(device, commandPoolCreateInfo);
+  auto commandPool_opt = vk::CommandPool::create(device, commandPoolCreateInfo);
   if (!commandPool_opt.has_value()) {
     std::cerr << "Failed to create command pool." << std::endl;
     return std::nullopt;

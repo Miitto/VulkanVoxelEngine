@@ -33,7 +33,7 @@ public:
             << std::source_location::current().file_name() << ":"              \
             << std::source_location::current().line() << " | "                 \
             << Color::Modifier(Color::FG_DEFAULT) << std::format(__VA_ARGS__)  \
-            << std::endl;
+            << "\n";
 #elif
 #define LOG(expr)
 #endif
@@ -43,4 +43,4 @@ public:
             << std::source_location::current().file_name() << ":"              \
             << std::source_location::current().line() << " | "                 \
             << Color::Modifier(Color::FG_DEFAULT) << std::format(__VA_ARGS__)  \
-            << std::endl;
+            << "\n";

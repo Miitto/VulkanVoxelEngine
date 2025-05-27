@@ -5,8 +5,9 @@ project(VoxelEngine VERSION 0.1 DESCRIPTION "Port of my OpenGL Voxel Engine to C
 set(CMAKE_BUILD_TYPE Debug)
 
 set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-# Export for clang
+# Export for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
@@ -23,7 +24,7 @@ add_executable(engine)
 target_include_directories(engine PRIVATE engine)
 add_subdirectory(engine)
 
-target_link_libraries(engine PRIVATE renderer)
+target_link_libraries(engine PUBLIC renderer)
 
 
 add_library(renderer)
