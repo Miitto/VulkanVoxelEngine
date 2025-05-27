@@ -5,12 +5,8 @@
 #include <iostream>
 #include <optional>
 
-#include "commands/buffer.h"
-#include "structs/info/commands/renderPassBegin.h"
-#include "structs/info/present.h"
-#include "structs/info/submit.h"
-
 import app;
+import vk;
 
 class Program {
   App app;

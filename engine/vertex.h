@@ -1,7 +1,7 @@
-#include "structs/vertexInputAttributeDescription.h"
-#include "structs/vertexInputBindingDescription.h"
 #include <glm/glm.hpp>
 #include <vulkan/vulkan_core.h>
+
+import vk;
 
 struct Vertex {
   glm::vec3 position;

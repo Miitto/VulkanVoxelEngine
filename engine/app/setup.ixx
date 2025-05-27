@@ -1,25 +1,9 @@
 module;
+#include "log.h"
 
 #include <array>
 #include <optional>
 #include <vector>
-
-#include "commands/pool.h"
-#include "descriptors.h"
-#include "device/device.h"
-#include "instance.h"
-#include "pipeline/graphics.h"
-#include "pipeline/layout.h"
-#include "queue.h"
-#include "shaders/shader.h"
-#include "structs/attachmentDescription.h"
-#include "structs/info/all.h"
-#include "structs/pipelineColorBlendAttachmentState.h"
-#include "structs/subpassDependency.h"
-#include "structs/subpassDescription.h"
-#include "surface.h"
-#include "swapchain.h"
-#include "window.h"
 
 #include "vertex.h"
 #include <algorithm>
@@ -32,6 +16,8 @@ export module app:setup;
 
 import :common;
 import :cls;
+
+import vk;
 
 std::optional<vk::PhysicalDevice> findDevice(vk::Instance &instance,
                                              vk::Surface &surface) {
