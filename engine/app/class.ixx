@@ -1,22 +1,15 @@
 module;
 
+#include <GLFW/glfw3.h>
 #include <array>
 #include <optional>
-
-#include "commands/pool.h"
-#include "descriptors.h"
-#include "device/device.h"
-#include "instance.h"
-#include "pipeline/graphics.h"
-#include "pipeline/layout.h"
-#include "queue.h"
-#include "surface.h"
-#include "swapchain.h"
-#include "window.h"
+#include <vector>
 
 export module app:cls;
 
 import :common;
+
+import vk;
 
 class MoveGuard {
   bool moved = false;

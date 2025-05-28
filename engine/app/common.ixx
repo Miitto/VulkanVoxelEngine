@@ -2,15 +2,9 @@ module;
 
 #include <array>
 
-#include "buffers/index.h"
-#include "buffers/uniform.h"
-#include "buffers/vertex.h"
-#include "commands/buffer.h"
-#include "descriptors.h"
-#include "sync/fence.h"
-#include "sync/semaphore.h"
-
 export module app:common;
+
+import vk;
 
 export const int MAX_FRAMES_IN_FLIGHT = 2;
 
