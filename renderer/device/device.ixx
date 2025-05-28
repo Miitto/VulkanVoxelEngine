@@ -2,15 +2,15 @@ module;
 
 #include "refs/refable.h"
 #include <optional>
-#include <span>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 export module vk:device;
 
 import :device.physical;
-import :structs.info.buffers.create;
+import :info.buffers.create;
+import :info.deviceCreate;
 
-export namespace vk {
+namespace vk {
 class Swapchain;
 class Queue;
 class CommandPool;
@@ -29,8 +29,11 @@ namespace info {
 class DescriptorSetLayoutCreate;
 class DescriptorPoolCreate;
 class SwapchainCreate;
+class CommandPoolCreate;
 } // namespace info
+} // namespace vk
 
+export namespace vk {
 class Device : public RawRefable<Device, VkDevice> {
   VkDevice m_device;
   PhysicalDevice m_physicalDevice;

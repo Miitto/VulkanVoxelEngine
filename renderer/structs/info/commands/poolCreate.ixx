@@ -4,8 +4,7 @@ module;
 
 export module vk:info.commands.poolCreate;
 
-export namespace vk {
-namespace info {
+export namespace vk::info {
 class CommandPoolCreate : public VkCommandPoolCreateInfo {
 
 public:
@@ -51,5 +50,4 @@ public:
     return *this;
   }
 };
-} // namespace info
-} // namespace vk
+} // namespace vk::info

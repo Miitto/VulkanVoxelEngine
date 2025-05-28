@@ -6,8 +6,10 @@ module;
 
 export module vk:info.pipeline.vertexInputStateCreate;
 
-export namespace vk {
-namespace info {
+import :vertexInputAttributeDescription;
+import :vertexInputBindingDescription;
+
+export namespace vk::info {
 class PipelineVertexInputStateCreate
     : public VkPipelineVertexInputStateCreateInfo {
 
@@ -92,5 +94,4 @@ public:
     other.setupAttributeDescriptions();
   }
 };
-} // namespace info
-} // namespace vk
+} // namespace vk::info

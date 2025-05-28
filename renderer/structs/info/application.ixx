@@ -3,8 +3,9 @@ module;
 
 export module vk:info.application;
 
-export namespace vk {
-namespace info {
+import :version;
+
+export namespace vk::info {
 
 class Application : public VkApplicationInfo {
 public:
@@ -20,5 +21,4 @@ public:
     apiVersion = VK_API_VERSION_1_0;
   }
 };
-} // namespace info
-} // namespace vk
+} // namespace vk::info

@@ -10,6 +10,7 @@ class SubpassDescription : public VkSubpassDescription {
   std::vector<VkAttachmentReference> colorReferences;
   std::vector<VkAttachmentReference> inputReferences;
   std::vector<VkAttachmentReference> resolveReferences;
+  VkAttachmentReference depthReference;
   std::vector<uint32_t> preserveReferences;
 
   void setupInputAttachments() {
@@ -63,8 +64,9 @@ public:
     return *this;
   }
 
-  SubpassDescription &depthStencil(VkAttachmentReference attachment) {
-    pDepthStencilAttachment = &attachment;
+  SubpassDescription &depthStencil(VkAttachmentReference &attachment) {
+    depthReference = attachment;
+    pDepthStencilAttachment = &depthReference;
     return *this;
   }
 

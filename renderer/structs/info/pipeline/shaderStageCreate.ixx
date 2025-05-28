@@ -4,8 +4,9 @@ module;
 
 export module vk:info.pipeline.shaderStageCreate;
 
-export namespace vk {
-namespace info {
+import :shader;
+
+export namespace vk::info {
 class PipelineShaderStageCreate : public VkPipelineShaderStageCreateInfo {
 
 public:
@@ -19,5 +20,4 @@ public:
             .pName = "main",
             .pSpecializationInfo = nullptr} {}
 };
-} // namespace info
-} // namespace vk
+} // namespace vk::info

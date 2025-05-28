@@ -1,9 +1,10 @@
 module;
 
 #include <iostream>
-#include <vulkan/vulkan.h>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
-export module vk:structs.info.swapchainCreate;
+export module vk:info.swapchainCreate;
 
 import :surface;
 

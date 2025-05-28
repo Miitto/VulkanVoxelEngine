@@ -3,6 +3,8 @@ module;
 
 export module vk:viewport;
 
+import :swapchain;
+
 export namespace vk {
 class Viewport : public VkViewport {
 public:

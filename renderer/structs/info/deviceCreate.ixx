@@ -6,6 +6,8 @@ module;
 
 export module vk:info.deviceCreate;
 
+import :info.deviceQueueCreate;
+
 export namespace vk::info {
 class DeviceCreate : public VkDeviceCreateInfo {
   VkPhysicalDeviceFeatures m_features{};

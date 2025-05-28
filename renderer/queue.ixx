@@ -1,11 +1,13 @@
 module;
 
 #include <cstdint>
-#include <vulkan/vulkan.h>
+#include <utility>
+#include <vulkan/vulkan_core.h>
 
 export module vk:queue;
 
 import :surface;
+import :fence;
 
 import :info.present;
 import :info.submit;

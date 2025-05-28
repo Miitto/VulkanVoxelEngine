@@ -47,7 +47,7 @@ target_sources(renderer PUBLIC FILE_SET modules TYPE CXX_MODULES BASE_DIRS ${CMA
   structs/info/pipeline/rasterizationStateCreate.ixx
   structs/info/pipeline/shaderStageCreate.ixx
   structs/info/pipeline/vertexInputStateCreate.ixx
-  structs/info/pipeline/viewPortStateCreate.ixx
+  structs/info/pipeline/viewportStateCreate.ixx
   structs/info/sync/fenceCreate.ixx
   structs/info/sync/semaphoreCreate.ixx
   structs/info/application.ixx

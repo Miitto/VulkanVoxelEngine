@@ -4,85 +4,83 @@ module;
 
 export module vk;
 
-#define EI export import
-
 // Buffers
-EI :buffer;
-EI :buffers.vertex;
-EI :buffers.index;
-EI :buffers.uniform;
+export import :buffer;
+export import :buffers.vertex;
+export import :buffers.index;
+export import :buffers.uniform;
 
 // Commands
-EI :commands.buffer;
-EI :commands.pool;
+export import :commands.buffer;
+export import :commands.pool;
 
 // Device
-EI :device;
-EI :memory;
-EI :device.physical;
+export import :device;
+export import :memory;
+export import :device.physical;
 
 // Pipeline
-EI :pipeline.graphics;
-EI :pipeline.layout;
-EI :pipeline;
-EI :renderPass;
+export import :pipeline.graphics;
+export import :pipeline.layout;
+export import :pipeline;
+export import :renderPass;
 
 // Shaders
-EI :shader;
-EI :shader.mod;
+export import :shader;
+export import :shader.mod;
 
 // Structs
-EI :attachmentDescription;
-EI :bufferCopy;
-EI :mappedMemoryRange;
-EI :pipelineColorBlendAttachmentState;
-EI :subpassDescription;
-EI :subpassDependency;
-EI :vertexInputAttributsDescription;
-EI :vertexInputBindingDescription;
+export import :attachmentDescription;
+export import :bufferCopy;
+export import :mappedMemoryRange;
+export import :pipelineColorBlendAttachmentState;
+export import :subpassDescription;
+export import :subpassDependency;
+export import :vertexInputAttributsDescription;
+export import :vertexInputBindingDescription;
 // Info
-EI :info.buffers.create;
-EI :info.commands.bufferAllocate;
-EI :info.commands.bufferBegin;
-EI :info.commands.poolCreate;
-EI :info.commands.renderPassBegin;
-EI :info.pipeline.colorBlendStateCreate;
-EI :info.pipeline.dynamicStateCreate;
-EI :info.pipeline.graphicsPipelineCreate;
-EI :info.pipeline.inputAssemblyStateCreate;
-EI :info.pipeline.layoutCreate;
-EI :info.pipeline.multisampleStateCreate;
-EI :info.pipeline.rasterizationStateCreate;
-EI :info.pipeline.shaderStageCreate;
-EI :info.pipeline.vertexInputStateCreate;
-EI :info.pipeline.viewportStateCreate;
-EI :info.sync.fenceCreate;
-EI :info.sync.semaphoreCreate;
-EI :info.application;
-EI :info.deviceCreate;
-EI :info.deviceQueueCreate;
-EI :info.framebufferCreate;
-EI :info.imageViewCreate;
-EI :info.instanceCreate;
-EI :info.memoryAllocate;
-EI :info.present;
-EI :info.renderPassCreate;
-EI :info.shaderModuleCreate;
-EI :info.submit;
-EI :info.swapchainCreate;
+export import :info.buffers.create;
+export import :info.commands.bufferAllocate;
+export import :info.commands.bufferBegin;
+export import :info.commands.poolCreate;
+export import :info.commands.renderPassBegin;
+export import :info.pipeline.colorBlendStateCreate;
+export import :info.pipeline.dynamicStateCreate;
+export import :info.pipeline.graphicsPipelineCreate;
+export import :info.pipeline.inputAssemblyStateCreate;
+export import :info.pipeline.layoutCreate;
+export import :info.pipeline.multisampleStateCreate;
+export import :info.pipeline.rasterizationStateCreate;
+export import :info.pipeline.shaderStageCreate;
+export import :info.pipeline.vertexInputStateCreate;
+export import :info.pipeline.viewportStateCreate;
+export import :info.sync.fenceCreate;
+export import :info.sync.semaphoreCreate;
+export import :info.application;
+export import :info.deviceCreate;
+export import :info.deviceQueueCreate;
+export import :info.framebufferCreate;
+export import :info.imageViewCreate;
+export import :info.instanceCreate;
+export import :info.memoryAllocate;
+export import :info.present;
+export import :info.renderPassCreate;
+export import :info.shaderModuleCreate;
+export import :info.submit;
+export import :info.swapchainCreate;
 
 // Sync
-EI :fence;
-EI :semaphore;
+export import :fence;
+export import :semaphore;
 
 // Root
-EI :descriptors;
-EI :framebuffer;
-EI :instance;
-EI :queue;
-EI :surface;
-EI :swapchain;
-EI :window;
+export import :descriptors;
+export import :framebuffer;
+export import :instance;
+export import :queue;
+export import :surface;
+export import :swapchain;
+export import :window;
 
-EI :types;
-EI :version;
+export import :types;
+export import :version;
