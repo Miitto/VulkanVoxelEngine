@@ -8,11 +8,11 @@ export module vk:info.framebufferCreate;
 export namespace vk {
 namespace info {
 class FramebufferCreate : public VkFramebufferCreateInfo {
-  std::vector<VkImageView> attachments;
+  std::vector<VkImageView> m_attachments;
 
   void setupAttachments() {
-    attachmentCount = static_cast<uint32_t>(attachments.size());
-    pAttachments = attachments.empty() ? nullptr : attachments.data();
+    attachmentCount = static_cast<uint32_t>(m_attachments.size());
+    pAttachments = m_attachments.empty() ? nullptr : m_attachments.data();
   }
 
 public:
@@ -31,32 +31,32 @@ public:
                                 .layers = 1} {}
 
   FramebufferCreate &addAttachment(VkImageView attachment) {
-    attachments.push_back(attachment);
+    m_attachments.push_back(attachment);
     setupAttachments();
     return *this;
   }
 
-  FramebufferCreate &addAttachments(std::vector<VkImageView> attachments) {
-    this->attachments.insert(this->attachments.end(), attachments.begin(),
-                             attachments.end());
+  FramebufferCreate &addAttachments(std::vector<VkImageView> attchmnts) {
+    m_attachments.insert(m_attachments.end(), attchmnts.begin(),
+                             attchmnts.end());
     setupAttachments();
     return *this;
   }
 
   FramebufferCreate &setAttachments(std::vector<VkImageView> attachments) {
-    this->attachments = std::move(attachments);
+    this->m_attachments = std::move(attachments);
     setupAttachments();
     return *this;
   }
 
   FramebufferCreate(const FramebufferCreate &other)
-      : VkFramebufferCreateInfo{other}, attachments(other.attachments) {
+      : VkFramebufferCreateInfo{other}, m_attachments(other.m_attachments) {
     setupAttachments();
   }
 
   FramebufferCreate(FramebufferCreate &&other) noexcept
       : VkFramebufferCreateInfo{other},
-        attachments(std::move(other.attachments)) {
+        m_attachments(std::move(other.m_attachments)) {
     setupAttachments();
     other.setupAttachments();
   }

@@ -36,7 +36,7 @@ export import :mappedMemoryRange;
 export import :pipelineColorBlendAttachmentState;
 export import :subpassDescription;
 export import :subpassDependency;
-export import :vertexInputAttributsDescription;
+export import :vertexInputAttributeDescription;
 export import :vertexInputBindingDescription;
 // Info
 export import :info.buffers.create;

@@ -2,7 +2,7 @@ module;
 
 #include "vulkan/vulkan_core.h"
 
-export module vk:info.pipeline.rasterazationStateCreate;
+export module vk:info.pipeline.rasterizationStateCreate;
 
 export namespace vk {
 namespace info {
@@ -38,9 +38,9 @@ public:
   }
 
   PipelineRasterizationStateCreate &setCullMode(VkCullModeFlags mode,
-                                                VkFrontFace frontFace) {
+                                                VkFrontFace front) {
     cullMode = mode;
-    this->frontFace = frontFace;
+    frontFace = front;
     return *this;
   }
 };

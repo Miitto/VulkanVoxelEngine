@@ -6,7 +6,7 @@ module;
 export module vk:pipeline.graphics;
 
 import :pipeline;
-import :structs.info.pipeline.graphicsPipelineCreate;
+import :info.pipeline.graphicsPipelineCreate;
 
 export namespace vk {
 class GraphicsPipeline : public Pipeline {

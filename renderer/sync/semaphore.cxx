@@ -9,17 +9,13 @@ import :info.sync.semaphoreCreate;
 
 namespace vk {
 std::optional<Semaphore> Semaphore::create(Device &device) {
-  VkSemaphoreCreateInfo createInfo = {
-      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-      .pNext = nullptr,
-      .flags = 0,
-  };
+  info::SemaphoreCreate createInfo{};
 
   return create(device, createInfo);
 }
 
 std::optional<Semaphore> Semaphore::create(Device &device,
-                                           SemaphoreCreateInfo createInfo) {
+                                           info::SemaphoreCreate createInfo) {
   VkSemaphore semaphore;
 
   auto result = vkCreateSemaphore(*device, &createInfo, nullptr, &semaphore);

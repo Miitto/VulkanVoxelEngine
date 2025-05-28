@@ -28,10 +28,10 @@ export module vk:attachmentDescription;
       return *this;
     }
 
-    AttachmentDescription &setStencil(VkAttachmentLoadOp loadOp,
-                                      VkAttachmentStoreOp storeOp) {
-      stencilLoadOp = loadOp;
-      stencilStoreOp = storeOp;
+    AttachmentDescription &setStencil(VkAttachmentLoadOp load,
+                                      VkAttachmentStoreOp store) {
+      stencilLoadOp = load;
+      stencilStoreOp = store;
       return *this;
     }
 

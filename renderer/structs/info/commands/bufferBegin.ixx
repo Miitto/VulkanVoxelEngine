@@ -4,8 +4,7 @@ module;
 
 export module vk:info.commands.bufferBegin;
 
-namespace vk {
-namespace info {
+export namespace vk::info {
 
 class CommandBufferBegin : public VkCommandBufferBeginInfo {
 
@@ -32,5 +31,4 @@ public:
     return *this;
   }
 };
-} // namespace info
-} // namespace vk
+} // namespace vk::info

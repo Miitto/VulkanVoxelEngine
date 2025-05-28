@@ -25,8 +25,8 @@ public:
     }
   }
 
-  CommandPoolCreate &setFlags(VkCommandPoolCreateFlags flags) {
-    this->flags = flags;
+  CommandPoolCreate &setFlags(VkCommandPoolCreateFlags f) {
+    flags = f;
     return *this;
   }
 

@@ -20,8 +20,8 @@ public:
             .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
             .primitiveRestartEnable = VK_FALSE} {}
 
-  PipelineInputAssemblyStateCreate &setTopology(VkPrimitiveTopology topology) {
-    this->topology = topology;
+  PipelineInputAssemblyStateCreate &setTopology(VkPrimitiveTopology top) {
+    topology = top;
     return *this;
   }
 

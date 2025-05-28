@@ -12,18 +12,18 @@ public:
             .srcOffset = srcOffset, .dstOffset = dstOffset, .size = size} {}
   BufferCopy(const VkBufferCopy &o) : VkBufferCopy(o) {}
 
-  BufferCopy &setSrcOffset(uint32_t srcOffset) {
-    this->srcOffset = srcOffset;
+  BufferCopy &setSrcOffset(uint32_t offset) {
+    srcOffset = offset;
     return *this;
   }
 
-  BufferCopy &setDstOffset(uint32_t dstOffset) {
-    this->dstOffset = dstOffset;
+  BufferCopy &setDstOffset(uint32_t offset) {
+    dstOffset = offset;
     return *this;
   }
 
-  BufferCopy &setSize(uint32_t size) {
-    this->size = size;
+  BufferCopy &setSize(uint32_t sz) {
+    size = sz;
     return *this;
   }
 };

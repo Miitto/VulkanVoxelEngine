@@ -7,7 +7,7 @@ module;
 export module vk:pipeline.layout;
 
 import :device;
-import :structs.info.pipeline.layoutCreate;
+import :info.pipeline.layoutCreate;
 
 export namespace vk {
 class PipelineLayout : public RawRefable<PipelineLayout, VkPipelineLayout> {

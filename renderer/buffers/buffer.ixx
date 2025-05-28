@@ -5,7 +5,7 @@ module;
 
 export module vk:buffer;
 
-import :structs.info.buffers.create;
+import :info.buffers.create;
 import :device;
 import :memory;
 

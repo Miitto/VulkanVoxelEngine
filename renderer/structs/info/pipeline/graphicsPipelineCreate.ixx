@@ -3,7 +3,7 @@ module;
 #include "vulkan/vulkan_core.h"
 #include <vector>
 
-export module vk:structs.info.pipeline.graphicsPipelineCreate;
+export module vk:info.pipeline.graphicsPipelineCreate;
 
 import :pipeline.layout;
 

@@ -14,6 +14,8 @@ import :buffers.vertex;
 import :buffers.index;
 import :pipeline;
 import :device;
+import :bufferCopy;
+import :info.commands.bufferBegin;
 
 export namespace vk {
 class CommandBuffer {

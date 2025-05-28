@@ -6,8 +6,10 @@ module;
 #include <vector>
 
 #include "vertex.h"
+#include <GLFW/glfw3.h>
 #include <algorithm>
 #include <optional>
+#include <span>
 #include <vulkan/vulkan_core.h>
 
 const uint32_t WIDTH = 800, HEIGHT = 600;
@@ -22,7 +24,7 @@ import vk;
 std::optional<vk::PhysicalDevice> findDevice(vk::Instance &instance,
                                              vk::Surface &surface) {
   auto physicalDevices = vk::PhysicalDevice::all(instance);
-  std::println("Found {} physical devices", physicalDevices.size());
+  LOG("Found {} physical devices", physicalDevices.size());
 
   std::vector<char const *> requiredExtensions = {
       VK_KHR_SWAPCHAIN_EXTENSION_NAME};
@@ -64,9 +66,9 @@ std::optional<vk::PhysicalDevice> findDevice(vk::Instance &instance,
 
   auto swapChainSupport = vk::SurfaceAttributes(physicalDevice, surface);
 
-  std::println("Found {} device: {}",
-               physicalDevice.isDiscrete() ? "discrete" : "integrated",
-               physicalDevice.getProperties().deviceName);
+  LOG("Found {} device: {}",
+      physicalDevice.isDiscrete() ? "discrete" : "integrated",
+      physicalDevice.getProperties().deviceName);
 
   return physicalDevice;
 }
@@ -554,8 +556,7 @@ std::optional<App> App::create() {
       .addQueue(*presentQueueFamilyIndex)
       .enableExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-  std::println("Creating device with {} queues",
-               deviceCreateInfo.queueCreateInfoCount);
+  LOG("Creating device with {} queues", deviceCreateInfo.queueCreateInfoCount);
 
   auto device_opt = vk::Device::create(physicalDevice, deviceCreateInfo);
 

@@ -31,24 +31,24 @@ public:
     return *this;
   }
 
-  ImageViewCreate &setViewType(VkImageViewType viewType) {
-    this->viewType = viewType;
+  ImageViewCreate &setViewType(VkImageViewType view) {
+    viewType = view;
     return *this;
   }
 
-  ImageViewCreate &setFormat(VkFormat format) {
-    this->format = format;
+  ImageViewCreate &setFormat(VkFormat fmt) {
+    format = fmt;
     return *this;
   }
 
-  ImageViewCreate &setComponents(VkComponentMapping components) {
-    this->components = components;
+  ImageViewCreate &setComponents(VkComponentMapping comps) {
+    components = comps;
     return *this;
   }
 
   ImageViewCreate &
-  setSubresourceRange(VkImageSubresourceRange subresourceRange) {
-    this->subresourceRange = subresourceRange;
+  setSubresourceRange(VkImageSubresourceRange subRange) {
+    subresourceRange = subRange;
     return *this;
   }
 };

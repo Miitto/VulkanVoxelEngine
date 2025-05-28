@@ -9,7 +9,7 @@ module;
 export module vk:swapchain;
 import :device;
 import :renderPass;
-import :structs.info.swapchainCreate;
+import :info.swapchainCreate;
 
 export namespace vk {
 class Device;

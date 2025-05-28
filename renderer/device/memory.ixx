@@ -10,11 +10,12 @@ export module vk:memory;
 
 import :types;
 import :device;
+import :mappedMemoryRange;
 
-export namespace vk {
-class DeviceMemory;
+namespace vk {
+export class DeviceMemory;
 
-class Mapping : public Refable<Mapping> {
+export class Mapping : public Refable<Mapping> {
   Device::Ref m_device;
   RawRef<DeviceMemory, VkDeviceMemory> m_memory;
   vk::DeviceSize m_offset;
@@ -57,7 +58,7 @@ public:
   }
 
   const void *get() const { return m_ptr; }
-  uint32_t getSize() const { return m_size; }
+  vk::DeviceSize getSize() const { return m_size; }
 
   template <typename T> bool write(std::span<T> data, VkDeviceSize offset = 0) {
     VkDeviceSize size = data.size() * sizeof(T);
@@ -77,7 +78,7 @@ public:
     return true;
   }
 
-  void writeUnchecked(void *data, uint32_t size, uint32_t offset) {
+  void writeUnchecked(void *data, vk::DeviceSize size, vk::DeviceSize offset) {
     memcpy(static_cast<char *>(m_ptr) + offset, data, size);
 
     registerWrite({.start = offset, .size = size});
@@ -97,7 +98,7 @@ public:
         VkDeviceMemory memory = m_memory;
         ranges.emplace_back(memory, write.size, write.start);
       }
-      vkFlushMappedMemoryRanges(m_device, ranges.size(), ranges.data());
+      vkFlushMappedMemoryRanges(m_device, static_cast<uint32_t>(ranges.size()), ranges.data());
 
       m_writes.clear();
     }
@@ -106,7 +107,7 @@ public:
   ~Mapping();
 };
 
-class MappingSegment {
+export class MappingSegment {
   Mapping::Ref m_mapping;
 
   vk::DeviceSize m_offset;
@@ -156,7 +157,7 @@ public:
   }
 };
 
-class DeviceMemory : public RawRefable<DeviceMemory, VkDeviceMemory> {
+export class DeviceMemory : public RawRefable<DeviceMemory, VkDeviceMemory> {
   VkDeviceMemory m_memory;
   Device::Ref m_device;
 
@@ -222,7 +223,7 @@ public:
                              VkDeviceSize offset = 0,
                              VkMemoryMapFlags flags = 0);
 
-  uint32_t getSize() const { return m_size; }
+  vk::DeviceSize getSize() const { return m_size; }
 };
 
 } // namespace vk

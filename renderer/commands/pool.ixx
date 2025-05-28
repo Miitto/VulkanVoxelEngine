@@ -9,6 +9,7 @@ export module vk:commands.pool;
 
 import :device;
 import :commands.buffer;
+import :info.commands.bufferAllocate;
 
 export namespace vk {
 class CommandPool {

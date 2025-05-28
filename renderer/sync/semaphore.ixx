@@ -8,8 +8,8 @@ export module vk:semaphore;
 import :device;
 import :info.sync.semaphoreCreate;
 
-export namespace vk {
-class Semaphore {
+namespace vk {
+export class Semaphore {
   VkSemaphore semaphore;
   Device::Ref device;
 
@@ -37,7 +37,7 @@ public:
 
   static std::optional<Semaphore> create(Device &device);
   static std::optional<Semaphore> create(Device &device,
-                                         SemaphoreCreateInfo info);
+                                         info::SemaphoreCreate info);
 
   VkSemaphore operator*() { return semaphore; }
   operator VkSemaphore() { return semaphore; }
