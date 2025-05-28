@@ -1,6 +1,5 @@
 module;
 
-#include <GLFW/glfw3.h>
 #include <array>
 #include <optional>
 #include <vector>
@@ -9,7 +8,7 @@ export module app:cls;
 
 import :common;
 
-import vk;
+import renderer;
 
 class MoveGuard {
   bool moved = false;
@@ -34,7 +33,7 @@ public:
   App &operator=(const App &) = delete;
   App(App &&o) = default;
 
-  void poll() const { glfwPollEvents(); }
+  void poll() const { renderer::pollEvents(); }
 
   int currentFrame = 0;
 
@@ -82,7 +81,5 @@ public:
     }
 
     device.waitIdle();
-
-    glfwTerminate();
   }
 };

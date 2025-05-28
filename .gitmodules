@@ -1,0 +1,3 @@
+[submodule "VulkanRenderer"]
+	path = VulkanRenderer
+	url = https://github.com/Miitto/VulkanRenderer.git

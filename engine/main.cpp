@@ -1,12 +1,10 @@
-#include "GLFW/glfw3.h"
 #include "camera.h"
 #include "glm/gtc/matrix_transform.hpp"
-#include "log.h"
 #include <iostream>
 #include <optional>
 
 import app;
-import vk;
+import renderer;
 
 class Program {
   App app;
@@ -17,7 +15,7 @@ public:
   static std::optional<Program> create() {
     auto app_opt = App::create();
     if (!app_opt.has_value()) {
-      LOG_ERR("Failed to create App.");
+      util::log_err("Failed to create App.");
       return std::nullopt;
     }
 
@@ -45,12 +43,12 @@ public:
     switch (swpachainState) {
     case VK_SUBOPTIMAL_KHR:
     case VK_ERROR_OUT_OF_DATE_KHR:
-      LOG("TODO: Recreate swapchain");
+      util::todo("Recreate swapchain");
       return false;
     case VK_SUCCESS:
       break;
     default: {
-      std::cerr << "Failed to acquire swapchain image." << std::endl;
+      util::log_err("Failed to acquire swapchain image.");
       return false;
     }
     }
@@ -94,7 +92,10 @@ public:
             .addSwapchain(*app.swapchain)
             .setImageIndex(imageIndex);
 
-    app.presentQueue.present(presentInfo);
+    if (app.presentQueue.present(presentInfo) != VK_SUCCESS) {
+      util::log_err("Failed to present swapchain image");
+      return false;
+    }
 
     app.currentFrame = (app.currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
@@ -107,7 +108,7 @@ public:
 
     vk::info::RenderPassBegin renderPassInfo(
         *app.renderPass, *app.framebuffers[imageIndex],
-        VkRect2D{.offset = {0, 0}, .extent = app.swapchain.getExtent()});
+        {.offset = {0, 0}, .extent = app.swapchain.getExtent()});
 
     renderPassInfo.addClearValue({.color = {{0.0f, 0.0f, 0.0f, 1.0f}}});
 
@@ -115,15 +116,10 @@ public:
 
     pass.bindPipeline(app.pipeline);
 
-    VkViewport viewport = {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = static_cast<float>(app.swapchain.getExtent().width),
-        .height = static_cast<float>(app.swapchain.getExtent().height),
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f};
+    vk::Viewport viewport(static_cast<float>(app.swapchain.getExtent().width),
+                          static_cast<float>(app.swapchain.getExtent().height));
 
-    VkRect2D scissor = {.offset = {0, 0}, .extent = app.swapchain.getExtent()};
+    vk::Rect2D scissor(app.swapchain.getExtent());
 
     pass.setViewport(viewport);
     pass.setScissor(scissor);
@@ -143,20 +139,18 @@ public:
 };
 
 int main() {
-  std::cout << "Vulkan Application Starting..." << std::endl;
+  renderer::init();
   auto app = Program::create();
+
   if (!app.has_value()) {
-    std::cout << "Failed to create application." << std::endl;
+    util::log_err("Failed to create Program.");
     return EXIT_FAILURE;
   }
 
-  try {
-    app->run();
-  } catch (const std::exception &e) {
-    return EXIT_FAILURE;
-  } catch (...) {
-    return EXIT_FAILURE;
-  }
+  app->run();
 
+  renderer::terminate();
+
+  util::log("Application terminated successfully.");
   return EXIT_SUCCESS;
 }

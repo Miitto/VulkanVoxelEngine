@@ -10,32 +10,29 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Export for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-include(FetchContent)
-FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG master)
-
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(glfw)
-
-find_package(Vulkan REQUIRED)
-
 add_executable(engine)
 target_include_directories(engine PRIVATE engine)
-add_subdirectory(engine)
+add_subdirectory(VulkanRenderer)
+target_link_libraries(engine PRIVATE VulkanRenderer)
 
-target_link_libraries(engine PUBLIC renderer)
+target_sources(engine PRIVATE
+  engine/main.cpp
+  engine/vertex.cpp
+)
 
+target_sources(engine PUBLIC FILE_SET modules BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/engine TYPE CXX_MODULES
+  FILES
+    engine/app/app.ixx
+    engine/app/common.ixx
+    engine/app/setup.ixx
+    engine/app/class.ixx
+)
 
-add_library(renderer)
-add_subdirectory(renderer)
 
 if(MSVC)
   target_compile_options(engine PRIVATE /W4 /WX)
-  target_compile_options(renderer PRIVATE /W4 /WX)
 else()
   target_compile_options(engine PRIVATE -Wall -Wextra -Wpedantic -Werror)
-  target_compile_options(renderer PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 if (WIN32)
