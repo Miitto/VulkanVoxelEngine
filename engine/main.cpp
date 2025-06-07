@@ -1,10 +1,13 @@
-#include "camera.h"
+#include "app/app.hpp"
+#include "camera.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include <iostream>
 #include <optional>
 
-import app;
-import renderer;
+#include <vk/structs/rect2d.hpp>
+#include <vk/structs/viewport.hpp>
+
+#include "logger.hpp"
 
 class Program {
   App app;
@@ -12,10 +15,10 @@ class Program {
   Program(App &app) : app(std::move(app)) {}
 
 public:
-  static std::optional<Program> create() {
+  static auto create() -> std::optional<Program> {
     auto app_opt = App::create();
     if (!app_opt.has_value()) {
-      util::log_err("Failed to create App.");
+      Logger::critical("Failed to create App.");
       return std::nullopt;
     }
 
@@ -23,6 +26,7 @@ public:
   }
 
   void run() {
+    Logger::info("Starting application...");
     while (!app.window.shouldClose()) {
       app.poll();
 
@@ -33,22 +37,22 @@ public:
     }
   }
 
-  bool update() { return true; }
+  auto update() -> bool { return true; }
 
-  bool render() {
+  auto render() -> bool {
     app.frames[app.currentFrame].inFlight.wait();
     auto [swpachainState, imageIndex] = app.swapchain.getNextImage(
-        *app.frames[app.currentFrame].imageAvailable);
+        &app.frames[app.currentFrame].imageAvailable);
 
     switch (swpachainState) {
     case VK_SUBOPTIMAL_KHR:
     case VK_ERROR_OUT_OF_DATE_KHR:
-      util::todo("Recreate swapchain");
+      Logger::trace("Recreate swapchain");
       return false;
     case VK_SUCCESS:
       break;
     default: {
-      util::log_err("Failed to acquire swapchain image.");
+      Logger::critical("Failed to acquire swapchain image.");
       return false;
     }
     }
@@ -62,12 +66,12 @@ public:
         .projection = glm::perspective(
             glm::radians(90.0f),
             static_cast<float>(app.swapchain.getExtent().width) /
-                app.swapchain.getExtent().height,
+                static_cast<float>(app.swapchain.getExtent().height),
             0.1f, 100.0f),
     };
     matrices.projection[1][1] *= -1; // Vulkan uses a different Y-axis
 
-    if (!uniform.bufferMapping.write(&matrices, sizeof(matrices)))
+    if (!uniform.bufferMapping.write(&matrices, vk::Size(sizeof(matrices))))
       return false;
 
     app.frames[app.currentFrame].commandBuffer.reset();
@@ -80,9 +84,10 @@ public:
         .addSignalSemaphore(*app.frames[app.currentFrame].renderFinished)
         .addCommandBuffer(*app.frames[app.currentFrame].commandBuffer);
 
-    if (app.graphicsQueue.submit(
-            submitInfo, *app.frames[app.currentFrame].inFlight) != VK_SUCCESS) {
-      std::cerr << "Failed to submit draw command buffer." << std::endl;
+    if (app.graphicsQueue
+            .submit(submitInfo, &app.frames[app.currentFrame].inFlight)
+            .has_value()) {
+      Logger::critical("Failed to submit draw command buffer.");
       return false;
     }
 
@@ -93,7 +98,7 @@ public:
             .setImageIndex(imageIndex);
 
     if (app.presentQueue.present(presentInfo) != VK_SUCCESS) {
-      util::log_err("Failed to present swapchain image");
+      Logger::critical("Failed to present swapchain image");
       return false;
     }
 
@@ -138,19 +143,20 @@ public:
   }
 };
 
-int main() {
-  renderer::init();
+auto main() -> int {
+  engine::init();
+  Logger::init();
   auto app = Program::create();
 
   if (!app.has_value()) {
-    util::log_err("Failed to create Program.");
+    Logger::critical("Failed to create Program.");
     return EXIT_FAILURE;
   }
 
   app->run();
 
-  renderer::terminate();
+  engine::terminate();
 
-  util::log("Application terminated successfully.");
+  Logger::info("Application terminated successfully.");
   return EXIT_SUCCESS;
 }

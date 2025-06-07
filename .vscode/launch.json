@@ -6,7 +6,7 @@
       "request": "launch",
       "name": "Engine",
       "expressions": "native",
-      "program": "${workspaceFolder}/build/out/Debug/engine/bin/engine.exe"
+      "program": "${workspaceFolder}/build/engine.exe"
     }
   ]
 }

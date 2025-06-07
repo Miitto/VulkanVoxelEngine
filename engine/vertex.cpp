@@ -1,4 +1,4 @@
-#include "vertex.h"
+#include "vertex.hpp"
 #include <array>
 
 const vk::VertexInputBindingDescription Vertex::getBindingDescription() {

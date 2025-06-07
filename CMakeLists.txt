@@ -12,27 +12,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(engine)
 target_include_directories(engine PRIVATE engine)
-add_subdirectory(VulkanRenderer)
-target_link_libraries(engine PRIVATE VulkanRenderer)
+add_subdirectory(VulkanEngine)
+target_link_libraries(engine PRIVATE VulkanEngine)
 
-target_sources(engine PRIVATE
-  engine/main.cpp
-  engine/vertex.cpp
-)
-
-target_sources(engine PUBLIC FILE_SET modules BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/engine TYPE CXX_MODULES
-  FILES
-    engine/app/app.ixx
-    engine/app/common.ixx
-    engine/app/setup.ixx
-    engine/app/class.ixx
-)
-
+add_subdirectory(engine)
 
 if(MSVC)
   target_compile_options(engine PRIVATE /W4 /WX)
 else()
-  target_compile_options(engine PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  target_compile_options(engine PRIVATE -Wall -Wextra -Wpedantic -Werror -Wno-language-extension-token)
 endif()
 
 if (WIN32)
@@ -40,4 +28,7 @@ if (WIN32)
 else()
   add_custom_command(OUTPUT shaders/build COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/makeShaders.sh WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
+
 add_custom_target(BuildShaders ALL DEPENDS shaders/build)
+
+add_compile_definitions(CMAKE_PROJECT_DIR=${CMAKE_PROJECT_DIR})

@@ -1,28 +1,69 @@
-module;
+#pragma once
+
+#include <vk/buffers.hpp>
+#include <vk/commands/buffer.hpp>
+#include <vk/commands/pool.hpp>
+#include <vk/descriptors.hpp>
+#include <vk/device/device.hpp>
+#include <vk/device/memory.hpp>
+#include <vk/framebuffer.hpp>
+#include <vk/instance.hpp>
+#include <vk/khr/surface.hpp>
+#include <vk/khr/swapchain.hpp>
+#include <vk/pipeline/graphics.hpp>
+#include <vk/pipeline/layout.hpp>
+#include <vk/pipeline/renderPass.hpp>
+#include <vk/queue.hpp>
+#include <vk/sync/fence.hpp>
+#include <vk/sync/semaphore.hpp>
+#include <vk/window.hpp>
+
+#include <engine/core.hpp>
 
 #include <array>
 #include <optional>
 #include <vector>
-
-export module app:cls;
-
-import :common;
-
-import renderer;
 
 class MoveGuard {
   bool moved = false;
 
 public:
   MoveGuard(const MoveGuard &) = delete;
-  MoveGuard &operator=(const MoveGuard &) = delete;
+  auto operator=(const MoveGuard &) -> MoveGuard & = delete;
   MoveGuard() = default;
   MoveGuard(MoveGuard &&o) noexcept : moved(o.moved) { o.moved = true; }
 
-  [[nodiscard]] bool isMoved() const { return moved; }
+  [[nodiscard]] auto isMoved() const -> bool { return moved; }
 };
 
-export class App {
+const int MAX_FRAMES_IN_FLIGHT = 2;
+
+struct UObject {
+  vk::UniformBuffer buffer;
+  vk::MappingSegment bufferMapping;
+  vk::DescriptorSet descriptorSet;
+};
+
+struct UObjects {
+  vk::DeviceMemory memory;
+  vk::Mapping mapping;
+  std::array<UObject, MAX_FRAMES_IN_FLIGHT> objects;
+};
+
+struct Frame {
+  vk::CommandBuffer commandBuffer;
+  vk::Semaphore imageAvailable;
+  vk::Semaphore renderFinished;
+  vk::Fence inFlight;
+};
+
+struct VBufferParts {
+  vk::VertexBuffer vertexBuffer;
+  vk::IndexBuffer indexBuffer;
+  vk::DeviceMemory memory;
+};
+
+class App {
   MoveGuard moveGuard;
 
 public:
@@ -33,7 +74,7 @@ public:
   App &operator=(const App &) = delete;
   App(App &&o) = default;
 
-  void poll() const { renderer::pollEvents(); }
+  void poll() const { engine::pollEvents(); }
 
   int currentFrame = 0;
 
