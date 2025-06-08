@@ -1,5 +1,6 @@
 #pragma once
 
+#include <utility>
 #include <vk/buffers.hpp>
 #include <vk/commands/buffer.hpp>
 #include <vk/commands/pool.hpp>
@@ -80,11 +81,11 @@ public:
 
   vk::Window window;
   vk::Instance instance;
-  vk::Surface surface;
+  vk::khr::Surface surface;
   vk::Device device;
   vk::Queue graphicsQueue;
   vk::PresentQueue presentQueue;
-  vk::Swapchain swapchain;
+  vk::khr::Swapchain swapchain;
   vk::PipelineLayout pipelineLayout;
   vk::RenderPass renderPass;
   std::vector<vk::Framebuffer> framebuffers;
@@ -95,9 +96,9 @@ public:
   vk::DescriptorPool descriptorPool;
   UObjects uniforms;
 
-  App(vk::Window &window, vk::Instance &instance, vk::Surface &surface,
-      vk::Device &device, vk::Queue graphicsQueue,
-      vk::PresentQueue presentQueue, vk::Swapchain &swapchain,
+  App(vk::Window &window, vk::Instance &instance, vk::khr::Surface &surface,
+      vk::Device &device, vk::Queue &graphicsQueue,
+      vk::PresentQueue &presentQueue, vk::khr::Swapchain &swapchain,
       vk::PipelineLayout &pipelineLayout, vk::RenderPass &renderPass,
       std::vector<vk::Framebuffer> &framebuffers,
       vk::GraphicsPipeline &pipeline, vk::CommandPool &commandPool,

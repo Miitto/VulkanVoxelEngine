@@ -10,63 +10,42 @@
 #include <vk/structs/subpassDescription.hpp>
 #include <vk/structs/viewport.hpp>
 
+#include <engine/physical-device-selector.hpp>
+
 #include <array>
 #include <optional>
 #include <vector>
 
 #include "shaders/shader.hpp"
 #include "vertex.hpp"
-#include <algorithm>
 #include <optional>
 #include <span>
 #include <vulkan/vulkan_core.h>
 
 const uint32_t WIDTH = 800, HEIGHT = 600;
 
-auto findDevice(vk::Instance &instance, vk::Surface &surface)
+auto findDevice(vk::Instance &instance, vk::khr::Surface &surface)
     -> std::optional<vk::PhysicalDevice> {
-  auto physicalDevices = vk::PhysicalDevice::all(instance);
-  Logger::info("Found {} physical devices", physicalDevices.size());
+  engine::PhysicalDeviceSelector selector(instance);
 
-  std::vector<char const *> requiredExtensions = {
-      VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+  selector.requireExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+  selector.canPresentTo(surface);
 
-  std::vector<uint32_t> ratings(physicalDevices.size(), 1);
-  for (size_t i = 0; i < physicalDevices.size(); i++) {
-    auto &device = physicalDevices[i];
-
-    auto unsupportedExtensions =
-        device.findUnsupportedExtensions(requiredExtensions);
-
-    if (unsupportedExtensions.size() > 0) {
-      ratings[i] = 0;
-      continue;
-    }
-
-    // Need to do this after extensions, since this wil fail if the m_device
-    // doesn't support swap chains
-    auto surfaceAttrs = vk::SurfaceAttributes(device, surface);
-
-    if (surfaceAttrs.formats.size() == 0 ||
-        surfaceAttrs.presentModes.size() == 0) {
-      ratings[i] = 0;
-      continue;
-    }
-
-    if (device.isDiscrete()) {
-      ratings[i] += 1000;
-    }
+  if (!selector.hasDevice()) {
+    Logger::critical("No suitable physical device found.");
+    return std::nullopt;
   }
 
-  int maxIndex = static_cast<int>(
-      std::max_element(ratings.begin(), ratings.end()) - ratings.begin());
+  auto ratings =
+      selector.rateDevices([](vk::PhysicalDevice &device) -> uint32_t {
+        uint32_t rating = 0;
+        if (device.isDiscrete()) {
+          rating += 1000;
+        }
+        return rating;
+      });
 
-  if (ratings[maxIndex] == 0)
-    return std::nullopt;
-
-  vk::PhysicalDevice &physicalDevice = physicalDevices[maxIndex];
-
-  auto swapChainSupport = vk::SurfaceAttributes(physicalDevice, surface);
+  vk::PhysicalDevice &physicalDevice = ratings[0].device;
 
   Logger::info("Found {} device: {}",
                physicalDevice.isDiscrete() ? "discrete" : "integrated",
@@ -100,7 +79,7 @@ auto pickPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes)
   return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-auto createRenderPass(vk::Device &device, vk::Swapchain &swapChain)
+auto createRenderPass(vk::Device &device, vk::khr::Swapchain &swapChain)
     -> std::optional<vk::RenderPass> {
   vk::AttachmentDescription colorAttachment(swapChain.getFormat());
 
@@ -146,7 +125,7 @@ auto makeShader(vk::Device &device, const char *path, vk::ShaderStage stage)
   return shader;
 }
 
-auto makePipeline(vk::Device &device, vk::Swapchain &swapchain,
+auto makePipeline(vk::Device &device, vk::khr::Swapchain &swapchain,
                   vk::PipelineLayout &layout, vk::RenderPass &renderPass)
     -> std::optional<vk::GraphicsPipeline> {
   vk::info::PipelineDynamicStateCreate dynState;
@@ -520,7 +499,7 @@ auto App::create() -> std::optional<App> {
   }
   auto &physicalDevice = phys_device_opt.value();
 
-  auto swapchainSupport = vk::SurfaceAttributes(physicalDevice, surface);
+  auto swapchainSupport = vk::khr::SurfaceAttributes(physicalDevice, surface);
   auto format = chooseSwapSurfaceFormat(swapchainSupport.formats);
   auto presentMode = pickPresentMode(swapchainSupport.presentModes);
   auto extent = window.getExtent(swapchainSupport.capabilities);
