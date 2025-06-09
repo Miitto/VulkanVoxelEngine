@@ -507,37 +507,25 @@ auto App::create() -> std::optional<App> {
   auto queueFamilies = physicalDevice.getQueues();
   Logger::info("Found {} queue families", queueFamilies.size());
 
-  std::optional<uint32_t> graphicsQueueFamilyIndex;
-  std::optional<uint32_t> presentQueueFamilyIndex;
+  auto graphicsQueueFamily_opt = queueFamilies.getGraphics();
+  auto presentQueueFamily_opt = queueFamilies.getPresent(surface);
 
-  for (size_t i = 0; i < queueFamilies.size(); i++) {
-    bool graphics = queueFamilies[i].hasGraphics();
-    bool present = queueFamilies[i].canPresentTo(surface);
-
-    if (graphics && present) {
-      graphicsQueueFamilyIndex = static_cast<uint32_t>(i);
-      presentQueueFamilyIndex = static_cast<uint32_t>(i);
-      break;
-    } else if (graphics) {
-      graphicsQueueFamilyIndex = static_cast<uint32_t>(i);
-    } else if (present) {
-      presentQueueFamilyIndex = static_cast<uint32_t>(i);
-    }
-  }
-
-  if (!graphicsQueueFamilyIndex.has_value()) {
+  if (!graphicsQueueFamily_opt.has_value()) {
     Logger::error("Failed to find a graphics queue family.");
     return std::nullopt;
   }
 
-  if (!presentQueueFamilyIndex.has_value()) {
+  if (!presentQueueFamily_opt.has_value()) {
     Logger::error("Failed to find a present queue family.");
     return std::nullopt;
   }
 
+  auto graphicsQueueFamily = graphicsQueueFamily_opt.value();
+  auto presentQueueFamily = presentQueueFamily_opt.value();
+
   vk::info::DeviceCreate deviceCreateInfo(physicalDevice.getFeatures());
-  deviceCreateInfo.addQueue(*graphicsQueueFamilyIndex)
-      .addQueue(*presentQueueFamilyIndex)
+  deviceCreateInfo.addQueue(graphicsQueueFamily)
+      .addQueue(presentQueueFamily)
       .enableExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
   Logger::info("Creating device with {} queues",
@@ -551,14 +539,14 @@ auto App::create() -> std::optional<App> {
   }
   auto &device = device_opt.value();
 
-  auto graphicsQueue = device.getQueue(graphicsQueueFamilyIndex.value(), 0);
+  auto graphicsQueue = device.getQueue(graphicsQueueFamily, 0);
   if (!graphicsQueue.has_value()) {
     Logger::error("Failed to create graphics queue.");
     return std::nullopt;
   }
 
   std::optional<vk::PresentQueue> presentQueue =
-      device.getQueue(presentQueueFamilyIndex.value(), 0);
+      device.getQueue(presentQueueFamily, 0);
   if (!presentQueue.has_value()) {
     Logger::error("Failed to create present queue.");
     return std::nullopt;
@@ -571,15 +559,8 @@ auto App::create() -> std::optional<App> {
       .setImageExtent(extent)
       .setPresentMode(presentMode);
 
-  if (graphicsQueueFamilyIndex != presentQueueFamilyIndex) {
-    std::vector<uint32_t> queueFamilyIndices = {
-        static_cast<uint32_t>(graphicsQueueFamilyIndex.value()),
-        static_cast<uint32_t>(presentQueueFamilyIndex.value())};
-    swapChainCreateInfo.setImageSharingMode(vk::enums::SharingMode::Exclusive)
-        .setQueueFamilyIndices(queueFamilyIndices);
-  } else {
-    swapChainCreateInfo.setImageSharingMode(vk::enums::SharingMode::Exclusive);
-  }
+  swapChainCreateInfo.setImageSharingMode(vk::enums::SharingMode::Exclusive)
+      .setQueueFamilyIndices(graphicsQueueFamily, presentQueueFamily);
 
   auto swapchain_opt = device.createSwapchain(swapChainCreateInfo);
   if (!swapchain_opt.has_value()) {
@@ -619,8 +600,7 @@ auto App::create() -> std::optional<App> {
   }
   auto &pipeline = pipeline_opt.value();
 
-  vk::info::CommandPoolCreate commandPoolCreateInfo(
-      graphicsQueueFamilyIndex.value(), true);
+  vk::info::CommandPoolCreate commandPoolCreateInfo(graphicsQueueFamily, true);
 
   auto commandPool_opt = vk::CommandPool::create(device, commandPoolCreateInfo);
   if (!commandPool_opt.has_value()) {
