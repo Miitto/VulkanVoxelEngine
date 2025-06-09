@@ -247,13 +247,17 @@ auto createVertexBuffers(vk::Device &device, vk::Queue &transferQueue)
   auto &memory = memory_opt.value();
   Logger::trace("Allocated vertex buffer memory");
 
-  if (vBuf.bind(memory) != VK_SUCCESS) {
-    Logger::error("Failed to bind vertex buffer memory");
+  auto vBufBindRes = vBuf.bind(memory);
+  if (vBufBindRes.has_value()) {
+    Logger::error("Failed to bind vertex buffer memory: {}",
+                  vBufBindRes.value());
     return std::nullopt;
   }
 
-  if (indexBuf.bind(memory, bufSize) != VK_SUCCESS) {
-    Logger::error("Failed to bind index buffer memory");
+  auto indexBufBindRes = indexBuf.bind(memory);
+  if (indexBufBindRes.has_value()) {
+    Logger::error("Failed to bind index buffer memory: {}",
+                  indexBufBindRes.value());
     return std::nullopt;
   }
   Logger::trace("Bound vertex and index buffers to memory");
@@ -410,9 +414,11 @@ auto setupUniforms(vk::Device &device) -> std::optional<UniformReturn> {
   auto &memory = memory_opt.value();
   Logger::trace("Allocated uniform buffer memory");
 
-  for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    if (buffers[i].bind(memory, i * UNIFORM_BUFFER_SIZE) != VK_SUCCESS) {
-      Logger::error("Failed to bind uniform buffer memory for buffer {}.", i);
+  for (vk::DeviceSize i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    auto bindRes = buffers[i].bind(memory, i * UNIFORM_BUFFER_SIZE);
+    if (bindRes.has_value()) {
+      Logger::error("Failed to bind uniform buffer memory for buffer {}: {}", i,
+                    bindRes.value());
       return std::nullopt;
     }
   }
@@ -634,11 +640,9 @@ auto App::create() -> std::optional<App> {
   std::array<Frame, MAX_FRAMES_IN_FLIGHT> frames{
       {{.commandBuffer = commandBuffers[0],
         .imageAvailable = std::move(imageSem1.value()),
-        .renderFinished = std::move(renderSem1.value()),
         .inFlight = std::move(inFlightFence1.value())},
        {.commandBuffer = commandBuffers[1],
         .imageAvailable = std::move(imageSem2.value()),
-        .renderFinished = std::move(renderSem2.value()),
         .inFlight = std::move(inFlightFence2.value())}}};
 
   auto vBuf_opt = createVertexBuffers(device, graphicsQueue.value());

@@ -4,9 +4,16 @@
     {
       "type": "codelldb",
       "request": "launch",
-      "name": "Engine",
+      "name": "Windows Engine",
       "expressions": "native",
-      "program": "${workspaceFolder}/build/engine.exe"
+      "program": "${workspaceFolder}/build/bin/engine.exe"
+    },
+    {
+      "type": "codelldb",
+      "request": "launch",
+      "name": "Linux Engine",
+      "expressions": "native",
+      "program": "${workspaceFolder}/build/bin/engine"
     }
   ]
 }

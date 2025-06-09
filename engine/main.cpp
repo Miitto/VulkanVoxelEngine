@@ -41,7 +41,7 @@ public:
 
   auto render() -> bool {
     app.frames[app.currentFrame].inFlight.wait();
-    auto [swpachainState, imageIndex] = app.swapchain.getNextImage(
+    auto [swpachainState, imageIndex, semaphore] = app.swapchain.getNextImage(
         &app.frames[app.currentFrame].imageAvailable);
 
     switch (swpachainState) {
@@ -81,7 +81,7 @@ public:
     submitInfo
         .addWaitSemaphore(*app.frames[app.currentFrame].imageAvailable,
                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-        .addSignalSemaphore(*app.frames[app.currentFrame].renderFinished)
+        .addSignalSemaphore(semaphore)
         .addCommandBuffer(*app.frames[app.currentFrame].commandBuffer);
 
     if (app.graphicsQueue
@@ -91,11 +91,10 @@ public:
       return false;
     }
 
-    vk::info::Present presentInfo =
-        vk::info::Present()
-            .addWaitSemaphore(*app.frames[app.currentFrame].renderFinished)
-            .addSwapchain(*app.swapchain)
-            .setImageIndex(imageIndex);
+    vk::info::Present presentInfo = vk::info::Present()
+                                        .addWaitSemaphore(semaphore)
+                                        .addSwapchain(*app.swapchain)
+                                        .setImageIndex(imageIndex);
 
     if (app.presentQueue.present(presentInfo) != VK_SUCCESS) {
       Logger::critical("Failed to present swapchain image");

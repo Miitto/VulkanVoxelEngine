@@ -54,7 +54,6 @@ struct UObjects {
 struct Frame {
   vk::CommandBuffer commandBuffer;
   vk::Semaphore imageAvailable;
-  vk::Semaphore renderFinished;
   vk::Fence inFlight;
 };
 
@@ -68,7 +67,7 @@ class App {
   MoveGuard moveGuard;
 
 public:
-  static std::optional<App> create();
+  static auto create() -> std::optional<App>;
 
   // Since we have move-only members, we also need to be move-only
   App(const App &) = delete;
