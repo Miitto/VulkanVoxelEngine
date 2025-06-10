@@ -227,7 +227,8 @@ auto createVertexBuffers(vk::Device &device, vk::Queue &transferQueue)
 
   vk::info::IndexBufferCreate indexBufInfo(vk::Size(indexBufSize),
                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-  auto indexBuf_opt = device.createIndexBuffer(indexBufInfo);
+  auto indexBuf_opt =
+      device.createIndexBuffer(indexBufInfo, vk::enums::IndexType::U16);
   if (!indexBuf_opt.has_value()) {
     Logger::error("Failed to create index buffer");
     return std::nullopt;
@@ -254,7 +255,7 @@ auto createVertexBuffers(vk::Device &device, vk::Queue &transferQueue)
     return std::nullopt;
   }
 
-  auto indexBufBindRes = indexBuf.bind(memory);
+  auto indexBufBindRes = indexBuf.bind(memory, vk::Offset(vBuf.size()), true);
   if (indexBufBindRes.has_value()) {
     Logger::error("Failed to bind index buffer memory: {}",
                   indexBufBindRes.value());
@@ -415,7 +416,7 @@ auto setupUniforms(vk::Device &device) -> std::optional<UniformReturn> {
   Logger::trace("Allocated uniform buffer memory");
 
   for (vk::DeviceSize i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    auto bindRes = buffers[i].bind(memory, i * UNIFORM_BUFFER_SIZE);
+    auto bindRes = buffers[i].bind(memory, vk::Offset(i * UNIFORM_BUFFER_SIZE));
     if (bindRes.has_value()) {
       Logger::error("Failed to bind uniform buffer memory for buffer {}: {}", i,
                     bindRes.value());

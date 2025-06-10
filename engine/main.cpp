@@ -129,7 +129,7 @@ public:
     pass.setScissor(scissor);
 
     pass.bindVertexBuffer(0, app.vertexBuffer.vertexBuffer);
-    pass.bindIndexBuffer(app.vertexBuffer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    pass.bindIndexBuffer(app.vertexBuffer.indexBuffer);
 
     pass.bindDescriptorSet(
         app.uniforms.objects[app.currentFrame].descriptorSet);
