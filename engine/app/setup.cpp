@@ -226,7 +226,7 @@ auto createVertexBuffers(vk::Device &device, vk::Queue &transferQueue)
   VkDeviceSize indexBufSize = INDEX_COUNT * sizeof(IndexT);
 
   vk::info::IndexBufferCreate indexBufInfo(vk::Size(indexBufSize),
-                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+                                           vk::enums::BufferUsage::TransferDst);
   auto indexBuf_opt =
       device.createIndexBuffer(indexBufInfo, vk::enums::IndexType::U16);
   if (!indexBuf_opt.has_value()) {
@@ -406,8 +406,9 @@ auto setupUniforms(vk::Device &device) -> std::optional<UniformReturn> {
                                                                &buffers[1]};
 
   auto memory_opt = device.allocateMemory(
-      buffersRef, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+      buffersRef, vk::enums::MemoryProperties::HostVisible |
+                      vk::enums::MemoryProperties::HostCoherent | 99);
+  return std::nullopt;
   if (!memory_opt.has_value()) {
     Logger::error("Failed to allocate uniform buffer memory.");
     return std::nullopt;
