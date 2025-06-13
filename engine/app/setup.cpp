@@ -1,5 +1,6 @@
 #include "app.hpp"
 
+#include "enums/shader-stage.hpp"
 #include "logger.hpp"
 
 #include <vk/device/physical.hpp>
@@ -213,7 +214,7 @@ auto createVertexBuffers(vk::Device &device, vk::Queue &transferQueue)
   VkDeviceSize bufSize = VERTEX_COUNT * sizeof(VertexT);
 
   vk::info::VertexBufferCreate vBufInfo(vk::Size(bufSize),
-                                        vk::enums::BufferUsage::TransferDst);
+                                        vk::BufferUsage::TransferDst);
 
   auto vBuf_opt = device.createVertexBuffer(vBufInfo);
   if (!vBuf_opt.has_value()) {
@@ -226,9 +227,9 @@ auto createVertexBuffers(vk::Device &device, vk::Queue &transferQueue)
   VkDeviceSize indexBufSize = INDEX_COUNT * sizeof(IndexT);
 
   vk::info::IndexBufferCreate indexBufInfo(vk::Size(indexBufSize),
-                                           vk::enums::BufferUsage::TransferDst);
+                                           vk::BufferUsage::TransferDst);
   auto indexBuf_opt =
-      device.createIndexBuffer(indexBufInfo, vk::enums::IndexType::U16);
+      device.createIndexBuffer(indexBufInfo, vk::IndexType::U16);
   if (!indexBuf_opt.has_value()) {
     Logger::error("Failed to create index buffer");
     return std::nullopt;
@@ -344,7 +345,7 @@ struct UniformReturn {
 
 auto setupUniforms(vk::Device &device) -> std::optional<UniformReturn> {
   vk::DescriptorSetLayoutBinding cameraBinding(
-      0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+      0, vk::DescriptorType::UniformBuffer, vk::ShaderStageFlags::Vertex);
 
   vk::info::DescriptorSetLayoutCreate descriptorSetLayoutCreateInfo;
   descriptorSetLayoutCreateInfo.addBinding(cameraBinding);
@@ -368,7 +369,7 @@ auto setupUniforms(vk::Device &device) -> std::optional<UniformReturn> {
   }
 
   vk::info::DescriptorPoolCreate descriptorPoolInfo(MAX_FRAMES_IN_FLIGHT);
-  vk::DescriptorPoolSize poolSize(vk::enums::DescriptorType::UniformBuffer,
+  vk::DescriptorPoolSize poolSize(vk::DescriptorType::UniformBuffer,
                                   MAX_FRAMES_IN_FLIGHT);
   descriptorPoolInfo.addPoolSize(poolSize);
   auto descriptorPool_opt = device.createDescriptorPool(descriptorPoolInfo);
@@ -405,10 +406,9 @@ auto setupUniforms(vk::Device &device) -> std::optional<UniformReturn> {
   std::array<vk::Buffer *, MAX_FRAMES_IN_FLIGHT> buffersRef = {&buffers[0],
                                                                &buffers[1]};
 
-  auto memory_opt = device.allocateMemory(
-      buffersRef, vk::enums::MemoryProperties::HostVisible |
-                      vk::enums::MemoryProperties::HostCoherent | 99);
-  return std::nullopt;
+  auto memory_opt =
+      device.allocateMemory(buffersRef, vk::MemoryProperties::HostVisible |
+                                            vk::MemoryProperties::HostCoherent);
   if (!memory_opt.has_value()) {
     Logger::error("Failed to allocate uniform buffer memory.");
     return std::nullopt;
@@ -567,7 +567,7 @@ auto App::create() -> std::optional<App> {
       .setImageExtent(extent)
       .setPresentMode(presentMode);
 
-  swapChainCreateInfo.setImageSharingMode(vk::enums::SharingMode::Exclusive)
+  swapChainCreateInfo.setImageSharingMode(vk::SharingMode::Exclusive)
       .setQueueFamilyIndices(graphicsQueueFamily, presentQueueFamily);
 
   auto swapchain_opt = device.createSwapchain(swapChainCreateInfo);
