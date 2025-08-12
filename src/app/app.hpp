@@ -13,6 +13,7 @@ class App {
   std::unique_ptr<GLFWwindow, void (*)(GLFWwindow *)> window;
   vk::raii::Context context;
   vk::raii::Instance instance;
+  vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
 
 public:
   App(const App &) = delete;
@@ -32,4 +33,9 @@ public:
       vk::raii::Context context, vk::raii::Instance instance)
       : window(std::move(window)), context(std::move(context)),
         instance(std::move(instance)) {}
+
+  void setDebugMessenger(
+      vk::raii::DebugUtilsMessengerEXT &&dMessenger) {
+    debugMessenger = std::move(dMessenger);
+  }
 };

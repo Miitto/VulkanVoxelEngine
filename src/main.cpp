@@ -6,8 +6,8 @@
 
 #include "logger.hpp"
 
-#include "util/window_manager.hpp"
-#include "vulkan/vulkan_raii.hpp"
+#include <engine/util/window_manager.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
 class Program {
   App app;

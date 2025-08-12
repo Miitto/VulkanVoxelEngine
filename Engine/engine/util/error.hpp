@@ -25,3 +25,5 @@ public:
     return static_cast<std::string>(*this);
   }
 };
+
+auto format_as(Result f) { return f.toString(); }

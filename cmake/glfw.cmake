@@ -6,6 +6,6 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(glfw)
 
 function(link_glfw TARGET_NAME)
-  target_link_libraries(${TARGET_NAME} PRIVATE glfw)
-  target_compile_definitions(${TARGET_NAME} PRIVATE GLFW_INCLUDE_VULKAN)
+  target_link_libraries(${TARGET_NAME} PUBLIC glfw)
+  target_compile_definitions(${TARGET_NAME} PUBLIC GLFW_INCLUDE_VULKAN)
 endfunction()

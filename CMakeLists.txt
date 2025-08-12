@@ -20,17 +20,12 @@ add_subdirectory(src)
 
 include(FetchContent)
 
+add_subdirectory(Engine)
+target_link_libraries(${PROJECT_NAME} PRIVATE VulkanEngine)
+target_include_directories(${PROJECT_NAME} PRIVATE VulkanEngine)
+
 include(cmake/vulkan.cmake)
 link_vulkan(${PROJECT_NAME})
-
-include(cmake/glm.cmake)
-link_glm(${PROJECT_NAME})
-
-include(cmake/glfw.cmake)
-link_glfw(${PROJECT_NAME})
-
-include(cmake/spdlog.cmake)
-link_spdlog_header_only(${PROJECT_NAME})
 
 include(cmake/shaders.cmake)
 add_subdirectory(shaders)

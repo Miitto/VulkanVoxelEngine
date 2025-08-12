@@ -1,35 +1,21 @@
-function(add_shaders TARGET_NAME)
-  set(SHADER_SOURCE_FILES ${ARGN}) # the rest of arguments to this function will be assigned as shader source files
+find_package(Vulkan COMPONENTS glslc)
+find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
 
-  # Validate that source files have been passed
-  list(LENGTH SHADER_SOURCE_FILES FILE_COUNT)
-  if(FILE_COUNT EQUAL 0)
-    message(FATAL_ERROR "Cannot create a shaders target without any source files")
-  endif()
-
-  set(SHADER_COMMANDS)
-  set(SHADER_PRODUCTS)
-
-  foreach(SHADER_SOURCE IN LISTS SHADER_SOURCE_FILES)
-    cmake_path(ABSOLUTE_PATH SHADER_SOURCE NORMALIZE)
-    cmake_path(GET SHADER_SOURCE FILENAME SHADER_NAME)
-
-    # Build command
-    list(APPEND SHADER_COMMANDS COMMAND)
-    list(APPEND SHADER_COMMANDS Vulkan::glslc)
-    list(APPEND SHADER_COMMANDS "${SHADER_SOURCE}")
-    list(APPEND SHADER_COMMANDS "-o")
-    list(APPEND SHADER_COMMANDS "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.spv")
-
-    # Add product
-    list(APPEND SHADER_PRODUCTS "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.spv")
-
+function(compile_shader target)
+  cmake_parse_arguments(PARSE_ARGV 1 arg "" "ENV;FORMAT" "SOURCES")
+  foreach(source ${arg_SOURCES})
+    add_custom_command(
+            OUTPUT ${source}.${arg_FORMAT}
+            DEPENDS ${source}
+            DEPFILE ${source}.d
+            COMMAND
+                ${glslc_executable}
+                $<$<BOOL:${arg_ENV}>:--target-env=${arg_ENV}>
+                $<$<BOOL:${arg_FORMAT}>:-mfmt=${arg_FORMAT}>
+                -MD -MF ${source}.d
+                -o ${source}.${arg_FORMAT}
+                ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+        )
+    target_sources(${target} PRIVATE ${source}.${arg_FORMAT})
   endforeach()
-
-  add_custom_target(${TARGET_NAME} ALL
-    ${SHADER_COMMANDS}
-    COMMENT "Compiling Shaders [${TARGET_NAME}]"
-    SOURCES ${SHADER_SOURCE_FILES}
-    BYPRODUCTS ${SHADER_PRODUCTS}
-  )
 endfunction()
