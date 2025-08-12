@@ -1,7 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <functional>
-#include <optional>
+#include <ranges>
 #include <span>
 #include <vulkan/vulkan_raii.hpp>
 
@@ -28,7 +29,7 @@ private:
       : physicalDevices(std::move(specs)) {}
 
 public:
-  static auto create(vk::raii::Instance &instance)
+  static auto create(const vk::raii::Instance &instance)
       -> std::expected<PhysicalDeviceSelector, std::string> {
     auto devices = instance.enumeratePhysicalDevices();
 
@@ -45,7 +46,7 @@ public:
 
     for (const auto &device : devices.value()) {
       DeviceSpecs spec{
-          .device = std::move(device),
+          .device = device,
           .properties = device.getProperties(),
           .features = device.getFeatures(),
           .memoryProperties = device.getMemoryProperties(),
@@ -77,7 +78,8 @@ public:
                 [&ext](const vk::ExtensionProperties &availableExt) {
                   return strcmp(availableExt.extensionName, ext) == 0;
                 }) == device.availableExtensions.end()) {
-          physicalDevices.erase(physicalDevices.begin() + i);
+          physicalDevices.erase(physicalDevices.begin() +
+                                static_cast<std::ptrdiff_t>(i));
           break;
         }
       }
@@ -92,7 +94,8 @@ public:
       const auto &device = physicalDevices[i];
 
       if (!(featureCheck(device.features))) {
-        physicalDevices.erase(physicalDevices.begin() + i);
+        physicalDevices.erase(physicalDevices.begin() +
+                              static_cast<std::ptrdiff_t>(i));
       }
     }
   }
@@ -115,7 +118,8 @@ public:
       }
 
       if (!hasRequiredQueue) {
-        physicalDevices.erase(physicalDevices.begin() + i);
+        physicalDevices.erase(physicalDevices.begin() +
+                              static_cast<std::ptrdiff_t>(i));
       }
     }
   }
@@ -138,7 +142,8 @@ public:
       }
 
       if (!hasRequiredMemoryType) {
-        physicalDevices.erase(physicalDevices.begin() + i);
+        physicalDevices.erase(physicalDevices.begin() +
+                              static_cast<std::ptrdiff_t>(i));
       }
     }
   }
@@ -150,7 +155,8 @@ public:
       const auto &device = physicalDevices[i];
 
       if (device.properties.apiVersion < version) {
-        physicalDevices.erase(physicalDevices.begin() + i);
+        physicalDevices.erase(physicalDevices.begin() +
+                              static_cast<std::ptrdiff_t>(i));
       }
     }
   }
@@ -166,8 +172,9 @@ public:
 
   void sortDevices() {
     Logger::debug("Sorting devices by score");
-    std::sort(physicalDevices.begin(), physicalDevices.end(),
-              [](DeviceSpecs &a, DeviceSpecs &b) { return a.score > b.score; });
+    std::ranges::sort(physicalDevices, [](DeviceSpecs &a, DeviceSpecs &b) {
+      return a.score > b.score;
+    });
   }
 
   auto select() -> std::vector<vk::raii::PhysicalDevice> {

@@ -4,15 +4,13 @@
 #include "spdlog/spdlog.h"
 #include <memory>
 
-#define CONCAT_IDENT(x, y) x##y
-
 #define DEFINE_LOGGER(_LOGGER_NAME, _LOGGER_LEVEL)                             \
                                                                                \
   std::shared_ptr<spdlog::logger> Logger::s_logger = nullptr;                  \
                                                                                \
   void Logger::init() {                                                        \
     s_logger = spdlog::stdout_color_mt(_LOGGER_NAME);                          \
-    s_logger->set_level(CONCAT_IDENT(spdlog::level::, _LOGGER_LEVEL));         \
+    s_logger->set_level(spdlog::level::_LOGGER_LEVEL);                         \
   }                                                                            \
                                                                                \
   void Logger::ensureInit() {                                                  \

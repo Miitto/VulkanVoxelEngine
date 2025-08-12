@@ -25,7 +25,3 @@ link_glfw(${PROJECT_NAME})
 
 include(../cmake/spdlog.cmake)
 link_spdlog_header_only(${PROJECT_NAME})
-
-target_compile_definitions(${PROJECT_NAME} PUBLIC
-  VULKAN_LOG_LEVEL=trace
-)

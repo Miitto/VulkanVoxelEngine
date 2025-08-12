@@ -7,3 +7,5 @@ out/
 
 !.vscode/launch.json
 !.vscode/tasks.json
+
+./compile_commands.json

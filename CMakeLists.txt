@@ -25,7 +25,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE VulkanEngine)
 target_include_directories(${PROJECT_NAME} PRIVATE VulkanEngine)
 
 include(cmake/vulkan.cmake)
-link_vulkan(${PROJECT_NAME})
 
 include(cmake/shaders.cmake)
 add_subdirectory(shaders)

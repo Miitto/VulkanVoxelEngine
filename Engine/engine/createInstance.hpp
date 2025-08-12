@@ -1,6 +1,5 @@
 #pragma once
 
-#include "debug.hpp"
 #include "logger.hpp"
 #include "validators.hpp"
 #include <GLFW/glfw3.h>
@@ -77,11 +76,12 @@ auto createInstance(vk::raii::Context &context, const char *appName,
       .ppEnabledLayerNames = layerNames.data(),
       .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
       .ppEnabledExtensionNames = extensions.data()};
-  auto instance_res = context.createInstance(iCreateInfo);
+  std::expected<vk::raii::Instance, vk::Result> instance_res =
+      context.createInstance(iCreateInfo);
 
   if (!instance_res) {
     Logger::error("Failed to create Vulkan instance: {}",
-                  Result(instance_res.error()));
+                  vk::to_string(instance_res.error()));
     return std::unexpected("Failed to create Vulkan instnace");
   }
 
