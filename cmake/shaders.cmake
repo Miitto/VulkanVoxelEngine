@@ -1,4 +1,4 @@
-find_program(SLANGC_EXECUTABLE NAMES slangc)
+find_program(SLANGC_EXECUTABLE NAMES slangc REQUIRED)
 
 function(compile_shader target)
   cmake_parse_arguments(PARSE_ARGV 0 arg "" "" "SOURCES")
