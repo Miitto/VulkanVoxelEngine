@@ -20,7 +20,7 @@ add_subdirectory(src)
 
 include(FetchContent)
 
-add_subdirectory(Engine)
+add_subdirectory(engine)
 target_link_libraries(${PROJECT_NAME} PRIVATE VulkanEngine)
 target_include_directories(${PROJECT_NAME} PRIVATE VulkanEngine)
 
