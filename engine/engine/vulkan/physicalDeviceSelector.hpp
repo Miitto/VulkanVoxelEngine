@@ -6,9 +6,9 @@
 #include <span>
 #include <vulkan/vulkan_raii.hpp>
 
-#include "logger.hpp"
+#include "vk-logger.hpp"
 
-namespace engine {
+namespace engine::vulkan {
 class PhysicalDeviceSelector {
 public:
   struct DeviceSpecs {
@@ -161,9 +161,10 @@ public:
     }
   }
 
-  void scoreDevices(
-      const std::function<uint32_t(
-          const engine::PhysicalDeviceSelector::DeviceSpecs &)> &scoreFn) {
+  void
+  scoreDevices(const std::function<uint32_t(
+                   const engine::vulkan::PhysicalDeviceSelector::DeviceSpecs &)>
+                   &scoreFn) {
     Logger::debug("Scoring devices");
     for (auto &device : physicalDevices) {
       device.score = scoreFn(device);
@@ -187,4 +188,4 @@ public:
     return devices;
   }
 };
-} // namespace engine
+} // namespace engine::vulkan

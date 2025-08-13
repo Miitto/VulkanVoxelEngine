@@ -3,7 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan_raii.hpp>
 
-namespace engine {
+namespace engine::vulkan {
 auto chooseSwapSurfaceFormat(
     const std::vector<vk::SurfaceFormatKHR> &availableFormats)
     -> vk::SurfaceFormatKHR {
@@ -67,4 +67,4 @@ auto desiredImageCount(const vk::SurfaceCapabilitiesKHR &capabilities)
   return desired;
 }
 
-} // namespace engine
+} // namespace engine::vulkan

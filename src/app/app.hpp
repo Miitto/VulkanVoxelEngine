@@ -3,6 +3,7 @@
 #include <expected>
 #include <string>
 
+#include "engine/core.hpp"
 #include "logger.hpp"
 #include "vulkan/vulkan_raii.hpp"
 #include <GLFW/glfw3.h>
@@ -45,11 +46,7 @@ public:
   };
 
 private:
-  std::unique_ptr<GLFWwindow, void (*)(GLFWwindow *)> window;
-  vk::raii::Context context;
-  vk::raii::Instance instance;
-  vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
-  vk::raii::SurfaceKHR surface;
+  engine::rendering::Core core;
 
   vk::raii::PhysicalDevice physicalDevice;
   vk::raii::Device device;
@@ -61,10 +58,6 @@ private:
   vk::raii::CommandPool commandPool;
 
   std::array<SyncObjects, MAX_FRAMES_IN_FLIGHT> syncObjects;
-
-  void setDebugMessenger(vk::raii::DebugUtilsMessengerEXT &&dMessenger) {
-    debugMessenger = std::move(dMessenger);
-  }
 
   int currentFrame = 0;
 
@@ -87,20 +80,17 @@ public:
 
   [[nodiscard]]
   auto shouldClose() const -> bool {
-    return glfwWindowShouldClose(window.get());
+    return glfwWindowShouldClose(core.getWindow().get());
   }
 
   auto recreateSwapchain() -> std::expected<void, std::string>;
 
-  App(std::unique_ptr<GLFWwindow, void (*)(GLFWwindow *)> &window,
-      vk::raii::Context &context, vk::raii::Instance &instance,
-      vk::raii::SurfaceKHR &surface, vk::raii::PhysicalDevice &physicalDevice,
+  App(engine::rendering::Core &core, vk::raii::PhysicalDevice &physicalDevice,
       vk::raii::Device &device, Queues &queues,
       SwapchainConfig &swapchainConfig, Swapchain &swapchain,
       vk::raii::Pipeline &pipeline, vk::raii::CommandPool &commandPool,
       std::array<SyncObjects, 2> &syncObjects)
-      : window(std::move(window)), context(std::move(context)),
-        instance(std::move(instance)), surface(std::move(surface)),
+      : core(std::move(core)),
         physicalDevice(std::move(physicalDevice)), device(std::move(device)),
         queues(std::move(queues)), swapchainConfig(swapchainConfig),
         swapchain(std::move(swapchain)), pipeline(std::move(pipeline)),
@@ -148,10 +138,6 @@ public:
 
   [[nodiscard]] auto getSyncObjects() const -> const SyncObjects & {
     return syncObjects[currentFrame];
-  }
-
-  [[nodiscard]] auto getWindow() const -> const GLFWwindow * {
-    return window.get();
   }
 
   [[nodiscard]] auto getSwapchainImage(size_t index) const
@@ -233,3 +219,11 @@ public:
     return std::make_pair(index, SwapchainState::Ok);
   }
 };
+
+
+
+
+
+
+
+

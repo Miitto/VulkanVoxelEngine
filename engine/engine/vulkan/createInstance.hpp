@@ -1,13 +1,13 @@
 #pragma once
 
-#include "logger.hpp"
 #include "validators.hpp"
+#include "vk-logger.hpp"
 #include <GLFW/glfw3.h>
 #include <expected>
 #include <span>
 #include <vulkan/vulkan_raii.hpp>
 
-namespace engine {
+namespace engine::vulkan {
 auto createInstance(vk::raii::Context &context, const char *appName,
                     const bool enableValidationLayers,
                     const std::span<const char *const> extraExtensions = {},
@@ -42,7 +42,7 @@ auto createInstance(vk::raii::Context &context, const char *appName,
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   }
 
-  auto missingExtensions = engine::checkExtensions(context, extensions);
+  auto missingExtensions = engine::vulkan::checkExtensions(context, extensions);
   if (!missingExtensions.empty()) {
     Logger::error("Missing required extensions:");
     for (const auto &ext : missingExtensions) {
@@ -51,7 +51,7 @@ auto createInstance(vk::raii::Context &context, const char *appName,
     return std::unexpected("Missing required Vulkan extensions");
   }
 
-  auto missingLayers = engine::checkLayers(context, layerNames);
+  auto missingLayers = engine::vulkan::checkLayers(context, layerNames);
   if (!missingLayers.empty()) {
     Logger::error("Missing required layers:");
     for (const auto &layer : missingLayers) {
@@ -60,12 +60,12 @@ auto createInstance(vk::raii::Context &context, const char *appName,
     return std::unexpected("Missing required Vulkan layers");
   }
 
-  Logger::debug("Enabled Extensions:");
+  Logger::debug("Enabled Instance Extensions:");
   for (const auto &ext : extensions) {
     Logger::debug("  - {}", ext);
   }
 
-  Logger::debug("Enabled Layers:");
+  Logger::debug("Enabled Instance Layers:");
   for (const auto &layer : layerNames) {
     Logger::debug("  - {}", layer);
   }
@@ -87,4 +87,4 @@ auto createInstance(vk::raii::Context &context, const char *appName,
 
   return std::move(instance_res.value());
 }
-} // namespace engine
+} // namespace engine::vulkan

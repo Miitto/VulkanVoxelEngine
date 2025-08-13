@@ -4,9 +4,9 @@
 #include <span>
 #include <vulkan/vulkan_raii.hpp>
 
-#include "logger.hpp"
+#include "vk-logger.hpp"
 
-namespace engine {
+namespace engine::vulkan {
 
 void printExtensions(vk::raii::Context &context,
                      spdlog::level::level_enum logLevel) {
@@ -53,4 +53,4 @@ auto checkLayers(vk::raii::Context &context, std::span<const char *> layers) {
   return missingLayers;
 }
 
-} // namespace engine
+} // namespace engine::vulkan

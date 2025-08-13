@@ -5,14 +5,18 @@ project(VulkanEngine VERSION 0.1 DESCRIPTION "Vulkan engine helpers" LANGUAGES C
 add_library(${PROJECT_NAME} STATIC)
 
 target_sources(${PROJECT_NAME} PUBLIC
+  engine/core.cpp
   engine/logger.cpp
   engine/image.cpp
+  engine/vulkan/vk-logger.cpp
 )
 
 target_include_directories(${PROJECT_NAME} INTERFACE
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
- "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
+
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(../cmake/vulkan.cmake)
 find_vulkan()

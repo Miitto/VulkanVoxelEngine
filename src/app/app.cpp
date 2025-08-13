@@ -7,13 +7,12 @@
 
 #include "logger.hpp"
 
-#include <engine/createInstance.hpp>
+#include <engine/core.hpp>
 #include <engine/debug.hpp>
-#include <engine/physicalDeviceSelector.hpp>
-#include <engine/pipeline.hpp>
-#include <engine/shaders.hpp>
-#include <engine/swapchainConfig.hpp>
-#include <engine/validators.hpp>
+#include <engine/vulkan/physicalDeviceSelector.hpp>
+#include <engine/vulkan/pipeline.hpp>
+#include <engine/vulkan/shaders.hpp>
+#include <engine/vulkan/swapchainConfig.hpp>
 
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
@@ -25,14 +24,14 @@ const bool enableValidationLayers = true;
 const bool enableValidationLayers = false;
 #endif
 
-const std::array<const char *, 3> requiredExtensions = {
+const std::array<const char *, 3> requiredDeviceExtensions = {
     vk::KHRSwapchainExtensionName, vk::KHRSpirv14ExtensionName,
     vk::KHRCreateRenderpass2ExtensionName};
 
 auto pickPhysicalDevice(const vk::raii::Instance &instance)
     -> std::expected<vk::raii::PhysicalDevice, std::string> {
   auto physicalDeviceSelector_res =
-      engine::PhysicalDeviceSelector::create(instance);
+      engine::vulkan::PhysicalDeviceSelector::create(instance);
 
   if (!physicalDeviceSelector_res) {
     Logger::error("Failed to create Physical Device Selector: {}",
@@ -42,12 +41,12 @@ auto pickPhysicalDevice(const vk::raii::Instance &instance)
 
   auto &physicalDeviceSelector = physicalDeviceSelector_res.value();
 
-  physicalDeviceSelector.requireExtensions(requiredExtensions);
+  physicalDeviceSelector.requireExtensions(requiredDeviceExtensions);
   physicalDeviceSelector.requireVersion(1, 4, 0);
   physicalDeviceSelector.requireQueueFamily(vk::QueueFlagBits::eGraphics);
 
   physicalDeviceSelector.scoreDevices(
-      [](const engine::PhysicalDeviceSelector::DeviceSpecs &spec) {
+      [](const engine::vulkan::PhysicalDeviceSelector::DeviceSpecs &spec) {
         uint32_t score = 0;
         if (spec.properties.deviceType ==
             vk::PhysicalDeviceType::eDiscreteGpu) {
@@ -87,7 +86,8 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
   auto combinedFinder = [&physicalDevice, &surface](auto p) {
     auto &[index, props] = p;
     return bool(props.queueFlags & vk::QueueFlagBits::eGraphics) &&
-           physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(index), surface);
+           physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(index),
+                                               surface);
   };
 
   auto graphicsQueueFamilyIndex = 0u;
@@ -103,7 +103,8 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
 
     auto presentFinder = [&physicalDevice, &surface](auto const &p) {
       auto &[index, props] = p;
-      return physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(index), surface);
+      return physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(index),
+                                                 surface);
     };
 
     auto graphicsQueueFamilyIt =
@@ -158,8 +159,9 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
       .pNext = &featursChain.get<vk::PhysicalDeviceFeatures2>(),
       .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfo.size()),
       .pQueueCreateInfos = queueCreateInfo.data(),
-      .enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size()),
-      .ppEnabledExtensionNames = requiredExtensions.data()};
+      .enabledExtensionCount =
+          static_cast<uint32_t>(requiredDeviceExtensions.size()),
+      .ppEnabledExtensionNames = requiredDeviceExtensions.data()};
 
   Logger::trace("Creating logical device");
 
@@ -218,14 +220,15 @@ auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
                      std::string> {
   auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
 
-  auto format = engine::chooseSwapSurfaceFormat(
+  auto format = engine::vulkan::chooseSwapSurfaceFormat(
       physicalDevice.getSurfaceFormatsKHR(surface));
-  auto presentMode = engine::chooseSwapPresentMode(
+  auto presentMode = engine::vulkan::chooseSwapPresentMode(
       physicalDevice.getSurfacePresentModesKHR(surface));
-  auto extent = engine::chooseSwapExtent(window, surfaceCapabilities);
+  auto extent = engine::vulkan::chooseSwapExtent(window, surfaceCapabilities);
   auto minImageCount =
-      engine::minImageCount(surfaceCapabilities, MAX_FRAMES_IN_FLIGHT);
-  auto desiredImageCount = engine::desiredImageCount(surfaceCapabilities);
+      engine::vulkan::minImageCount(surfaceCapabilities, MAX_FRAMES_IN_FLIGHT);
+  auto desiredImageCount =
+      engine::vulkan::desiredImageCount(surfaceCapabilities);
 
   App::SwapchainConfig swapchainConfig{.format = format,
                                        .presentMode = presentMode,
@@ -430,33 +433,23 @@ auto createSyncObjects(const vk::raii::Device &device)
 }
 
 auto App::create() -> std::expected<App, std::string> {
-  Logger::info("Creating GLFW window...");
-  auto win_ptr = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE,
-                                  nullptr, nullptr);
-  auto window = std::unique_ptr<GLFWwindow, void (*)(GLFWwindow *)>(
-      win_ptr, [](GLFWwindow *window) {
-        Logger::info("Destroying window");
-        glfwDestroyWindow(window);
-      });
+  auto core_res = engine::rendering::Core::create(
+      {.width = WINDOW_WIDTH, .height = WINDOW_HEIGHT, .title = WINDOW_TITLE},
+      {
+          .extraExtensions = {},
+          .extraLayers = {},
+      },
+      enableValidationLayers);
 
-  Logger::trace("Creating Context");
-  auto context = vk::raii::Context();
-
-  auto instance_res =
-      engine::createInstance(context, "Voxel Engine", enableValidationLayers);
-  if (!instance_res) {
-    return std::unexpected(instance_res.error());
+  if (!core_res) {
+    Logger::critical("Failed to create rendering core: {}", core_res.error());
+    return std::unexpected(core_res.error());
   }
-  auto instance = std::move(instance_res.value());
+  auto &core = core_res.value();
 
-  VkSurfaceKHR rawSurface;
-  if (glfwCreateWindowSurface(*instance, window.get(), nullptr, &rawSurface) !=
-      VK_SUCCESS) {
-    Logger::error("Failed to create window surface");
-    return std::unexpected("Failed to create window surface");
-  }
-
-  auto surface = vk::raii::SurfaceKHR(instance, rawSurface);
+  auto &instance = core.getInstance();
+  auto &window = core.getWindow();
+  auto &surface = core.getSurface();
 
   auto physicalDevice_res = pickPhysicalDevice(instance);
   if (!physicalDevice_res) {
@@ -482,8 +475,7 @@ auto App::create() -> std::expected<App, std::string> {
 
   auto &[swapchainConfig, swapchain] = swapchain_res.value();
 
-  auto shader_res =
-      engine::createShaderModule(device, "basic.spv");
+  auto shader_res = engine::createShaderModule(device, "basic.spv");
 
   if (!shader_res) {
     Logger::error("Failed to create shader module: {}", shader_res.error());
@@ -537,27 +529,17 @@ auto App::create() -> std::expected<App, std::string> {
       std::move(syncObjects1), std::move(syncObjects2)};
 
   Logger::trace("Creating App");
-  App app(window, context, instance, surface, physicalDevice, device, queues,
-          swapchainConfig, swapchain, pipeline, commandPool, syncObjects);
-
-  if (enableValidationLayers) {
-    Logger::trace("Creating Debug Messenger");
-    auto debugMessenger = engine::makeDebugMessenger(app.instance, &app);
-    if (!debugMessenger) {
-      Logger::error("Failed to create Debug Messenger: {}",
-                    vk::to_string(debugMessenger.error()));
-    } else {
-      app.setDebugMessenger(std::move(debugMessenger.value()));
-    }
-  } else {
-    Logger::trace("Skipping Debug Messenger creation");
-  }
+  App app(core, physicalDevice, device, queues, swapchainConfig, swapchain,
+          pipeline, commandPool, syncObjects);
 
   return app;
 }
 
 auto App::recreateSwapchain() -> std::expected<void, std::string> {
   Logger::trace("Recreating Swapchain");
+
+  auto &window = core.getWindow();
+  auto &surface = core.getSurface();
 
   auto newSwapchain_res =
       createSwapchain(physicalDevice, device, window.get(), surface, queues,
