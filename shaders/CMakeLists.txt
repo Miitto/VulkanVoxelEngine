@@ -1,4 +1,5 @@
-compile_shader(${PROJECT_NAME}
-  basic.vert
-  basic.frag
+compile_shader(shaders SOURCES
+  basic
 )
+
+add_dependencies(${PROJECT_NAME} shaders)

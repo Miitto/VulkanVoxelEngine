@@ -1,21 +1,24 @@
-find_package(Vulkan COMPONENTS glslc)
-find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
+find_program(SLANGC_EXECUTABLE NAMES slangc)
 
 function(compile_shader target)
-  cmake_parse_arguments(PARSE_ARGV 1 arg "" "ENV;FORMAT" "SOURCES")
+  cmake_parse_arguments(PARSE_ARGV 0 arg "" "" "SOURCES")
+  set(ENTRY_POINTS -entry vertMain -entry fragMain)
+  set(OUTPUTS "")
   foreach(source ${arg_SOURCES})
+    set(SOURCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/${source}.slang)
+    set(OUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/build/${source}.spv)
     add_custom_command(
-            OUTPUT ${source}.${arg_FORMAT}
-            DEPENDS ${source}
-            DEPFILE ${source}.d
-            COMMAND
-                ${glslc_executable}
-                $<$<BOOL:${arg_ENV}>:--target-env=${arg_ENV}>
-                $<$<BOOL:${arg_FORMAT}>:-mfmt=${arg_FORMAT}>
-                -MD -MF ${source}.d
-                -o ${source}.${arg_FORMAT}
-                ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+            OUTPUT ${OUT_FILE}
+            DEPENDS ${source}.slang
+            COMMAND ${SLANGC_EXECUTABLE} ${SOURCE_FILE} -target spirv -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name ${ENTRY_POINTS} -o ${OUT_FILE}
+            COMMENT "Compiling shader ${source} to SPIR-V"
+            VERBATIM
         )
-    target_sources(${target} PRIVATE ${source}.${arg_FORMAT})
+    set(OUTPUTS ${OUTPUTS} ${OUT_FILE})
   endforeach()
+
+  add_custom_target(${target} ALL
+    DEPENDS ${OUTPUTS}
+    COMMENT "Compiling shaders for target ${target}"
+  )
 endfunction()
