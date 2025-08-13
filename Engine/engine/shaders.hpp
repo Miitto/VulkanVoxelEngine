@@ -10,10 +10,11 @@ namespace engine {
 
 auto readFile(const std::string &filename)
     -> std::expected<std::vector<char>, std::string> {
-  std::ifstream file(filename, std::ios::ate | std::ios::binary);
+    std::string path(SHADER_DIR + filename);
+  std::ifstream file(path, std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
-    return std::unexpected("Failed to open file: " + filename);
+    return std::unexpected("Failed to open file: " + path);
   }
 
   std::vector<char> buffer(file.tellg());
@@ -55,9 +56,15 @@ auto createShaderModule(const vk::raii::Device &device,
   return std::move(shaderModule);
 }
 
-struct PipelineShaderStages {
+class PipelineShaderStages {
+public:
   vk::PipelineShaderStageCreateInfo vertex;
   vk::PipelineShaderStageCreateInfo fragment;
+
+  [[nodiscard]] consteval auto size() const -> size_t { return 2; }
+  [[nodiscard]] auto data() const -> const vk::PipelineShaderStageCreateInfo * {
+    return &vertex;
+  }
 };
 
 [[nodiscard]]

@@ -9,7 +9,10 @@
 class Program {
   App app;
 
-  Program(App &app) : app(std::move(app)) {}
+  std::vector<vk::raii::CommandBuffer> commandBuffers;
+
+  Program(App &app, std::vector<vk::raii::CommandBuffer> &commandBuffers)
+      : app(std::move(app)), commandBuffers(std::move(commandBuffers)) {}
 
 public:
   static auto create() -> std::optional<Program> {
@@ -19,7 +22,27 @@ public:
       return std::nullopt;
     }
 
-    return Program(app_opt.value());
+    auto &app = app_opt.value();
+
+    auto cmdBuffers_res = app.allocCmdBuffer(vk::CommandBufferLevel::ePrimary,
+                                             MAX_FRAMES_IN_FLIGHT);
+    if (!cmdBuffers_res) {
+      Logger::critical("Failed to allocate command buffer: {}",
+                       cmdBuffers_res.error());
+      return std::nullopt;
+    }
+
+    auto &cmdBuffers = cmdBuffers_res.value();
+
+    return Program(app, cmdBuffers);
+  }
+
+  void closing() {
+    Logger::info("Closing application...");
+
+    app.getDevice().waitIdle();
+
+    Logger::info("Application closed successfully.");
   }
 
   void run() {
@@ -38,20 +61,134 @@ public:
         break;
       }
 
-      // Simulate frame completion
-      app.currentFrame = (app.currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+      app.endFrame();
     }
   }
 
   auto update() -> bool { return true; }
 
-  auto render() -> bool { return true; }
+  auto render() -> bool {
+    Logger::trace("Rendering frame...");
+    app.checkSwapchain();
+    auto nextImage_res = app.getNextImage();
+    if (!nextImage_res) {
+      Logger::error("Failed to acquire next image: {}", nextImage_res.error());
+      return false;
+    }
+    Logger::trace("Acquired next image successfully.");
+
+    auto &[imageIndex, state] = nextImage_res.value();
+    if (state == App::SwapchainState::OutOfDate) {
+      Logger::warn("Swapchain is out of date, recreating it.");
+      auto res = app.recreateSwapchain();
+      if (!res) {
+        Logger::error("Failed to recreate swapchain: {}", res.error());
+        return false;
+      }
+      return true;
+    }
+    Logger::trace("Image index: {}", imageIndex);
+
+    auto &cmdBuffer = commandBuffers[app.frameIndex()];
+
+    cmdBuffer.begin(vk::CommandBufferBeginInfo{
+        .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+    app.preRender(cmdBuffer);
+
+    vk::RenderingAttachmentInfo attachmentInfo{
+        .imageView = app.getSwapchainImageView(imageIndex),
+        .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+        .loadOp = vk::AttachmentLoadOp::eClear,
+        .storeOp = vk::AttachmentStoreOp::eStore,
+        .clearValue = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)};
+
+    vk::RenderingInfo renderingInfo{
+        .renderArea = vk::Rect2D{.offset = {.x = 0, .y = 0},
+                                 .extent = app.getSwapchainConfig().extent},
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &attachmentInfo};
+
+    Logger::trace("Beginning rendering");
+    cmdBuffer.beginRendering(renderingInfo);
+
+    cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, app.getPipeline());
+
+    cmdBuffer.setViewport(
+        0,
+        vk::Viewport{
+            .x = 0.0f,
+            .y = 0.0f,
+            .width = static_cast<float>(app.getSwapchainConfig().extent.width),
+            .height =
+                static_cast<float>(app.getSwapchainConfig().extent.height),
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f});
+
+    cmdBuffer.setScissor(0,
+                         vk::Rect2D{.offset = {.x = 0, .y = 0},
+                                    .extent = app.getSwapchainConfig().extent});
+
+    cmdBuffer.draw(3, 1, 0, 0);
+
+    cmdBuffer.endRendering();
+
+    app.postRender(cmdBuffer);
+
+    cmdBuffer.end();
+
+    vk::PipelineStageFlags waitStage(
+        vk::PipelineStageFlagBits::eColorAttachmentOutput);
+    const auto &syncObjects = app.getSyncObjects();
+    const vk::SubmitInfo submitInfo{
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &*syncObjects.presentCompleteSemaphore,
+        .pWaitDstStageMask = &waitStage,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &*cmdBuffer,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = &*syncObjects.renderCompleteSemaphore};
+
+    const auto &queues = app.getQueues();
+
+    Logger::trace("Submitting command buffer to graphics queue");
+    queues.graphicsQueue.queue->submit(submitInfo, *syncObjects.drawingFence);
+
+    const vk::PresentInfoKHR presentInfo{
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &*syncObjects.renderCompleteSemaphore,
+        .swapchainCount = 1,
+        .pSwapchains = &*app.getSwapchain().swapchain,
+        .pImageIndices = &imageIndex};
+
+    Logger::trace("Presenting image to swapchain");
+    auto result = static_cast<vk::Result>(
+        queues.presentQueue.queue->getDispatcher()->vkQueuePresentKHR(**queues.presentQueue.queue, &*presentInfo));
+
+    if (state == App::SwapchainState::Suboptimal || result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR) {
+      Logger::warn("Swapchain is suboptimal, consider recreating it.");
+      auto res = app.recreateSwapchain();
+      if (!res) {
+        Logger::error("Failed to recreate swapchain: {}", res.error());
+        return false;
+      }
+
+      return true;
+    }
+
+	if (result != vk::Result::eSuccess) {
+		Logger::error("Failed to present image: {}", vk::to_string(result));
+		return false;
+	}
+
+    Logger::trace("Frame rendered successfully.");
+    return true;
+  }
 };
 
 auto main() -> int {
   Logger::init();
   auto windowManager = WindowManager();
-  windowManager.setResizable(false);
 
   auto app = Program::create();
 
@@ -61,6 +198,8 @@ auto main() -> int {
   }
 
   app->run();
+
+  app->closing();
 
   glfwTerminate();
 

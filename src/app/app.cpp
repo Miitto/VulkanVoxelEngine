@@ -10,9 +10,10 @@
 #include <engine/createInstance.hpp>
 #include <engine/debug.hpp>
 #include <engine/physicalDeviceSelector.hpp>
+#include <engine/pipeline.hpp>
+#include <engine/shaders.hpp>
 #include <engine/swapchainConfig.hpp>
 #include <engine/validators.hpp>
-#include <engine/shaders.hpp>
 
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
@@ -24,9 +25,8 @@ const bool enableValidationLayers = true;
 const bool enableValidationLayers = false;
 #endif
 
-const std::array<const char *, 4> requiredExtensions = {
+const std::array<const char *, 3> requiredExtensions = {
     vk::KHRSwapchainExtensionName, vk::KHRSpirv14ExtensionName,
-    vk::KHRSynchronization2ExtensionName,
     vk::KHRCreateRenderpass2ExtensionName};
 
 auto pickPhysicalDevice(const vk::raii::Instance &instance)
@@ -87,7 +87,7 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
   auto combinedFinder = [&physicalDevice, &surface](auto p) {
     auto &[index, props] = p;
     return bool(props.queueFlags & vk::QueueFlagBits::eGraphics) &&
-           physicalDevice.getSurfaceSupportKHR(index, surface);
+           physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(index), surface);
   };
 
   auto graphicsQueueFamilyIndex = 0u;
@@ -103,7 +103,7 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
 
     auto presentFinder = [&physicalDevice, &surface](auto const &p) {
       auto &[index, props] = p;
-      return physicalDevice.getSurfaceSupportKHR(index, surface);
+      return physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(index), surface);
     };
 
     auto graphicsQueueFamilyIt =
@@ -146,10 +146,13 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
   }
 
   vk::StructureChain<vk::PhysicalDeviceFeatures2,
+                     vk::PhysicalDeviceVulkan11Features,
                      vk::PhysicalDeviceVulkan13Features,
                      vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
-      featursChain = {
-          {}, {.dynamicRendering = true}, {.extendedDynamicState = true}};
+      featursChain = {{},
+                      {.shaderDrawParameters = true},
+                      {.synchronization2 = true, .dynamicRendering = true},
+                      {.extendedDynamicState = true}};
 
   auto deviceCreateInfo = vk::DeviceCreateInfo{
       .pNext = &featursChain.get<vk::PhysicalDeviceFeatures2>(),
@@ -197,8 +200,11 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
     presentQueue = graphicsQueue;
   }
 
-  App::Queues queues{.graphicsQueue = App::Queue {.index=graphicsQueueFamilyIndex, .queue=graphicsQueue},
-                     .presentQueue = App::Queue {.index = presentQueueFamilyIndex, .queue=presentQueue}};
+  App::Queues queues{
+      .graphicsQueue =
+          App::Queue{.index = graphicsQueueFamilyIndex, .queue = graphicsQueue},
+      .presentQueue =
+          App::Queue{.index = presentQueueFamilyIndex, .queue = presentQueue}};
 
   return std::make_tuple(std::move(device), queues);
 }
@@ -206,8 +212,10 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
 auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
                      const vk::raii::Device &device, GLFWwindow *window,
                      const vk::raii::SurfaceKHR &surface,
-                     const App::Queues &queues) -> std::expected<std::tuple<App::SwapchainConfig, App::Swapchain>,
-                                                     std::string> {
+                     const App::Queues &queues,
+                     std::optional<vk::raii::SwapchainKHR *> oldSwapchain)
+    -> std::expected<std::tuple<App::SwapchainConfig, App::Swapchain>,
+                     std::string> {
   auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
 
   auto format = engine::chooseSwapSurfaceFormat(
@@ -251,6 +259,12 @@ auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
     swapchainCreateInfo.pQueueFamilyIndices = nullptr;
   }
 
+  if (oldSwapchain) {
+    swapchainCreateInfo.oldSwapchain = **oldSwapchain;
+  } else {
+    swapchainCreateInfo.oldSwapchain = nullptr;
+  }
+
   auto swapchain_res = device.createSwapchainKHR(swapchainCreateInfo);
   if (!swapchain_res) {
     Logger::error("Failed to create swapchain: {}",
@@ -262,8 +276,10 @@ auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
 
   auto images = swapchain.getImages();
 
-  vk::ImageViewCreateInfo imageViewCreateInfo{ .viewType = vk::ImageViewType::e2D, .format = swapchainConfig.format.format,
-      .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+  vk::ImageViewCreateInfo imageViewCreateInfo{
+      .viewType = vk::ImageViewType::e2D,
+      .format = swapchainConfig.format.format,
+      .subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
 
   std::vector<vk::raii::ImageView> imageViews;
 
@@ -278,12 +294,139 @@ auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
     imageViews.push_back(std::move(imageView_res.value()));
   }
 
-  App::Swapchain swapchain_objects {
-      .swapchain = std::move(swapchain),
-      .images = std::move(images),
-      .imageViews = std::move(imageViews)};
+  App::Swapchain swapchain_objects{.swapchain = std::move(swapchain),
+                                   .images = std::move(images),
+                                   .imageViews = std::move(imageViews)};
 
   return std::make_tuple(swapchainConfig, std::move(swapchain_objects));
+}
+
+auto createPipeline(const vk::raii::Device &device,
+                    const App::SwapchainConfig &swapchainConfig,
+                    const engine::PipelineShaderStages shaderStages)
+    -> std::expected<vk::raii::Pipeline, std::string> {
+  Logger::trace("Creating Graphics Pipeline");
+  engine::DynamicStateInfo dynamicStateInfo(vk::DynamicState::eViewport,
+                                            vk::DynamicState::eScissor);
+
+  vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
+
+  vk::PipelineInputAssemblyStateCreateInfo inputAssembly{
+      .topology = vk::PrimitiveTopology::eTriangleStrip};
+
+  vk::PipelineViewportStateCreateInfo viewportState{.viewportCount = 1,
+                                                    .scissorCount = 1};
+
+  vk::PipelineRasterizationStateCreateInfo rasterizer{
+      .depthClampEnable = vk::False,
+      .rasterizerDiscardEnable = vk::False,
+      .polygonMode = vk::PolygonMode::eFill,
+      .cullMode = vk::CullModeFlagBits::eBack,
+      .frontFace = vk::FrontFace::eClockwise,
+      .depthBiasEnable = vk::False,
+      .depthBiasSlopeFactor = 1.0f,
+      .lineWidth = 1.0f};
+
+  vk::PipelineMultisampleStateCreateInfo multisampling{
+      .rasterizationSamples = vk::SampleCountFlagBits::e1,
+      .sampleShadingEnable = vk::False,
+      .minSampleShading = 1.0f};
+
+  vk::PipelineColorBlendAttachmentState colorBlendAttachment{
+      .blendEnable = vk::False,
+      .colorWriteMask =
+          vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+          vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
+
+  vk::PipelineColorBlendStateCreateInfo colorBlending{
+      .logicOpEnable = vk::False,
+      .attachmentCount = 1,
+      .pAttachments = &colorBlendAttachment};
+
+  vk::PipelineLayoutCreateInfo layoutInfo{.setLayoutCount = 0,
+                                          .pushConstantRangeCount = 0};
+
+  auto pipelineLayout_res = device.createPipelineLayout(layoutInfo);
+  if (!pipelineLayout_res) {
+    Logger::error("Failed to create pipeline layout: {}",
+                  vk::to_string(pipelineLayout_res.error()));
+    return std::unexpected("Failed to create pipeline layout");
+  }
+
+  auto &pipelineLayout = pipelineLayout_res.value();
+
+  vk::PipelineRenderingCreateInfo renderingCreateInfo{
+      .colorAttachmentCount = 1,
+      .pColorAttachmentFormats = &swapchainConfig.format.format,
+  };
+
+  vk::GraphicsPipelineCreateInfo pipelineCreateInfo{
+      .pNext = &renderingCreateInfo,
+      .stageCount = shaderStages.size(),
+      .pStages = shaderStages.data(),
+      .pVertexInputState = &vertexInputInfo,
+      .pInputAssemblyState = &inputAssembly,
+      .pViewportState = &viewportState,
+      .pRasterizationState = &rasterizer,
+      .pMultisampleState = &multisampling,
+      .pColorBlendState = &colorBlending,
+      .pDynamicState = dynamicStateInfo,
+      .layout = pipelineLayout,
+      .renderPass = nullptr,
+  };
+
+  Logger::trace("Creating Graphics Pipeline");
+  auto pipeline_res =
+      device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
+
+  if (!pipeline_res) {
+    Logger::error("Failed to create graphics pipeline: {}",
+                  vk::to_string(pipeline_res.error()));
+    return std::unexpected("Failed to create graphics pipeline");
+  }
+  Logger::trace("Graphics Pipeline created");
+
+  auto &pipeline = pipeline_res.value();
+
+  return std::move(pipeline);
+}
+
+auto createSyncObjects(const vk::raii::Device &device)
+    -> std::expected<App::SyncObjects, std::string> {
+  auto presentCompleteSemaphore_res =
+      device.createSemaphore(vk::SemaphoreCreateInfo{});
+  if (!presentCompleteSemaphore_res) {
+    Logger::error("Failed to create present complete semaphore: {}",
+                  vk::to_string(presentCompleteSemaphore_res.error()));
+    return std::unexpected("Failed to create present complete semaphore");
+  }
+  auto &presentCompleteSemaphore = presentCompleteSemaphore_res.value();
+
+  auto renderCompleteSemaphore_res =
+      device.createSemaphore(vk::SemaphoreCreateInfo{});
+  if (!renderCompleteSemaphore_res) {
+    Logger::error("Failed to create render complete semaphore: {}",
+                  vk::to_string(renderCompleteSemaphore_res.error()));
+    return std::unexpected("Failed to create render complete semaphore");
+  }
+
+  auto &renderCompleteSemaphore = renderCompleteSemaphore_res.value();
+
+  auto drawingFence_res = device.createFence(
+      vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled});
+  if (!drawingFence_res) {
+    Logger::error("Failed to create drawing fence: {}",
+                  vk::to_string(drawingFence_res.error()));
+    return std::unexpected("Failed to create drawing fence");
+  }
+  auto &drawingFence = drawingFence_res.value();
+
+  App::SyncObjects syncObjects{
+      .presentCompleteSemaphore = std::move(presentCompleteSemaphore),
+      .renderCompleteSemaphore = std::move(renderCompleteSemaphore),
+      .drawingFence = std::move(drawingFence)};
+
+  return syncObjects;
 }
 
 auto App::create() -> std::expected<App, std::string> {
@@ -329,19 +472,18 @@ auto App::create() -> std::expected<App, std::string> {
 
   [[maybe_unused]] auto &[device, queues] = device_res.value();
 
-  auto swapchain_res =
-      createSwapchain(physicalDevice, device, window.get(), surface, queues);
+  auto swapchain_res = createSwapchain(physicalDevice, device, window.get(),
+                                       surface, queues, std::nullopt);
 
   if (!swapchain_res) {
-    Logger::error("Failed to create swapchain: {}",
-                  swapchain_res.error());
+    Logger::error("Failed to create swapchain: {}", swapchain_res.error());
     return std::unexpected(swapchain_res.error());
   }
 
   auto &[swapchainConfig, swapchain] = swapchain_res.value();
 
-  auto shader_res = engine::createShaderModule(
-      device, "shaders/build/basic.spv");
+  auto shader_res =
+      engine::createShaderModule(device, "basic.spv");
 
   if (!shader_res) {
     Logger::error("Failed to create shader module: {}", shader_res.error());
@@ -351,12 +493,52 @@ auto App::create() -> std::expected<App, std::string> {
   auto &shaderModule = shader_res.value();
 
   [[maybe_unused]]
-  auto pipelineShaderStages =
-      engine::createPipelineShaderStages(shaderModule);
+  auto pipelineShaderStages = engine::createPipelineShaderStages(shaderModule);
+
+  auto pipeline_res =
+      createPipeline(device, swapchainConfig, pipelineShaderStages);
+  if (!pipeline_res) {
+    Logger::error("Failed to create pipeline: {}", pipeline_res.error());
+    return std::unexpected(pipeline_res.error());
+  }
+
+  auto &pipeline = pipeline_res.value();
+
+  auto commandPool_res = device.createCommandPool(vk::CommandPoolCreateInfo{
+      .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+      .queueFamilyIndex = queues.graphicsQueue.index});
+  if (!commandPool_res) {
+    Logger::error("Failed to create command pool: {}",
+                  vk::to_string(commandPool_res.error()));
+    return std::unexpected("Failed to create command pool");
+  }
+
+  auto &commandPool = commandPool_res.value();
+
+  auto syncObjects_res1 = createSyncObjects(device);
+  if (!syncObjects_res1) {
+    Logger::error("Failed to create sync objects: {}",
+                  syncObjects_res1.error());
+    return std::unexpected(syncObjects_res1.error());
+  }
+
+  auto &syncObjects1 = syncObjects_res1.value();
+
+  auto syncObjects_res2 = createSyncObjects(device);
+  if (!syncObjects_res2) {
+    Logger::error("Failed to create sync objects: {}",
+                  syncObjects_res2.error());
+    return std::unexpected(syncObjects_res2.error());
+  }
+
+  auto &syncObjects2 = syncObjects_res2.value();
+
+  std::array<App::SyncObjects, MAX_FRAMES_IN_FLIGHT> syncObjects = {
+      std::move(syncObjects1), std::move(syncObjects2)};
 
   Logger::trace("Creating App");
-  App app(window, context, instance, surface, device, queues, swapchainConfig,
-          swapchain);
+  App app(window, context, instance, surface, physicalDevice, device, queues,
+          swapchainConfig, swapchain, pipeline, commandPool, syncObjects);
 
   if (enableValidationLayers) {
     Logger::trace("Creating Debug Messenger");
@@ -372,4 +554,29 @@ auto App::create() -> std::expected<App, std::string> {
   }
 
   return app;
+}
+
+auto App::recreateSwapchain() -> std::expected<void, std::string> {
+  Logger::trace("Recreating Swapchain");
+
+  auto newSwapchain_res =
+      createSwapchain(physicalDevice, device, window.get(), surface, queues,
+                      &swapchain.swapchain);
+  if (!newSwapchain_res) {
+    Logger::error("Failed to recreate swapchain: {}", newSwapchain_res.error());
+    return std::unexpected(newSwapchain_res.error());
+  }
+
+  auto &[newSwapchainConfig, newSwapchain] = newSwapchain_res.value();
+
+  oldSwapchain = OldSwapchain{
+      .swapchain = std::move(swapchain.swapchain),
+      .frameIndex = currentFrame,
+  };
+
+  swapchainConfig = newSwapchainConfig;
+  swapchain = std::move(newSwapchain);
+
+  Logger::trace("Swapchain recreated successfully");
+  return {};
 }

@@ -6,7 +6,7 @@
       "request": "launch",
       "name": "Windows Engine",
       "expressions": "native",
-      "program": "${workspaceFolder}/build/bin/engine.exe"
+      "program": "${workspaceFolder}/build/Debug/VoxelEngine.exe"
     },
     {
       "type": "codelldb",
