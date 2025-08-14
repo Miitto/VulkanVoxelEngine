@@ -9,10 +9,9 @@
 
 #include <engine/core.hpp>
 #include <engine/debug.hpp>
+#include <engine/vulkan/extensions/pipeline.hpp>
 #include <engine/vulkan/physicalDeviceSelector.hpp>
-#include <engine/vulkan/pipeline.hpp>
 #include <engine/vulkan/shaders.hpp>
-#include <engine/vulkan/swapchainConfig.hpp>
 
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
@@ -216,8 +215,9 @@ auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
                      const vk::raii::SurfaceKHR &surface,
                      const App::Queues &queues,
                      std::optional<vk::raii::SwapchainKHR *> oldSwapchain)
-    -> std::expected<std::tuple<App::SwapchainConfig, App::Swapchain>,
-                     std::string> {
+    -> std::expected<
+        std::tuple<engine::vulkan::SwapchainConfig, engine::vulkan::Swapchain>,
+        std::string> {
   auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
 
   auto format = engine::vulkan::chooseSwapSurfaceFormat(
@@ -230,87 +230,34 @@ auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
   auto desiredImageCount =
       engine::vulkan::desiredImageCount(surfaceCapabilities);
 
-  App::SwapchainConfig swapchainConfig{.format = format,
-                                       .presentMode = presentMode,
-                                       .extent = extent,
-                                       .minImageCount = minImageCount,
-                                       .imageCount = desiredImageCount};
+  engine::vulkan::SwapchainConfig swapchainConfig{
+      .format = format,
+      .presentMode = presentMode,
+      .extent = extent,
+      .minImageCount = minImageCount,
+      .imageCount = desiredImageCount};
 
-  vk::SwapchainCreateInfoKHR swapchainCreateInfo{
-      .surface = *surface,
-      .minImageCount = swapchainConfig.minImageCount,
-      .imageFormat = swapchainConfig.format.format,
-      .imageColorSpace = swapchainConfig.format.colorSpace,
-      .imageExtent = swapchainConfig.extent,
-      .imageArrayLayers = 1,
-      .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
-      .preTransform = surfaceCapabilities.currentTransform,
-      .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
-      .presentMode = swapchainConfig.presentMode,
-      .clipped = VK_TRUE};
+  auto swapchain_res = engine::vulkan::Swapchain::create(
+      device, swapchainConfig, physicalDevice, surface,
+      {.graphicsQueueIndex = queues.graphicsQueue.index,
+       .presentQueueIndex = queues.presentQueue.index},
+      oldSwapchain);
 
-  std::array<uint32_t, 2> queueFamilyIndices = {queues.graphicsQueue.index,
-                                                queues.presentQueue.index};
-
-  if (queues.graphicsQueue.index != queues.presentQueue.index) {
-    swapchainCreateInfo.imageSharingMode = vk::SharingMode::eConcurrent;
-    swapchainCreateInfo.queueFamilyIndexCount = 2;
-    swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices.data();
-  } else {
-    swapchainCreateInfo.imageSharingMode = vk::SharingMode::eExclusive;
-    swapchainCreateInfo.queueFamilyIndexCount = 0;
-    swapchainCreateInfo.pQueueFamilyIndices = nullptr;
-  }
-
-  if (oldSwapchain) {
-    swapchainCreateInfo.oldSwapchain = **oldSwapchain;
-  } else {
-    swapchainCreateInfo.oldSwapchain = nullptr;
-  }
-
-  auto swapchain_res = device.createSwapchainKHR(swapchainCreateInfo);
   if (!swapchain_res) {
-    Logger::error("Failed to create swapchain: {}",
-                  vk::to_string(swapchain_res.error()));
-    return std::unexpected("Failed to create swapchain");
+    Logger::error("Failed to create swapchain: {}", swapchain_res.error());
+    return std::unexpected(swapchain_res.error());
   }
-
   auto &swapchain = swapchain_res.value();
-
-  auto images = swapchain.getImages();
-
-  vk::ImageViewCreateInfo imageViewCreateInfo{
-      .viewType = vk::ImageViewType::e2D,
-      .format = swapchainConfig.format.format,
-      .subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
-
-  std::vector<vk::raii::ImageView> imageViews;
-
-  for (const auto &image : images) {
-    imageViewCreateInfo.image = image;
-    auto imageView_res = device.createImageView(imageViewCreateInfo);
-    if (!imageView_res) {
-      Logger::error("Failed to create image view: {}",
-                    vk::to_string(imageView_res.error()));
-      return std::unexpected("Failed to create image view");
-    }
-    imageViews.push_back(std::move(imageView_res.value()));
-  }
-
-  App::Swapchain swapchain_objects{.swapchain = std::move(swapchain),
-                                   .images = std::move(images),
-                                   .imageViews = std::move(imageViews)};
-
-  return std::make_tuple(swapchainConfig, std::move(swapchain_objects));
+  return std::make_tuple(swapchainConfig, std::move(swapchain));
 }
 
 auto createPipeline(const vk::raii::Device &device,
-                    const App::SwapchainConfig &swapchainConfig,
+                    const engine::vulkan::SwapchainConfig &swapchainConfig,
                     const engine::PipelineShaderStages shaderStages)
     -> std::expected<vk::raii::Pipeline, std::string> {
   Logger::trace("Creating Graphics Pipeline");
-  engine::DynamicStateInfo dynamicStateInfo(vk::DynamicState::eViewport,
-                                            vk::DynamicState::eScissor);
+  engine::vulkan::DynamicStateInfo dynamicStateInfo(vk::DynamicState::eViewport,
+                                                    vk::DynamicState::eScissor);
 
   vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
 
@@ -541,9 +488,8 @@ auto App::recreateSwapchain() -> std::expected<void, std::string> {
   auto &window = core.getWindow();
   auto &surface = core.getSurface();
 
-  auto newSwapchain_res =
-      createSwapchain(physicalDevice, device, window.get(), surface, queues,
-                      &swapchain.swapchain);
+  auto newSwapchain_res = createSwapchain(physicalDevice, device, window.get(),
+                                          surface, queues, &*swapchain);
   if (!newSwapchain_res) {
     Logger::error("Failed to recreate swapchain: {}", newSwapchain_res.error());
     return std::unexpected(newSwapchain_res.error());
@@ -552,7 +498,7 @@ auto App::recreateSwapchain() -> std::expected<void, std::string> {
   auto &[newSwapchainConfig, newSwapchain] = newSwapchain_res.value();
 
   oldSwapchain = OldSwapchain{
-      .swapchain = std::move(swapchain.swapchain),
+      .swapchain = std::move(swapchain),
       .frameIndex = currentFrame,
   };
 

@@ -78,7 +78,7 @@ public:
     Logger::trace("Acquired next image successfully.");
 
     auto &[imageIndex, state] = nextImage_res.value();
-    if (state == App::SwapchainState::OutOfDate) {
+    if (state == engine::vulkan::Swapchain::State::OutOfDate) {
       Logger::warn("Swapchain is out of date, recreating it.");
       auto res = app.recreateSwapchain();
       if (!res) {
@@ -93,10 +93,10 @@ public:
 
     cmdBuffer.begin(vk::CommandBufferBeginInfo{
         .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-    app.preRender(cmdBuffer);
+    app.preRender(cmdBuffer, imageIndex);
 
     vk::RenderingAttachmentInfo attachmentInfo{
-        .imageView = app.getSwapchainImageView(imageIndex),
+        .imageView = app.getSwapchain()[imageIndex],
         .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
         .loadOp = vk::AttachmentLoadOp::eClear,
         .storeOp = vk::AttachmentStoreOp::eStore,
@@ -133,7 +133,7 @@ public:
 
     cmdBuffer.endRendering();
 
-    app.postRender(cmdBuffer);
+    app.postRender(cmdBuffer, imageIndex);
 
     cmdBuffer.end();
 
@@ -158,14 +158,17 @@ public:
         .waitSemaphoreCount = 1,
         .pWaitSemaphores = &*syncObjects.renderCompleteSemaphore,
         .swapchainCount = 1,
-        .pSwapchains = &*app.getSwapchain().swapchain,
+        .pSwapchains = &**app.getSwapchain(),
         .pImageIndices = &imageIndex};
 
     Logger::trace("Presenting image to swapchain");
     auto result = static_cast<vk::Result>(
-        queues.presentQueue.queue->getDispatcher()->vkQueuePresentKHR(**queues.presentQueue.queue, &*presentInfo));
+        queues.presentQueue.queue->getDispatcher()->vkQueuePresentKHR(
+            **queues.presentQueue.queue, &*presentInfo));
 
-    if (state == App::SwapchainState::Suboptimal || result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR) {
+    if (state == engine::vulkan::Swapchain::State::Suboptimal ||
+        result == vk::Result::eSuboptimalKHR ||
+        result == vk::Result::eErrorOutOfDateKHR) {
       Logger::warn("Swapchain is suboptimal, consider recreating it.");
       auto res = app.recreateSwapchain();
       if (!res) {
@@ -176,10 +179,10 @@ public:
       return true;
     }
 
-	if (result != vk::Result::eSuccess) {
-		Logger::error("Failed to present image: {}", vk::to_string(result));
-		return false;
-	}
+    if (result != vk::Result::eSuccess) {
+      Logger::error("Failed to present image: {}", vk::to_string(result));
+      return false;
+    }
 
     Logger::trace("Frame rendered successfully.");
     return true;

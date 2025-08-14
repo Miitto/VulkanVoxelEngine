@@ -9,6 +9,7 @@ target_sources(${PROJECT_NAME} PUBLIC
   engine/logger.cpp
   engine/image.cpp
   engine/vulkan/vk-logger.cpp
+  engine/vulkan/extensions/swapchain.cpp
 )
 
 target_include_directories(${PROJECT_NAME} INTERFACE

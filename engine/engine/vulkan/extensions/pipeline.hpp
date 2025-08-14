@@ -3,7 +3,7 @@
 #include <array>
 #include <vulkan/vulkan_raii.hpp>
 
-namespace engine {
+namespace engine::vulkan {
 
 template <typename... Args> class DynamicStateInfo {
   std::array<vk::DynamicState, sizeof...(Args)> dynamicStates;
@@ -24,4 +24,4 @@ public:
     return &dynamicStateCreateInfo;
   }
 };
-} // namespace engine
+} // namespace engine::vulkan

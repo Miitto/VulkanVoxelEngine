@@ -4,6 +4,7 @@
 #include <string>
 
 #include "engine/core.hpp"
+#include "engine/vulkan/extensions/swapchain.hpp"
 #include "logger.hpp"
 #include "vulkan/vulkan_raii.hpp"
 #include <GLFW/glfw3.h>
@@ -25,20 +26,6 @@ public:
     Queue presentQueue;
   };
 
-  struct SwapchainConfig {
-    vk::SurfaceFormatKHR format;
-    vk::PresentModeKHR presentMode;
-    vk::Extent2D extent;
-    uint32_t minImageCount;
-    uint32_t imageCount;
-  };
-
-  struct Swapchain {
-    vk::raii::SwapchainKHR swapchain;
-    std::vector<vk::Image> images;
-    std::vector<vk::raii::ImageView> imageViews;
-  };
-
   struct SyncObjects {
     vk::raii::Semaphore presentCompleteSemaphore;
     vk::raii::Semaphore renderCompleteSemaphore;
@@ -51,8 +38,8 @@ private:
   vk::raii::PhysicalDevice physicalDevice;
   vk::raii::Device device;
   Queues queues;
-  SwapchainConfig swapchainConfig;
-  Swapchain swapchain;
+  engine::vulkan::SwapchainConfig swapchainConfig;
+  engine::vulkan::Swapchain swapchain;
 
   vk::raii::Pipeline pipeline;
   vk::raii::CommandPool commandPool;
@@ -62,7 +49,7 @@ private:
   int currentFrame = 0;
 
   struct OldSwapchain {
-    vk::raii::SwapchainKHR swapchain;
+    engine::vulkan::Swapchain swapchain;
     int frameIndex;
   };
 
@@ -87,30 +74,32 @@ public:
 
   App(engine::rendering::Core &core, vk::raii::PhysicalDevice &physicalDevice,
       vk::raii::Device &device, Queues &queues,
-      SwapchainConfig &swapchainConfig, Swapchain &swapchain,
-      vk::raii::Pipeline &pipeline, vk::raii::CommandPool &commandPool,
+      engine::vulkan::SwapchainConfig &swapchainConfig,
+      engine::vulkan::Swapchain &swapchain, vk::raii::Pipeline &pipeline,
+      vk::raii::CommandPool &commandPool,
       std::array<SyncObjects, 2> &syncObjects)
-      : core(std::move(core)),
-        physicalDevice(std::move(physicalDevice)), device(std::move(device)),
-        queues(std::move(queues)), swapchainConfig(swapchainConfig),
-        swapchain(std::move(swapchain)), pipeline(std::move(pipeline)),
-        commandPool(std::move(commandPool)),
+      : core(std::move(core)), physicalDevice(std::move(physicalDevice)),
+        device(std::move(device)), queues(std::move(queues)),
+        swapchainConfig(swapchainConfig), swapchain(std::move(swapchain)),
+        pipeline(std::move(pipeline)), commandPool(std::move(commandPool)),
         syncObjects(std::move(syncObjects)) {}
 
-  void preRender(const vk::raii::CommandBuffer &commandBuffer) {
+  void preRender(const vk::raii::CommandBuffer &commandBuffer,
+                 const size_t index) {
     Logger::trace("Pre render");
     engine::transitionImageLayout(
-        commandBuffer, swapchain.images[currentFrame],
-        vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal,
-        {}, vk::AccessFlagBits2::eColorAttachmentWrite,
+        commandBuffer, swapchain.nImage(index), vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal, {},
+        vk::AccessFlagBits2::eColorAttachmentWrite,
         vk::PipelineStageFlagBits2::eTopOfPipe,
         vk::PipelineStageFlagBits2::eColorAttachmentOutput);
   }
 
-  void postRender(const vk::raii::CommandBuffer &commandBuffer) {
+  void postRender(const vk::raii::CommandBuffer &commandBuffer,
+                  const size_t index) {
     Logger::trace("Post render");
     engine::transitionImageLayout(
-        commandBuffer, swapchain.images[currentFrame],
+        commandBuffer, swapchain.nImage(index),
         vk::ImageLayout::eColorAttachmentOptimal,
         vk::ImageLayout::ePresentSrcKHR,
         vk::AccessFlagBits2::eColorAttachmentWrite, {},
@@ -118,11 +107,12 @@ public:
         vk::PipelineStageFlagBits2::eBottomOfPipe);
   }
 
-  [[nodiscard]] auto getSwapchainConfig() const -> const SwapchainConfig & {
+  [[nodiscard]] auto getSwapchainConfig() const
+      -> const engine::vulkan::SwapchainConfig & {
     return swapchainConfig;
   }
 
-  [[nodiscard]] auto getSwapchain() const -> const Swapchain & {
+  [[nodiscard]] auto getSwapchain() const -> const engine::vulkan::Swapchain & {
     return swapchain;
   }
 
@@ -138,16 +128,6 @@ public:
 
   [[nodiscard]] auto getSyncObjects() const -> const SyncObjects & {
     return syncObjects[currentFrame];
-  }
-
-  [[nodiscard]] auto getSwapchainImage(size_t index) const
-      -> const vk::Image & {
-    return swapchain.images[index];
-  }
-
-  [[nodiscard]] auto getSwapchainImageView(size_t index) const
-      -> const vk::raii::ImageView & {
-    return swapchain.imageViews[index];
   }
 
   [[nodiscard]] auto getCurrentCommandPool() const
@@ -185,45 +165,9 @@ public:
     }
   }
 
-  enum class SwapchainState : uint8_t { Ok, Suboptimal, OutOfDate };
-
-  [[nodiscard]] auto getNextImage()
-      -> std::expected<std::pair<uint32_t, SwapchainState>, std::string> {
+  auto getNextImage() {
     auto &sync = getSyncObjects();
-    while (vk::Result::eTimeout ==
-           device.waitForFences({*sync.drawingFence}, VK_TRUE, UINT64_MAX)) {
-      // Wait for the queue to become idle
-    }
-    auto [result, index] = swapchain.swapchain.acquireNextImage(
-        std::numeric_limits<uint64_t>::max(), sync.presentCompleteSemaphore,
-        nullptr);
-
-    device.resetFences({*sync.drawingFence});
-
-    if (result != vk::Result::eSuccess &&
-        result != vk::Result::eSuboptimalKHR) {
-      return std::unexpected("Failed to acquire next image: " +
-                             vk::to_string(result));
-    }
-
-    if (result == vk::Result::eSuboptimalKHR) {
-      Logger::warn("Swapchain is suboptimal, consider recreating it.");
-      return std::make_pair(index, SwapchainState::Suboptimal);
-    }
-
-    if (result == vk::Result::eErrorOutOfDateKHR) {
-      Logger::warn("Swapchain is out of date, recreate it.");
-      return std::make_pair(index, SwapchainState::OutOfDate);
-    }
-
-    return std::make_pair(index, SwapchainState::Ok);
+    return swapchain.getNextImage(device, sync.drawingFence,
+                                  sync.presentCompleteSemaphore);
   }
 };
-
-
-
-
-
-
-
-
