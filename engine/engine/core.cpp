@@ -5,18 +5,12 @@
 
 namespace engine::rendering {
 
-auto Core::create(const WindowAttribs windowAttribs,
+auto Core::create(const engine::Window::Attribs windowAttribs,
                   const InstanceAdditions &instanceAdditions,
                   const bool enableValidationLayers)
     -> std::expected<Core, std::string> {
   Logger::info("Creating GLFW window...");
-  auto win_ptr = glfwCreateWindow(windowAttribs.width, windowAttribs.height,
-                                  windowAttribs.title, nullptr, nullptr);
-  auto window = std::unique_ptr<GLFWwindow, void (*)(GLFWwindow *)>(
-      win_ptr, [](GLFWwindow *window) {
-        Logger::info("Destroying window");
-        glfwDestroyWindow(window);
-      });
+  auto window = engine::Window(windowAttribs);
 
   Logger::trace("Creating Context");
   auto context = vk::raii::Context();

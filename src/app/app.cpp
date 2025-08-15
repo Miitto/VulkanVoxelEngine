@@ -10,8 +10,8 @@
 #include <engine/core.hpp>
 #include <engine/debug.hpp>
 #include <engine/vulkan/extensions/pipeline.hpp>
+#include <engine/vulkan/extensions/shader.hpp>
 #include <engine/vulkan/physicalDeviceSelector.hpp>
-#include <engine/vulkan/shaders.hpp>
 
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
@@ -224,7 +224,8 @@ auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
       physicalDevice.getSurfaceFormatsKHR(surface));
   auto presentMode = engine::vulkan::chooseSwapPresentMode(
       physicalDevice.getSurfacePresentModesKHR(surface));
-  auto extent = engine::vulkan::chooseSwapExtent(window, surfaceCapabilities);
+  auto extent =
+      engine::vulkan::chooseSwapExtent(window, surfaceCapabilities, true);
   auto minImageCount =
       engine::vulkan::minImageCount(surfaceCapabilities, MAX_FRAMES_IN_FLIGHT);
   auto desiredImageCount =
@@ -251,9 +252,10 @@ auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
   return std::make_tuple(swapchainConfig, std::move(swapchain));
 }
 
-auto createPipeline(const vk::raii::Device &device,
-                    const engine::vulkan::SwapchainConfig &swapchainConfig,
-                    const engine::PipelineShaderStages shaderStages)
+auto createPipeline(
+    const vk::raii::Device &device,
+    const engine::vulkan::SwapchainConfig &swapchainConfig,
+    const std::span<vk::PipelineShaderStageCreateInfo> shaderStages)
     -> std::expected<vk::raii::Pipeline, std::string> {
   Logger::trace("Creating Graphics Pipeline");
   engine::vulkan::DynamicStateInfo dynamicStateInfo(vk::DynamicState::eViewport,
@@ -312,7 +314,7 @@ auto createPipeline(const vk::raii::Device &device,
 
   vk::GraphicsPipelineCreateInfo pipelineCreateInfo{
       .pNext = &renderingCreateInfo,
-      .stageCount = shaderStages.size(),
+      .stageCount = static_cast<uint32_t>(shaderStages.size()),
       .pStages = shaderStages.data(),
       .pVertexInputState = &vertexInputInfo,
       .pInputAssemblyState = &inputAssembly,
@@ -422,7 +424,7 @@ auto App::create() -> std::expected<App, std::string> {
 
   auto &[swapchainConfig, swapchain] = swapchain_res.value();
 
-  auto shader_res = engine::createShaderModule(device, "basic.spv");
+  auto shader_res = engine::vulkan::Shader::create(device, "basic.spv");
 
   if (!shader_res) {
     Logger::error("Failed to create shader module: {}", shader_res.error());
@@ -432,7 +434,7 @@ auto App::create() -> std::expected<App, std::string> {
   auto &shaderModule = shader_res.value();
 
   [[maybe_unused]]
-  auto pipelineShaderStages = engine::createPipelineShaderStages(shaderModule);
+  auto pipelineShaderStages = shaderModule.vertFrag();
 
   auto pipeline_res =
       createPipeline(device, swapchainConfig, pipelineShaderStages);

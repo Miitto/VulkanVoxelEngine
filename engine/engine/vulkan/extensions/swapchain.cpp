@@ -28,14 +28,23 @@ auto chooseSwapPresentMode(
 }
 
 auto chooseSwapExtent(GLFWwindow *window,
-                      const vk::SurfaceCapabilitiesKHR &capabilities)
-    -> vk::Extent2D {
+                      const vk::SurfaceCapabilitiesKHR &capabilities,
+                      const bool waitOnZero) -> vk::Extent2D {
   if (capabilities.currentExtent.width !=
       std::numeric_limits<uint32_t>::max()) {
     return capabilities.currentExtent;
   }
-  int width, height;
+  int width = 0, height = 0;
   glfwGetFramebufferSize(window, &width, &height);
+  if (waitOnZero && (width == 0 || height == 0)) {
+    // If the window size is zero, we cannot create a swapchain.
+    // We should wait until the window is resized.
+    Logger::warn("Window size is zero, waiting for resize.");
+    while (width == 0 || height == 0) {
+      glfwGetFramebufferSize(window, &width, &height);
+      glfwWaitEvents();
+    }
+  }
 
   return {
       .width = std::clamp<uint32_t>(width, capabilities.minImageExtent.width,

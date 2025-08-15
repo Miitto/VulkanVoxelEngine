@@ -112,6 +112,17 @@ public:
     return swapchainConfig;
   }
 
+  [[nodiscard]] auto getCore() const -> const engine::rendering::Core & {
+    return core;
+  }
+
+  [[nodiscard]] auto getCore() -> engine::rendering::Core & { return core; }
+
+  [[nodiscard]] auto getPhysicalDevice() const
+      -> const vk::raii::PhysicalDevice & {
+    return physicalDevice;
+  }
+
   [[nodiscard]] auto getSwapchain() const -> const engine::vulkan::Swapchain & {
     return swapchain;
   }
@@ -161,6 +172,20 @@ public:
       if (device.waitForFences({*syncObjects[old.frameIndex].drawingFence},
                                VK_TRUE, 0) == vk::Result::eSuccess) {
         oldSwapchain = std::nullopt;
+      }
+    }
+
+    auto size = core.getWindow().getNewSize();
+    if (size.has_value()) {
+      Logger::trace("Window resized, recreating swapchain");
+      if (oldSwapchain.has_value()) {
+        Logger::trace(
+            "Recreating too fast, Waiting for old swapchain to be idle");
+        device.waitIdle();
+      }
+      auto res = recreateSwapchain();
+      if (!res) {
+        Logger::error("Failed to recreate swapchain: {}", res.error());
       }
     }
   }

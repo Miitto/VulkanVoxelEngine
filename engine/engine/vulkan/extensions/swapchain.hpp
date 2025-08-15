@@ -23,8 +23,8 @@ auto chooseSwapPresentMode(
     -> vk::PresentModeKHR;
 
 auto chooseSwapExtent(GLFWwindow *window,
-                      const vk::SurfaceCapabilitiesKHR &capabilities)
-    -> vk::Extent2D;
+                      const vk::SurfaceCapabilitiesKHR &capabilities,
+                      const bool waitOnZero = false) -> vk::Extent2D;
 
 auto minImageCount(const vk::SurfaceCapabilitiesKHR &capabilities,
                    uint32_t desired) -> uint32_t;

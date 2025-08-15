@@ -47,22 +47,38 @@ public:
 
   void run() {
     Logger::info("Starting application...");
+    app.getCore().getWindow().setResizeCallback(
+        this, [](engine::Dimensions dim, void *data) {
+          Logger::trace("Window resized to {}x{}", dim.width, dim.height);
+          auto *self = reinterpret_cast<Program *>(data);
+
+          self->redraw();
+        });
 
     while (!app.shouldClose()) {
       app.poll();
 
-      if (!update()) {
-        Logger::error("Update failed, exiting...");
-        break;
-      }
-
-      if (!render()) {
-        Logger::error("Render failed, exiting...");
+      if (redraw()) {
+        Logger::error("Redraw failed, exiting...");
         break;
       }
 
       app.endFrame();
     }
+  }
+
+  auto redraw() -> bool {
+    if (!update()) {
+      Logger::error("Update failed, exiting...");
+      return true;
+    }
+
+    if (!render()) {
+      Logger::error("Render failed, exiting...");
+      return true;
+    }
+
+    return false;
   }
 
   auto update() -> bool { return true; }

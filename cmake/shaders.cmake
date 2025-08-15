@@ -2,7 +2,7 @@ find_program(SLANGC_EXECUTABLE NAMES slangc REQUIRED)
 
 function(compile_shader target)
   cmake_parse_arguments(PARSE_ARGV 0 arg "" "" "SOURCES")
-  set(ENTRY_POINTS -entry vertMain -entry fragMain)
+  set(ENTRY_POINTS -entry vert -entry frag)
   set(OUTPUTS "")
   foreach(source ${arg_SOURCES})
     set(SOURCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/${source}.slang)

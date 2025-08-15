@@ -7,6 +7,19 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+find_program(SCCACHE_FOUND sccache)
+
+if(SCCACHE_FOUND)
+  message(STATUS "Using sccache for compilation")
+  set(CMAKE_CXX_COMPILER_LAUNCHER ${SCCACHE_FOUND})
+  set(CMAKE_C_COMPILER_LAUNCHER ${SCCACHE_FOUND})
+  # For MSVC debug information format
+  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
+  cmake_policy(SET CMP0141 NEW)
+else()
+  message(STATUS "sccache not found, using default compiler")
+endif()
+
 add_executable(${PROJECT_NAME})
 
 # set_target_properties(${PROJECT_NAME} PROPERTIES

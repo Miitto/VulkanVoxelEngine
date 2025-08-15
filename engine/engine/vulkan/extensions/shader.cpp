@@ -1,16 +1,13 @@
-#pragma once
+#include "shader.hpp"
 
-#include <expected>
 #include <fstream>
-#include <string>
 #include <vector>
-#include <vulkan/vulkan_raii.hpp>
 
-namespace engine {
-
+namespace engine::vulkan {
+namespace {
 auto readFile(const std::string &filename)
     -> std::expected<std::vector<char>, std::string> {
-    std::string path(SHADER_DIR + filename);
+  std::string path(SHADER_DIR + filename);
   std::ifstream file(path, std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
@@ -55,30 +52,17 @@ auto createShaderModule(const vk::raii::Device &device,
 
   return std::move(shaderModule);
 }
+} // namespace
 
-class PipelineShaderStages {
-public:
-  vk::PipelineShaderStageCreateInfo vertex;
-  vk::PipelineShaderStageCreateInfo fragment;
+auto Shader::create(const vk::raii::Device &device, const std::string &filename)
+    -> std::expected<Shader, std::string> {
+  auto shaderModule_res = createShaderModule(device, filename);
 
-  [[nodiscard]] consteval auto size() const -> size_t { return 2; }
-  [[nodiscard]] auto data() const -> const vk::PipelineShaderStageCreateInfo * {
-    return &vertex;
+  if (!shaderModule_res) {
+    return std::unexpected(shaderModule_res.error());
   }
-};
 
-[[nodiscard]]
-auto createPipelineShaderStages(const vk::raii::ShaderModule &module) {
-  vk::PipelineShaderStageCreateInfo vertex{.stage =
-                                               vk::ShaderStageFlagBits::eVertex,
-                                           .module = *module,
-                                           .pName = "vertMain"};
-
-  vk::PipelineShaderStageCreateInfo fragment{
-      .stage = vk::ShaderStageFlagBits::eFragment,
-      .module = *module,
-      .pName = "fragMain"};
-
-  return PipelineShaderStages{.vertex = vertex, .fragment = fragment};
+  return Shader(shaderModule_res.value());
 }
-} // namespace engine
+
+} // namespace engine::vulkan

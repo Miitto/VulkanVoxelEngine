@@ -8,8 +8,10 @@ target_sources(${PROJECT_NAME} PUBLIC
   engine/core.cpp
   engine/logger.cpp
   engine/image.cpp
+  engine/window.cpp
   engine/vulkan/vk-logger.cpp
   engine/vulkan/extensions/swapchain.cpp
+  engine/vulkan/extensions/shader.cpp
 )
 
 target_include_directories(${PROJECT_NAME} INTERFACE
