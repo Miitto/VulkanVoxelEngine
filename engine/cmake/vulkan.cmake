@@ -32,5 +32,8 @@ function(find_vulkan)
 endfunction()
 
 function(link_vulkan target)
-  target_link_libraries (${target} PUBLIC Vulkan::cppm)
+  target_link_libraries(${target} PUBLIC Vulkan::cppm)
+  target_precompile_headers(${target} PUBLIC
+    <vulkan/vulkan_raii.hpp>
+  )
 endfunction()

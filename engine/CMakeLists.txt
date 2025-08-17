@@ -21,15 +21,15 @@ target_include_directories(${PROJECT_NAME} INTERFACE
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-include(../cmake/vulkan.cmake)
+include(cmake/vulkan.cmake)
 find_vulkan()
 link_vulkan(${PROJECT_NAME})
 
-include(../cmake/glm.cmake)
+include(cmake/glm.cmake)
 link_glm(${PROJECT_NAME})
 
-include(../cmake/glfw.cmake)
+include(cmake/glfw.cmake)
 link_glfw(${PROJECT_NAME})
 
-include(../cmake/spdlog.cmake)
+include(cmake/spdlog.cmake)
 link_spdlog_header_only(${PROJECT_NAME})
