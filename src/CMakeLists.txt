@@ -4,3 +4,5 @@ target_sources(${PROJECT_NAME} PRIVATE
   vertex.cpp
   app/app.cpp
 )
+
+add_subdirectory(pipelines)

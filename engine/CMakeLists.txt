@@ -12,6 +12,7 @@ target_sources(${PROJECT_NAME} PUBLIC
   engine/vulkan/vk-logger.cpp
   engine/vulkan/extensions/swapchain.cpp
   engine/vulkan/extensions/shader.cpp
+  engine/vulkan/queueFinder.cpp
 )
 
 target_include_directories(${PROJECT_NAME} INTERFACE

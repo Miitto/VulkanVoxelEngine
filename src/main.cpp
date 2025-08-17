@@ -2,24 +2,29 @@
 #include <optional>
 
 #include "logger.hpp"
+#include "pipelines/pipelines.hpp"
 
 #include <engine/util/window_manager.hpp>
+#include <engine/vulkan/extensions/shader.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
 class Program {
   App app;
+  pipelines::GreedyVoxel pipeline;
 
   std::vector<vk::raii::CommandBuffer> commandBuffers;
 
-  Program(App &app, std::vector<vk::raii::CommandBuffer> &commandBuffers)
-      : app(std::move(app)), commandBuffers(std::move(commandBuffers)) {}
+  Program(App &app, pipelines::GreedyVoxel &pipeline,
+          std::vector<vk::raii::CommandBuffer> &commandBuffers)
+      : app(std::move(app)), pipeline(std::move(pipeline)),
+        commandBuffers(std::move(commandBuffers)) {}
 
 public:
-  static auto create() -> std::optional<Program> {
+  static auto create() -> std::expected<Program, std::string> {
     auto app_opt = App::create();
     if (!app_opt.has_value()) {
       Logger::critical("Failed to create App.");
-      return std::nullopt;
+      return std::unexpected(app_opt.error());
     }
 
     auto &app = app_opt.value();
@@ -29,12 +34,30 @@ public:
     if (!cmdBuffers_res) {
       Logger::critical("Failed to allocate command buffer: {}",
                        cmdBuffers_res.error());
-      return std::nullopt;
+      return std::unexpected(cmdBuffers_res.error());
     }
 
     auto &cmdBuffers = cmdBuffers_res.value();
 
-    return Program(app, cmdBuffers);
+    auto shader_res =
+        engine::vulkan::Shader::create(app.getDevice(), "basic.spv");
+
+    if (!shader_res) {
+      Logger::error("Failed to create shader module: {}", shader_res.error());
+      return std::unexpected(shader_res.error());
+    }
+
+    auto &shaderModule = shader_res.value();
+
+    [[maybe_unused]]
+    auto pipelineShaderStages = shaderModule.vertFrag();
+
+    auto greedyVoxel_res = pipelines::GreedyVoxel::create(
+        app.getDevice(), app.getSwapchainConfig(), pipelineShaderStages);
+
+    auto &pipeline = greedyVoxel_res.value();
+
+    return Program(app, pipeline, cmdBuffers);
   }
 
   void closing() {
@@ -128,7 +151,7 @@ public:
     Logger::trace("Beginning rendering");
     cmdBuffer.beginRendering(renderingInfo);
 
-    cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, app.getPipeline());
+    cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
     cmdBuffer.setViewport(
         0,

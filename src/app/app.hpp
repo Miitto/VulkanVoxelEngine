@@ -41,7 +41,6 @@ private:
   engine::vulkan::SwapchainConfig swapchainConfig;
   engine::vulkan::Swapchain swapchain;
 
-  vk::raii::Pipeline pipeline;
   vk::raii::CommandPool commandPool;
 
   std::array<SyncObjects, MAX_FRAMES_IN_FLIGHT> syncObjects;
@@ -75,13 +74,12 @@ public:
   App(engine::rendering::Core &core, vk::raii::PhysicalDevice &physicalDevice,
       vk::raii::Device &device, Queues &queues,
       engine::vulkan::SwapchainConfig &swapchainConfig,
-      engine::vulkan::Swapchain &swapchain, vk::raii::Pipeline &pipeline,
-      vk::raii::CommandPool &commandPool,
+      engine::vulkan::Swapchain &swapchain, vk::raii::CommandPool &commandPool,
       std::array<SyncObjects, 2> &syncObjects)
       : core(std::move(core)), physicalDevice(std::move(physicalDevice)),
         device(std::move(device)), queues(std::move(queues)),
         swapchainConfig(swapchainConfig), swapchain(std::move(swapchain)),
-        pipeline(std::move(pipeline)), commandPool(std::move(commandPool)),
+        commandPool(std::move(commandPool)),
         syncObjects(std::move(syncObjects)) {}
 
   void preRender(const vk::raii::CommandBuffer &commandBuffer,
@@ -132,10 +130,6 @@ public:
   }
 
   [[nodiscard]] auto getQueues() const -> const Queues & { return queues; }
-
-  [[nodiscard]] auto getPipeline() const -> const vk::raii::Pipeline & {
-    return pipeline;
-  }
 
   [[nodiscard]] auto getSyncObjects() const -> const SyncObjects & {
     return syncObjects[currentFrame];

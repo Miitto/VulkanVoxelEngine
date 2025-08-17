@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <memory>
 
+#include "engine/vulkan/queueFinder.hpp"
 #include "logger.hpp"
 
 #include <engine/core.hpp>
@@ -78,53 +79,49 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
     -> std::expected<std::tuple<vk::raii::Device, App::Queues>, std::string> {
   Logger::trace("Creating Logical Device");
 
-  auto queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
+  engine::vulkan::QueueFinder finder(physicalDevice);
 
-  auto enumerated = std::ranges::views::enumerate(queueFamilyProperties);
+  std::optional<uint32_t> graphicsQueueFamilyIndex_opt = std::nullopt;
+  std::optional<uint32_t> presentQueueFamilyIndex_opt = std::nullopt;
 
-  auto combinedFinder = [&physicalDevice, &surface](auto p) {
-    auto &[index, props] = p;
-    return bool(props.queueFlags & vk::QueueFlagBits::eGraphics) &&
-           physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(index),
-                                               surface);
-  };
+  using engine::vulkan::QueueFinder;
 
-  auto graphicsQueueFamilyIndex = 0u;
-  auto presentQueueFamilyIndex = 0u;
+  auto combinedFinder = finder.findCombined(
+      {QueueFinder::QueueType{.type = QueueFinder::QueueTypeFlags::Graphics},
+       {.type = QueueFinder::QueueTypeFlags::Present,
+        .params = QueueFinder::QueueTypeParams{
+            .presentQueue = {.device = physicalDevice, .surface = surface}}}});
 
-  auto combinedQueueFamilyIndex = static_cast<uint32_t>(std::distance(
-      enumerated.begin(), std::ranges::find_if(enumerated, combinedFinder)));
-
-  if (combinedQueueFamilyIndex == queueFamilyProperties.size()) {
-    auto graphicsFinder = [](auto const &props) {
-      return bool(props.queueFlags & vk::QueueFlagBits::eGraphics);
-    };
-
-    auto presentFinder = [&physicalDevice, &surface](auto const &p) {
-      auto &[index, props] = p;
-      return physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(index),
-                                                 surface);
-    };
-
-    auto graphicsQueueFamilyIt =
-        std::ranges::find_if(queueFamilyProperties, graphicsFinder);
-    auto presentQueueFamilyIt = std::ranges::find_if(enumerated, presentFinder);
-
-    if (graphicsQueueFamilyIt == queueFamilyProperties.end() ||
-        presentQueueFamilyIt == enumerated.end()) {
-      Logger::error("No suitable graphics or present queue family found");
-      return std::unexpected(
-          "No suitable graphics or present queue family found");
+  if (combinedFinder.hasQueue()) {
+    auto &queue = combinedFinder.first();
+    graphicsQueueFamilyIndex_opt = queue.index;
+    presentQueueFamilyIndex_opt = queue.index;
+  } else {
+    auto graphicsFinder = finder.findType(
+        QueueFinder::QueueType{.type = QueueFinder::QueueTypeFlags::Graphics});
+    if (graphicsFinder.hasQueue()) {
+      graphicsQueueFamilyIndex_opt = graphicsFinder.first().index;
+    } else {
+      Logger::error("No suitable graphics queue family found");
+      return std::unexpected("No suitable graphics queue family found");
     }
 
-    graphicsQueueFamilyIndex = static_cast<uint32_t>(
-        std::distance(queueFamilyProperties.begin(), graphicsQueueFamilyIt));
-    presentQueueFamilyIndex = static_cast<uint32_t>(
-        std::distance(enumerated.begin(), presentQueueFamilyIt));
-  } else {
-    graphicsQueueFamilyIndex = combinedQueueFamilyIndex;
-    presentQueueFamilyIndex = combinedQueueFamilyIndex;
+    auto presentFinder = finder.findType(QueueFinder::QueueType{
+        .type = QueueFinder::QueueTypeFlags::Present,
+        .params = QueueFinder::QueueTypeParams{
+            .presentQueue = {.device = physicalDevice, .surface = surface}}});
+
+    if (presentFinder.hasQueue()) {
+      presentQueueFamilyIndex_opt = presentFinder.first().index;
+    } else {
+      Logger::error("No suitable present queue family found");
+      return std::unexpected("No suitable present queue family found");
+    }
   }
+
+  auto graphicsQueueFamilyIndex = graphicsQueueFamilyIndex_opt.value();
+
+  auto presentQueueFamilyIndex = presentQueueFamilyIndex_opt.value();
 
   Logger::trace("Found Graphics Queue Family at index {}",
                 graphicsQueueFamilyIndex);
@@ -252,97 +249,6 @@ auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
   return std::make_tuple(swapchainConfig, std::move(swapchain));
 }
 
-auto createPipeline(
-    const vk::raii::Device &device,
-    const engine::vulkan::SwapchainConfig &swapchainConfig,
-    const std::span<vk::PipelineShaderStageCreateInfo> shaderStages)
-    -> std::expected<vk::raii::Pipeline, std::string> {
-  Logger::trace("Creating Graphics Pipeline");
-  engine::vulkan::DynamicStateInfo dynamicStateInfo(vk::DynamicState::eViewport,
-                                                    vk::DynamicState::eScissor);
-
-  vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
-
-  vk::PipelineInputAssemblyStateCreateInfo inputAssembly{
-      .topology = vk::PrimitiveTopology::eTriangleStrip};
-
-  vk::PipelineViewportStateCreateInfo viewportState{.viewportCount = 1,
-                                                    .scissorCount = 1};
-
-  vk::PipelineRasterizationStateCreateInfo rasterizer{
-      .depthClampEnable = vk::False,
-      .rasterizerDiscardEnable = vk::False,
-      .polygonMode = vk::PolygonMode::eFill,
-      .cullMode = vk::CullModeFlagBits::eBack,
-      .frontFace = vk::FrontFace::eClockwise,
-      .depthBiasEnable = vk::False,
-      .depthBiasSlopeFactor = 1.0f,
-      .lineWidth = 1.0f};
-
-  vk::PipelineMultisampleStateCreateInfo multisampling{
-      .rasterizationSamples = vk::SampleCountFlagBits::e1,
-      .sampleShadingEnable = vk::False,
-      .minSampleShading = 1.0f};
-
-  vk::PipelineColorBlendAttachmentState colorBlendAttachment{
-      .blendEnable = vk::False,
-      .colorWriteMask =
-          vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-          vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
-
-  vk::PipelineColorBlendStateCreateInfo colorBlending{
-      .logicOpEnable = vk::False,
-      .attachmentCount = 1,
-      .pAttachments = &colorBlendAttachment};
-
-  vk::PipelineLayoutCreateInfo layoutInfo{.setLayoutCount = 0,
-                                          .pushConstantRangeCount = 0};
-
-  auto pipelineLayout_res = device.createPipelineLayout(layoutInfo);
-  if (!pipelineLayout_res) {
-    Logger::error("Failed to create pipeline layout: {}",
-                  vk::to_string(pipelineLayout_res.error()));
-    return std::unexpected("Failed to create pipeline layout");
-  }
-
-  auto &pipelineLayout = pipelineLayout_res.value();
-
-  vk::PipelineRenderingCreateInfo renderingCreateInfo{
-      .colorAttachmentCount = 1,
-      .pColorAttachmentFormats = &swapchainConfig.format.format,
-  };
-
-  vk::GraphicsPipelineCreateInfo pipelineCreateInfo{
-      .pNext = &renderingCreateInfo,
-      .stageCount = static_cast<uint32_t>(shaderStages.size()),
-      .pStages = shaderStages.data(),
-      .pVertexInputState = &vertexInputInfo,
-      .pInputAssemblyState = &inputAssembly,
-      .pViewportState = &viewportState,
-      .pRasterizationState = &rasterizer,
-      .pMultisampleState = &multisampling,
-      .pColorBlendState = &colorBlending,
-      .pDynamicState = dynamicStateInfo,
-      .layout = pipelineLayout,
-      .renderPass = nullptr,
-  };
-
-  Logger::trace("Creating Graphics Pipeline");
-  auto pipeline_res =
-      device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
-
-  if (!pipeline_res) {
-    Logger::error("Failed to create graphics pipeline: {}",
-                  vk::to_string(pipeline_res.error()));
-    return std::unexpected("Failed to create graphics pipeline");
-  }
-  Logger::trace("Graphics Pipeline created");
-
-  auto &pipeline = pipeline_res.value();
-
-  return std::move(pipeline);
-}
-
 auto createSyncObjects(const vk::raii::Device &device)
     -> std::expected<App::SyncObjects, std::string> {
   auto presentCompleteSemaphore_res =
@@ -424,27 +330,6 @@ auto App::create() -> std::expected<App, std::string> {
 
   auto &[swapchainConfig, swapchain] = swapchain_res.value();
 
-  auto shader_res = engine::vulkan::Shader::create(device, "basic.spv");
-
-  if (!shader_res) {
-    Logger::error("Failed to create shader module: {}", shader_res.error());
-    return std::unexpected(shader_res.error());
-  }
-
-  auto &shaderModule = shader_res.value();
-
-  [[maybe_unused]]
-  auto pipelineShaderStages = shaderModule.vertFrag();
-
-  auto pipeline_res =
-      createPipeline(device, swapchainConfig, pipelineShaderStages);
-  if (!pipeline_res) {
-    Logger::error("Failed to create pipeline: {}", pipeline_res.error());
-    return std::unexpected(pipeline_res.error());
-  }
-
-  auto &pipeline = pipeline_res.value();
-
   auto commandPool_res = device.createCommandPool(vk::CommandPoolCreateInfo{
       .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
       .queueFamilyIndex = queues.graphicsQueue.index});
@@ -479,7 +364,7 @@ auto App::create() -> std::expected<App, std::string> {
 
   Logger::trace("Creating App");
   App app(core, physicalDevice, device, queues, swapchainConfig, swapchain,
-          pipeline, commandPool, syncObjects);
+          commandPool, syncObjects);
 
   return app;
 }
