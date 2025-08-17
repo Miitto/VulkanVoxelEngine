@@ -2,15 +2,27 @@
 
 #include "logger.hpp"
 #include <engine/vulkan/extensions/pipeline.hpp>
+#include <engine/vulkan/extensions/shader.hpp>
 #include <engine/vulkan/extensions/swapchain.hpp>
 
 namespace pipelines {
-auto GreedyVoxel::create(
-    const vk::raii::Device &device,
-    const engine::vulkan::SwapchainConfig &swapchainConfig,
-    const std::span<vk::PipelineShaderStageCreateInfo> shaderStages)
+auto GreedyVoxel::create(const vk::raii::Device &device,
+                         const engine::vulkan::SwapchainConfig &swapchainConfig)
     -> std::expected<GreedyVoxel, std::string> {
   Logger::trace("Creating Graphics Pipeline");
+
+  auto shader_res = engine::vulkan::Shader::create(device, "basic.spv");
+
+  if (!shader_res) {
+    Logger::error("Failed to create shader module: {}", shader_res.error());
+    return std::unexpected(shader_res.error());
+  }
+
+  auto &shaderModule = shader_res.value();
+
+  [[maybe_unused]]
+  auto shaderStages = shaderModule.vertFrag();
+
   engine::vulkan::DynamicStateInfo dynamicStateInfo(vk::DynamicState::eViewport,
                                                     vk::DynamicState::eScissor);
 

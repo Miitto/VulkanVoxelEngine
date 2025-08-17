@@ -19,10 +19,8 @@ namespace pipelines {
 
 class GreedyVoxel : public Pipeline {
 public:
-  static auto
-  create(const vk::raii::Device &device,
-         const engine::vulkan::SwapchainConfig &swapchainConfig,
-         const std::span<vk::PipelineShaderStageCreateInfo> shaderStages)
+  static auto create(const vk::raii::Device &device,
+                     const engine::vulkan::SwapchainConfig &swapchainConfig)
       -> std::expected<GreedyVoxel, std::string>;
 };
 } // namespace pipelines

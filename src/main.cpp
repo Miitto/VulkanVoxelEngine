@@ -53,7 +53,7 @@ public:
     auto pipelineShaderStages = shaderModule.vertFrag();
 
     auto greedyVoxel_res = pipelines::GreedyVoxel::create(
-        app.getDevice(), app.getSwapchainConfig(), pipelineShaderStages);
+        app.getDevice(), app.getSwapchainConfig());
 
     auto &pipeline = greedyVoxel_res.value();
 
