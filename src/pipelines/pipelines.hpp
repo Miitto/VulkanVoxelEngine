@@ -23,4 +23,12 @@ public:
                      const engine::vulkan::SwapchainConfig &swapchainConfig)
       -> std::expected<GreedyVoxel, std::string>;
 };
+
+class BasicVertex : public Pipeline {
+public:
+  static auto create(const vk::raii::Device &device,
+                     const engine::vulkan::SwapchainConfig &swapchainConfig)
+      -> std::expected<BasicVertex, std::string>;
+};
+
 } // namespace pipelines

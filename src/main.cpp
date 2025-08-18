@@ -3,6 +3,7 @@
 
 #include "logger.hpp"
 #include "pipelines/pipelines.hpp"
+#include "vertex.hpp"
 
 #include <engine/util/window_manager.hpp>
 #include <engine/vulkan/extensions/shader.hpp>
@@ -14,10 +15,14 @@ class Program {
 
   std::vector<vk::raii::CommandBuffer> commandBuffers;
 
-  Program(App &app, pipelines::GreedyVoxel &pipeline,
-          std::vector<vk::raii::CommandBuffer> &commandBuffers)
+  vk::raii::Buffer vertexBuffer;
+
+  Program(App &app, pipelines::BasicVertex &pipeline,
+          std::vector<vk::raii::CommandBuffer> &commandBuffers,
+          vk::raii::Buffer &vertexBuffer)
       : app(std::move(app)), pipeline(std::move(pipeline)),
-        commandBuffers(std::move(commandBuffers)) {}
+        commandBuffers(std::move(commandBuffers)),
+        vertexBuffer(std::move(vertexBuffer)) {}
 
 public:
   static auto create() -> std::expected<Program, std::string> {
@@ -52,10 +57,30 @@ public:
     [[maybe_unused]]
     auto pipelineShaderStages = shaderModule.vertFrag();
 
-    auto greedyVoxel_res = pipelines::GreedyVoxel::create(
+    auto basicVertex_res = pipelines::BasicVertex::create(
         app.getDevice(), app.getSwapchainConfig());
 
-    auto &pipeline = greedyVoxel_res.value();
+    auto &pipeline = basicVertex_res.value();
+
+    std::array<Vertex, 4> vertices = {
+        Vertex{.position = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}},
+        Vertex{.position = {0.5f, -0.5f, 0.0f}, .color = {0.0f, 1.0f, 0.0f}},
+        Vertex{.position = {-0.5f, 0.5f, 0.0f}, .color = {0.0f, 0.0f, 1.0f}},
+        Vertex{.position = {0.5f, 0.5f, 0.0f}, .color = {1.0f, 1.0f, 1.0f}}};
+
+    vk::BufferCreateInfo vertexBufferInfo{
+        .size = sizeof(vertices[0]) * vertices.size(),
+        .usage = vk::BufferUsageFlagBits::eVertexBuffer,
+        .sharingMode = vk::SharingMode::eExclusive};
+
+    auto vertexBuffer_res = app.getDevice().createBuffer(vertexBufferInfo);
+    if (!vertexBuffer_res) {
+      Logger::error("Failed to create vertex buffer: {}",
+                    vk::to_string(vertexBuffer_res.error()));
+      return std::unexpected("Failed to create vertex buffer");
+    }
+
+    auto &vertexBuffer = vertexBuffer_res.value();
 
     return Program(app, pipeline, cmdBuffers);
   }
