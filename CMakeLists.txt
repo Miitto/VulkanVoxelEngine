@@ -40,10 +40,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE VulkanEngine)
 include(cmake/shaders.cmake)
 add_subdirectory(shaders)
 
-if(MSVC)
-  target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX /wd5050)
-else()
-  target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror -Wno-language-extension-token)
-endif()
+target_compile_options(${PROJECT_NAME} PRIVATE
+  $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd5050>
+  $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic -Werror -Wno-language-extension-token>
+)
 
 add_compile_definitions(CMAKE_PROJECT_DIR=${CMAKE_PROJECT_DIR})
