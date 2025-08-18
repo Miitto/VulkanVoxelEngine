@@ -40,3 +40,15 @@ target_compile_options(${PROJECT_NAME} PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd5050>
   $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic -Werror -Wno-language-extension-token>
 )
+
+target_precompile_headers(${PROJECT_NAME} PUBLIC
+  <vector>
+  <array>
+  <span>
+  <expected>
+  <optional>
+  <string>
+  <algorithm>
+  <memory>
+  <utility>
+)

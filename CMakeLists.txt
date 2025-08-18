@@ -13,6 +13,7 @@ if(SCCACHE_FOUND)
   message(STATUS "Using sccache for compilation")
   set(CMAKE_CXX_COMPILER_LAUNCHER ${SCCACHE_FOUND})
   set(CMAKE_C_COMPILER_LAUNCHER ${SCCACHE_FOUND})
+
   # For MSVC debug information format
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
   cmake_policy(SET CMP0141 NEW)
