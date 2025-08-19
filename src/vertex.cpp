@@ -16,10 +16,10 @@ auto Vertex::getAttributeDescriptions()
       {.location = 0,
        .binding = 0,
        .format = vk::Format::eR32G32B32Sfloat,
-       .offset = offsetof(Vertex, position)},
+       .offset = static_cast<uint32_t>(offsetof(Vertex, position))},
       {.location = 1,
        .binding = 0,
        .format = vk::Format::eR32G32B32Sfloat,
-       .offset = offsetof(Vertex, color)},
+       .offset = static_cast<uint32_t>(offsetof(Vertex, color))},
   }};
 }

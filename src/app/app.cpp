@@ -10,6 +10,7 @@
 
 #include <engine/core.hpp>
 #include <engine/debug.hpp>
+#include <engine/util/macros.hpp>
 #include <engine/vulkan/extensions/pipeline.hpp>
 #include <engine/vulkan/extensions/shader.hpp>
 #include <engine/vulkan/physicalDeviceSelector.hpp>
@@ -30,16 +31,9 @@ const std::array<const char *, 3> requiredDeviceExtensions = {
 
 auto pickPhysicalDevice(const vk::raii::Instance &instance)
     -> std::expected<vk::raii::PhysicalDevice, std::string> {
-  auto physicalDeviceSelector_res =
-      engine::vulkan::PhysicalDeviceSelector::create(instance);
-
-  if (!physicalDeviceSelector_res) {
-    Logger::error("Failed to create Physical Device Selector: {}",
-                  physicalDeviceSelector_res.error());
-    return std::unexpected(physicalDeviceSelector_res.error());
-  }
-
-  auto &physicalDeviceSelector = physicalDeviceSelector_res.value();
+  EG_MAKE(physicalDeviceSelector,
+          engine::vulkan::PhysicalDeviceSelector::create(instance),
+          "Failed to create physical device selector");
 
   physicalDeviceSelector.requireExtensions(requiredDeviceExtensions);
   physicalDeviceSelector.requireVersion(1, 4, 0);
@@ -161,18 +155,8 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
 
   Logger::trace("Creating logical device");
 
-  std::expected<vk::raii::Device, vk::Result> device_res =
-      physicalDevice.createDevice(deviceCreateInfo);
-
-  Logger::trace("Logical device created");
-
-  if (!device_res) {
-    Logger::error("Failed to create logical device: {}",
-                  vk::to_string(device_res.error()));
-    return std::unexpected("Failed to create logical device");
-  }
-
-  auto &device = device_res.value();
+  VK_MAKE(device, physicalDevice.createDevice(deviceCreateInfo),
+          "Failed to create logical device");
 
   auto graphicsQueue_res = device.getQueue(graphicsQueueFamilyIndex, 0);
   if (!graphicsQueue_res) {
@@ -235,49 +219,31 @@ auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
       .minImageCount = minImageCount,
       .imageCount = desiredImageCount};
 
-  auto swapchain_res = engine::vulkan::Swapchain::create(
-      device, swapchainConfig, physicalDevice, surface,
-      {.graphicsQueueIndex = queues.graphicsQueue.index,
-       .presentQueueIndex = queues.presentQueue.index},
-      oldSwapchain);
+  EG_MAKE(swapchain,
+          engine::vulkan::Swapchain::create(
+              device, swapchainConfig, physicalDevice, surface,
+              {.graphicsQueueIndex = queues.graphicsQueue.index,
+               .presentQueueIndex = queues.presentQueue.index},
+              oldSwapchain),
+          "Failed to create swapchain");
 
-  if (!swapchain_res) {
-    Logger::error("Failed to create swapchain: {}", swapchain_res.error());
-    return std::unexpected(swapchain_res.error());
-  }
-  auto &swapchain = swapchain_res.value();
   return std::make_tuple(swapchainConfig, std::move(swapchain));
 }
 
 auto createSyncObjects(const vk::raii::Device &device)
     -> std::expected<App::SyncObjects, std::string> {
-  auto presentCompleteSemaphore_res =
-      device.createSemaphore(vk::SemaphoreCreateInfo{});
-  if (!presentCompleteSemaphore_res) {
-    Logger::error("Failed to create present complete semaphore: {}",
-                  vk::to_string(presentCompleteSemaphore_res.error()));
-    return std::unexpected("Failed to create present complete semaphore");
-  }
-  auto &presentCompleteSemaphore = presentCompleteSemaphore_res.value();
+  VK_MAKE(presentCompleteSemaphore,
+          device.createSemaphore(vk::SemaphoreCreateInfo{}),
+          "Failed to create present complete semaphore");
 
-  auto renderCompleteSemaphore_res =
-      device.createSemaphore(vk::SemaphoreCreateInfo{});
-  if (!renderCompleteSemaphore_res) {
-    Logger::error("Failed to create render complete semaphore: {}",
-                  vk::to_string(renderCompleteSemaphore_res.error()));
-    return std::unexpected("Failed to create render complete semaphore");
-  }
+  VK_MAKE(renderCompleteSemaphore,
+          device.createSemaphore(vk::SemaphoreCreateInfo{}),
+          "Failed to create render complete semaphore");
 
-  auto &renderCompleteSemaphore = renderCompleteSemaphore_res.value();
-
-  auto drawingFence_res = device.createFence(
-      vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled});
-  if (!drawingFence_res) {
-    Logger::error("Failed to create drawing fence: {}",
-                  vk::to_string(drawingFence_res.error()));
-    return std::unexpected("Failed to create drawing fence");
-  }
-  auto &drawingFence = drawingFence_res.value();
+  VK_MAKE(drawingFence,
+          device.createFence(
+              vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled}),
+          "Failed to create drawing fence");
 
   App::SyncObjects syncObjects{
       .presentCompleteSemaphore = std::move(presentCompleteSemaphore),
@@ -288,76 +254,45 @@ auto createSyncObjects(const vk::raii::Device &device)
 }
 
 auto App::create() -> std::expected<App, std::string> {
-  auto core_res = engine::rendering::Core::create(
-      {.width = WINDOW_WIDTH, .height = WINDOW_HEIGHT, .title = WINDOW_TITLE},
-      {
-          .extraExtensions = {},
-          .extraLayers = {},
-      },
-      enableValidationLayers);
-
-  if (!core_res) {
-    Logger::critical("Failed to create rendering core: {}", core_res.error());
-    return std::unexpected(core_res.error());
-  }
-  auto &core = core_res.value();
+  EG_MAKE(core,
+          engine::rendering::Core::create({.width = WINDOW_WIDTH,
+                                           .height = WINDOW_HEIGHT,
+                                           .title = WINDOW_TITLE},
+                                          {
+                                              .extraExtensions = {},
+                                              .extraLayers = {},
+                                          },
+                                          enableValidationLayers),
+          "Failed to create rendering core");
 
   auto &instance = core.getInstance();
   auto &window = core.getWindow();
   auto &surface = core.getSurface();
 
-  auto physicalDevice_res = pickPhysicalDevice(instance);
-  if (!physicalDevice_res) {
-    return std::unexpected(physicalDevice_res.error());
-  }
-  auto &physicalDevice = physicalDevice_res.value();
+  EG_MAKE(physicalDevice, pickPhysicalDevice(instance),
+          "Failed to pick physical device");
 
-  auto device_res = createLogicalDevice(physicalDevice, surface);
+  EG_MAKE(deviceParts, createLogicalDevice(physicalDevice, surface),
+          "Failed to create logical device");
+  auto &[device, queues] = deviceParts;
 
-  if (!device_res) {
-    return std::unexpected(device_res.error());
-  }
+  EG_MAKE(swapchainParts,
+          createSwapchain(physicalDevice, device, window.get(), surface, queues,
+                          std::nullopt),
+          "Failed to create swapchain");
+  auto &[swapchainConfig, swapchain] = swapchainParts;
 
-  [[maybe_unused]] auto &[device, queues] = device_res.value();
+  VK_MAKE(commandPool,
+          device.createCommandPool(vk::CommandPoolCreateInfo{
+              .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+              .queueFamilyIndex = queues.graphicsQueue.index}),
+          "Failed to create command pool");
 
-  auto swapchain_res = createSwapchain(physicalDevice, device, window.get(),
-                                       surface, queues, std::nullopt);
+  EG_MAKE(syncObjects1, createSyncObjects(device),
+          "Failed to create sync objects for frame 1");
 
-  if (!swapchain_res) {
-    Logger::error("Failed to create swapchain: {}", swapchain_res.error());
-    return std::unexpected(swapchain_res.error());
-  }
-
-  auto &[swapchainConfig, swapchain] = swapchain_res.value();
-
-  auto commandPool_res = device.createCommandPool(vk::CommandPoolCreateInfo{
-      .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-      .queueFamilyIndex = queues.graphicsQueue.index});
-  if (!commandPool_res) {
-    Logger::error("Failed to create command pool: {}",
-                  vk::to_string(commandPool_res.error()));
-    return std::unexpected("Failed to create command pool");
-  }
-
-  auto &commandPool = commandPool_res.value();
-
-  auto syncObjects_res1 = createSyncObjects(device);
-  if (!syncObjects_res1) {
-    Logger::error("Failed to create sync objects: {}",
-                  syncObjects_res1.error());
-    return std::unexpected(syncObjects_res1.error());
-  }
-
-  auto &syncObjects1 = syncObjects_res1.value();
-
-  auto syncObjects_res2 = createSyncObjects(device);
-  if (!syncObjects_res2) {
-    Logger::error("Failed to create sync objects: {}",
-                  syncObjects_res2.error());
-    return std::unexpected(syncObjects_res2.error());
-  }
-
-  auto &syncObjects2 = syncObjects_res2.value();
+  EG_MAKE(syncObjects2, createSyncObjects(device),
+          "Failed to create sync objects for frame 2");
 
   std::array<App::SyncObjects, MAX_FRAMES_IN_FLIGHT> syncObjects = {
       std::move(syncObjects1), std::move(syncObjects2)};
@@ -375,14 +310,11 @@ auto App::recreateSwapchain() -> std::expected<void, std::string> {
   auto &window = core.getWindow();
   auto &surface = core.getSurface();
 
-  auto newSwapchain_res = createSwapchain(physicalDevice, device, window.get(),
-                                          surface, queues, &*swapchain);
-  if (!newSwapchain_res) {
-    Logger::error("Failed to recreate swapchain: {}", newSwapchain_res.error());
-    return std::unexpected(newSwapchain_res.error());
-  }
-
-  auto &[newSwapchainConfig, newSwapchain] = newSwapchain_res.value();
+  EG_MAKE(newSwapchainParts,
+          createSwapchain(physicalDevice, device, window.get(), surface, queues,
+                          &*swapchain),
+          "Failed to create new swapchain");
+  auto &[newSwapchainConfig, newSwapchain] = newSwapchainParts;
 
   oldSwapchain = OldSwapchain{
       .swapchain = std::move(swapchain),

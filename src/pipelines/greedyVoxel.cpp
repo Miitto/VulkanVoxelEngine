@@ -103,8 +103,7 @@ auto GreedyVoxel::create(const vk::raii::Device &device,
   }
   Logger::trace("Graphics Pipeline created");
 
-  GreedyVoxel pipeline(std::move(pipeline_res.value()));
-
-  return pipeline;
+  return GreedyVoxel(
+      {std::move(pipelineLayout), std::move(pipeline_res.value())});
 }
 } // namespace pipelines

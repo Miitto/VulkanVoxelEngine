@@ -8,11 +8,12 @@
 #include "logger.hpp"
 #include "vulkan/vulkan_raii.hpp"
 #include <GLFW/glfw3.h>
+#include <engine/util/macros.hpp>
 #include <memory>
 
 #include <engine/image.hpp>
 
-constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+#include "defines.hpp"
 
 class App {
 public:
@@ -59,8 +60,6 @@ public:
   App(App &&) = default;
 
   static auto create() -> std::expected<App, std::string>;
-
-  [[nodiscard]] auto frameIndex() const -> int { return currentFrame; }
 
   void poll() const { glfwPollEvents(); }
 
@@ -131,8 +130,9 @@ public:
 
   [[nodiscard]] auto getQueues() const -> const Queues & { return queues; }
 
-  [[nodiscard]] auto getSyncObjects() const -> const SyncObjects & {
-    return syncObjects[currentFrame];
+  [[nodiscard]] auto getSyncObjects(const uint32_t frameIndex) const
+      -> const SyncObjects & {
+    return syncObjects[frameIndex];
   }
 
   [[nodiscard]] auto getCurrentCommandPool() const
@@ -140,7 +140,7 @@ public:
     return commandPool;
   }
 
-  void endFrame() { currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT; }
+  void endFrame() {}
 
   [[nodiscard]] auto allocCmdBuffer(const vk::CommandBufferLevel level,
                                     const uint32_t count) const
@@ -149,12 +149,8 @@ public:
                                             .level = level,
                                             .commandBufferCount = count};
 
-    auto cmdBuffers_res = device.allocateCommandBuffers(allocInfo);
-    if (!cmdBuffers_res) {
-      return std::unexpected("Failed to allocate command buffer");
-    }
-
-    auto &cmdBuffers = cmdBuffers_res.value();
+    VK_MAKE(cmdBuffers, device.allocateCommandBuffers(allocInfo),
+            "Failed to allocate command buffers");
 
     return std::move(cmdBuffers);
   }
@@ -184,9 +180,20 @@ public:
     }
   }
 
-  auto getNextImage() {
-    auto &sync = getSyncObjects();
-    return swapchain.getNextImage(device, sync.drawingFence,
-                                  sync.presentCompleteSemaphore);
+  auto getNextImage() -> std::expected<
+      std::pair<uint32_t,
+                std::pair<uint32_t, engine::vulkan::Swapchain::State>>,
+      std::string> {
+    auto &sync = getSyncObjects(currentFrame);
+    auto res = swapchain.getNextImage(device, sync.drawingFence,
+                                      sync.presentCompleteSemaphore);
+    if (res.has_value()) {
+
+      auto val = std::make_pair(currentFrame, res.value());
+      currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+      return std::move(val);
+    }
+
+    return std::unexpected(res.error());
   }
 };

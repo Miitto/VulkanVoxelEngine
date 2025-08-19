@@ -1,5 +1,10 @@
+include(cmake/shaders.cmake)
+
 compile_shader(shaders SOURCES
   basic
+  vertex
+  INCLUDES
+  camera
 )
 
 add_dependencies(${PROJECT_NAME} shaders)

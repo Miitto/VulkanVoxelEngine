@@ -2,13 +2,15 @@
 
 #include "logger.hpp"
 #include "vertex.hpp"
+#include <engine/util/macros.hpp>
 #include <engine/vulkan/extensions/pipeline.hpp>
 #include <engine/vulkan/extensions/shader.hpp>
 #include <engine/vulkan/extensions/swapchain.hpp>
 
 namespace pipelines {
 auto BasicVertex::create(const vk::raii::Device &device,
-                         const engine::vulkan::SwapchainConfig &swapchainConfig)
+                         const engine::vulkan::SwapchainConfig &swapchainConfig,
+                         const DescriptorLayouts &layouts)
     -> std::expected<BasicVertex, std::string> {
   Logger::trace("Creating Graphics Pipeline");
 
@@ -47,8 +49,8 @@ auto BasicVertex::create(const vk::raii::Device &device,
       .depthClampEnable = vk::False,
       .rasterizerDiscardEnable = vk::False,
       .polygonMode = vk::PolygonMode::eFill,
-      .cullMode = vk::CullModeFlagBits::eBack,
-      .frontFace = vk::FrontFace::eClockwise,
+      .cullMode = vk::CullModeFlagBits::eNone,
+      .frontFace = vk::FrontFace::eCounterClockwise,
       .depthBiasEnable = vk::False,
       .depthBiasSlopeFactor = 1.0f,
       .lineWidth = 1.0f};
@@ -69,17 +71,12 @@ auto BasicVertex::create(const vk::raii::Device &device,
       .attachmentCount = 1,
       .pAttachments = &colorBlendAttachment};
 
-  vk::PipelineLayoutCreateInfo layoutInfo{.setLayoutCount = 0,
+  vk::PipelineLayoutCreateInfo layoutInfo{.setLayoutCount = 1,
+                                          .pSetLayouts = &*layouts.camera,
                                           .pushConstantRangeCount = 0};
 
-  auto pipelineLayout_res = device.createPipelineLayout(layoutInfo);
-  if (!pipelineLayout_res) {
-    Logger::error("Failed to create pipeline layout: {}",
-                  vk::to_string(pipelineLayout_res.error()));
-    return std::unexpected("Failed to create pipeline layout");
-  }
-
-  auto &pipelineLayout = pipelineLayout_res.value();
+  VK_MAKE(pipelineLayout, device.createPipelineLayout(layoutInfo),
+          "Failed to create pipeline layout");
 
   vk::PipelineRenderingCreateInfo renderingCreateInfo{
       .colorAttachmentCount = 1,
@@ -102,18 +99,11 @@ auto BasicVertex::create(const vk::raii::Device &device,
   };
 
   Logger::trace("Creating Graphics Pipeline");
-  auto pipeline_res =
-      device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
-
-  if (!pipeline_res) {
-    Logger::error("Failed to create graphics pipeline: {}",
-                  vk::to_string(pipeline_res.error()));
-    return std::unexpected("Failed to create graphics pipeline");
-  }
+  VK_MAKE(pipeline, device.createGraphicsPipeline(nullptr, pipelineCreateInfo),
+          "Failed to create graphics pipeline");
   Logger::trace("Graphics Pipeline created");
 
-  GreedyVoxel pipeline(std::move(pipeline_res.value()));
-
-  return pipeline;
+  return BasicVertex({std::move(pipelineLayout), std::move(pipeline)});
 }
+
 } // namespace pipelines

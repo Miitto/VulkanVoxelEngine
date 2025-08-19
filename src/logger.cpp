@@ -1,3 +1,3 @@
 #include "logger.hpp"
 
-DEFINE_LOGGER("Voxel Engine", trace)
+DEFINE_LOGGER("Voxel Engine", info)
