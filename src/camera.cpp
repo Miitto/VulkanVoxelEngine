@@ -8,7 +8,7 @@
     const vk::raii::Device &device,
     const vk::raii::DescriptorPool &descriptorPool,
     const vk::raii::DescriptorSetLayout &cameraLayout,
-    std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> &cameraBuffers)
+    std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> &cameraBuffers) noexcept
     -> std::expected<std::array<vk::raii::DescriptorSet, MAX_FRAMES_IN_FLIGHT>,
                      std::string> {
   std::array<vk::DescriptorSetLayout, _MM_FIXUP_MAX_FLOAT> layouts{
@@ -49,7 +49,7 @@ auto PerspectiveCamera::createBuffers(
     const vk::raii::Device &device,
     const vk::raii::PhysicalDevice &physicalDevice,
     const vk::raii::DescriptorPool &cameraDescriptorPool,
-    const vk::raii::DescriptorSetLayout &cameraLayout)
+    const vk::raii::DescriptorSetLayout &cameraLayout) noexcept
     -> std::expected<Buffers, std::string> {
   constexpr uint32_t BUF_SIZE = sizeof(engine::Camera::Matrices);
   constexpr uint32_t MEM_SIZE = BUF_SIZE * 2;
@@ -100,7 +100,8 @@ auto PerspectiveCamera::createBuffers(
                                     .descriptorSets = std::move(cameraSets)};
 }
 
-auto PerspectiveCamera::descriptorLayout(const vk::raii::Device &device)
+auto PerspectiveCamera::descriptorLayout(
+    const vk::raii::Device &device) noexcept
     -> std::expected<vk::raii::DescriptorSetLayout, std::string> {
   vk::DescriptorSetLayoutBinding layoutBinding{
       .binding = 0,

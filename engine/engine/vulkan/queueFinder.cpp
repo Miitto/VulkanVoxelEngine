@@ -3,7 +3,7 @@
 namespace engine::vulkan {
 
 [[nodiscard]] auto
-QueueFinder::find(const std::function<bool(QueueFamily)> &finder) const
+QueueFinder::find(const std::function<bool(QueueFamily)> &finder) const noexcept
     -> QueueFinder {
   auto filtered = std::vector<QueueFinder::QueueFamily>{};
 
@@ -16,7 +16,7 @@ QueueFinder::find(const std::function<bool(QueueFamily)> &finder) const
   return {std::move(filtered)};
 }
 
-[[nodiscard]] auto QueueFinder::findType(const QueueType type) const
+[[nodiscard]] auto QueueFinder::findType(const QueueType type) const noexcept
     -> QueueFinder {
   auto filtered = std::vector<QueueFinder::QueueFamily>{};
 
@@ -48,7 +48,7 @@ QueueFinder::find(const std::function<bool(QueueFamily)> &finder) const
 }
 
 [[nodiscard]] auto
-QueueFinder::findCombined(const std::vector<QueueType> &types) const
+QueueFinder::findCombined(const std::vector<QueueType> &types) const noexcept
     -> QueueFinder {
   QueueFinder finder = *this;
 

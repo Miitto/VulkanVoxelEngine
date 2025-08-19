@@ -31,7 +31,7 @@ class Core {
 public:
   static auto create(const engine::Window::Attribs windowAttribs,
                      const InstanceAdditions &instanceAdditions = {},
-                     const bool enableValidationLayers = false)
+                     const bool enableValidationLayers = false) noexcept
       -> std::expected<Core, std::string>;
 
   [[nodiscard]] inline auto getWindow() noexcept -> Window & { return window; }

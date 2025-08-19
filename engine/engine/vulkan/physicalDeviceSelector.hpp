@@ -25,11 +25,11 @@ public:
 private:
   std::vector<DeviceSpecs> physicalDevices;
 
-  PhysicalDeviceSelector(std::vector<DeviceSpecs> &specs)
+  PhysicalDeviceSelector(std::vector<DeviceSpecs> &specs) noexcept
       : physicalDevices(std::move(specs)) {}
 
 public:
-  static auto create(const vk::raii::Instance &instance)
+  static auto create(const vk::raii::Instance &instance) noexcept
       -> std::expected<PhysicalDeviceSelector, std::string> {
     auto devices = instance.enumeratePhysicalDevices();
 
@@ -61,7 +61,8 @@ public:
     return selector;
   }
 
-  void requireExtensions(const std::span<const char *const> extensions) {
+  void
+  requireExtensions(const std::span<const char *const> extensions) noexcept {
     Logger::debug("Requiring extensions:");
     for (const auto &ext : extensions) {
       Logger::debug("  - {}", ext);
@@ -88,7 +89,7 @@ public:
 
   void
   requireFeatures(const std::function<bool(const vk::PhysicalDeviceFeatures &)>
-                      &featureCheck) {
+                      &featureCheck) noexcept {
     Logger::debug("Requiring features");
     for (size_t i = physicalDevices.size() - 1; i != (~(size_t)0); --i) {
       const auto &device = physicalDevices[i];
@@ -100,7 +101,7 @@ public:
     }
   }
 
-  void requireQueueFamily(vk::QueueFlagBits queueFlags) {
+  void requireQueueFamily(vk::QueueFlagBits queueFlags) noexcept {
     Logger::debug("Requiring queue family with flags: {}",
                   vk::to_string(queueFlags));
 
@@ -125,7 +126,7 @@ public:
   }
 
   void requireMemoryType(uint32_t typeBits,
-                         vk::MemoryPropertyFlags properties) {
+                         vk::MemoryPropertyFlags properties) noexcept {
     Logger::debug("Requiring memory type with type bits: {}, properties: {}",
                   typeBits, vk::to_string(properties));
     for (size_t i = physicalDevices.size() - 1; i != (~(size_t)0); --i) {
@@ -148,7 +149,7 @@ public:
     }
   }
 
-  void requireVersion(uint32_t major, uint32_t minor, uint32_t patch) {
+  void requireVersion(uint32_t major, uint32_t minor, uint32_t patch) noexcept {
     Logger::debug("Requiring API version: {}.{}.{}", major, minor, patch);
     auto version = VK_MAKE_VERSION(major, minor, patch);
     for (size_t i = physicalDevices.size() - 1; i > 0; --i) {
@@ -164,21 +165,21 @@ public:
   void
   scoreDevices(const std::function<uint32_t(
                    const engine::vulkan::PhysicalDeviceSelector::DeviceSpecs &)>
-                   &scoreFn) {
+                   &scoreFn) noexcept {
     Logger::debug("Scoring devices");
     for (auto &device : physicalDevices) {
       device.score = scoreFn(device);
     }
   }
 
-  void sortDevices() {
+  void sortDevices() noexcept {
     Logger::debug("Sorting devices by score");
     std::ranges::sort(physicalDevices, [](DeviceSpecs &a, DeviceSpecs &b) {
       return a.score > b.score;
     });
   }
 
-  auto select() -> std::vector<vk::raii::PhysicalDevice> {
+  auto select() noexcept -> std::vector<vk::raii::PhysicalDevice> {
     Logger::debug("Selecting devices");
     std::vector<vk::raii::PhysicalDevice> devices;
     devices.reserve(physicalDevices.size());

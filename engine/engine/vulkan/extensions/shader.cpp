@@ -5,7 +5,7 @@
 
 namespace engine::vulkan {
 namespace {
-auto readFile(const std::string &filename)
+auto readFile(const std::string &filename) noexcept
     -> std::expected<std::vector<char>, std::string> {
   std::string path(SHADER_DIR + filename);
   std::ifstream file(path, std::ios::ate | std::ios::binary);
@@ -27,7 +27,7 @@ auto readFile(const std::string &filename)
 
 [[nodiscard]]
 auto createShaderModule(const vk::raii::Device &device,
-                        const std::string &filename)
+                        const std::string &filename) noexcept
     -> std::expected<vk::raii::ShaderModule, std::string> {
   auto code_res = readFile(filename);
 
@@ -54,7 +54,8 @@ auto createShaderModule(const vk::raii::Device &device,
 }
 } // namespace
 
-auto Shader::create(const vk::raii::Device &device, const std::string &filename)
+auto Shader::create(const vk::raii::Device &device,
+                    const std::string &filename) noexcept
     -> std::expected<Shader, std::string> {
   auto shaderModule_res = createShaderModule(device, filename);
 

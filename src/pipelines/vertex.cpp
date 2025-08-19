@@ -10,7 +10,7 @@
 namespace pipelines {
 auto BasicVertex::create(const vk::raii::Device &device,
                          const engine::vulkan::SwapchainConfig &swapchainConfig,
-                         const DescriptorLayouts &layouts)
+                         const DescriptorLayouts &layouts) noexcept
     -> std::expected<BasicVertex, std::string> {
   Logger::trace("Creating Graphics Pipeline");
 

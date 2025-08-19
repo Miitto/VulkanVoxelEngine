@@ -29,7 +29,7 @@ const std::array<const char *, 3> requiredDeviceExtensions = {
     vk::KHRSwapchainExtensionName, vk::KHRSpirv14ExtensionName,
     vk::KHRCreateRenderpass2ExtensionName};
 
-auto pickPhysicalDevice(const vk::raii::Instance &instance)
+auto pickPhysicalDevice(const vk::raii::Instance &instance) noexcept
     -> std::expected<vk::raii::PhysicalDevice, std::string> {
   EG_MAKE(physicalDeviceSelector,
           engine::vulkan::PhysicalDeviceSelector::create(instance),
@@ -69,7 +69,7 @@ auto pickPhysicalDevice(const vk::raii::Instance &instance)
 }
 
 auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
-                         const vk::raii::SurfaceKHR &surface)
+                         const vk::raii::SurfaceKHR &surface) noexcept
     -> std::expected<std::tuple<vk::raii::Device, App::Queues>, std::string> {
   Logger::trace("Creating Logical Device");
 
@@ -191,11 +191,11 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
   return std::make_tuple(std::move(device), queues);
 }
 
-auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
-                     const vk::raii::Device &device, GLFWwindow *window,
-                     const vk::raii::SurfaceKHR &surface,
-                     const App::Queues &queues,
-                     std::optional<vk::raii::SwapchainKHR *> oldSwapchain)
+auto createSwapchain(
+    const vk::raii::PhysicalDevice &physicalDevice,
+    const vk::raii::Device &device, GLFWwindow *window,
+    const vk::raii::SurfaceKHR &surface, const App::Queues &queues,
+    std::optional<vk::raii::SwapchainKHR *> oldSwapchain) noexcept
     -> std::expected<
         std::tuple<engine::vulkan::SwapchainConfig, engine::vulkan::Swapchain>,
         std::string> {
@@ -230,7 +230,7 @@ auto createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
   return std::make_tuple(swapchainConfig, std::move(swapchain));
 }
 
-auto createSyncObjects(const vk::raii::Device &device)
+auto createSyncObjects(const vk::raii::Device &device) noexcept
     -> std::expected<App::SyncObjects, std::string> {
   VK_MAKE(presentCompleteSemaphore,
           device.createSemaphore(vk::SemaphoreCreateInfo{}),
@@ -253,7 +253,7 @@ auto createSyncObjects(const vk::raii::Device &device)
   return syncObjects;
 }
 
-auto App::create() -> std::expected<App, std::string> {
+auto App::create() noexcept -> std::expected<App, std::string> {
   EG_MAKE(core,
           engine::rendering::Core::create({.width = WINDOW_WIDTH,
                                            .height = WINDOW_HEIGHT,
@@ -304,7 +304,7 @@ auto App::create() -> std::expected<App, std::string> {
   return app;
 }
 
-auto App::recreateSwapchain() -> std::expected<void, std::string> {
+auto App::recreateSwapchain() noexcept -> std::expected<void, std::string> {
   Logger::trace("Recreating Swapchain");
 
   auto &window = core.getWindow();

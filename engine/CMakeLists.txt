@@ -38,7 +38,7 @@ link_spdlog_header_only(${PROJECT_NAME})
 
 target_compile_options(${PROJECT_NAME} PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd5050>
-  $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic -Werror -Wno-language-extension-token>
+  $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic -Werror -Wno-language-extension-token -fno-exceptions>
 )
 
 target_precompile_headers(${PROJECT_NAME} PUBLIC

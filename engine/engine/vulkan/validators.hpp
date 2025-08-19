@@ -9,7 +9,7 @@
 namespace engine::vulkan {
 
 void printExtensions(vk::raii::Context &context,
-                     spdlog::level::level_enum logLevel) {
+                     spdlog::level::level_enum logLevel) noexcept {
   auto extensions = context.enumerateInstanceExtensionProperties();
 
   Logger::log(logLevel, "Available Vulkan Extensions:");
@@ -19,7 +19,7 @@ void printExtensions(vk::raii::Context &context,
 }
 
 auto checkExtensions(vk::raii::Context &context,
-                     std::span<const char *> extensions) {
+                     std::span<const char *> extensions) noexcept {
   auto availableExtensions = context.enumerateInstanceExtensionProperties();
 
   std::vector<const char *> missingExtensions{};
@@ -36,7 +36,8 @@ auto checkExtensions(vk::raii::Context &context,
   return missingExtensions;
 }
 
-auto checkLayers(vk::raii::Context &context, std::span<const char *> layers) {
+auto checkLayers(vk::raii::Context &context,
+                 std::span<const char *> layers) noexcept {
   auto availableLayers = context.enumerateInstanceLayerProperties();
 
   std::vector<const char *> missingLayers{};

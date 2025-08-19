@@ -59,22 +59,22 @@ public:
   App(const App &) = delete;
   App(App &&) = default;
 
-  static auto create() -> std::expected<App, std::string>;
+  static auto create() noexcept -> std::expected<App, std::string>;
 
-  void poll() const { glfwPollEvents(); }
+  void poll() const noexcept { glfwPollEvents(); }
 
   [[nodiscard]]
-  auto shouldClose() const -> bool {
+  auto shouldClose() const noexcept -> bool {
     return glfwWindowShouldClose(core.getWindow().get());
   }
 
-  auto recreateSwapchain() -> std::expected<void, std::string>;
+  auto recreateSwapchain() noexcept -> std::expected<void, std::string>;
 
   App(engine::rendering::Core &core, vk::raii::PhysicalDevice &physicalDevice,
       vk::raii::Device &device, Queues &queues,
       engine::vulkan::SwapchainConfig &swapchainConfig,
       engine::vulkan::Swapchain &swapchain, vk::raii::CommandPool &commandPool,
-      std::array<SyncObjects, 2> &syncObjects)
+      std::array<SyncObjects, 2> &syncObjects) noexcept
       : core(std::move(core)), physicalDevice(std::move(physicalDevice)),
         device(std::move(device)), queues(std::move(queues)),
         swapchainConfig(swapchainConfig), swapchain(std::move(swapchain)),
@@ -82,7 +82,7 @@ public:
         syncObjects(std::move(syncObjects)) {}
 
   void preRender(const vk::raii::CommandBuffer &commandBuffer,
-                 const size_t index) {
+                 const size_t index) noexcept {
     Logger::trace("Pre render");
     engine::transitionImageLayout(
         commandBuffer, swapchain.nImage(index), vk::ImageLayout::eUndefined,
@@ -93,7 +93,7 @@ public:
   }
 
   void postRender(const vk::raii::CommandBuffer &commandBuffer,
-                  const size_t index) {
+                  const size_t index) noexcept {
     Logger::trace("Post render");
     engine::transitionImageLayout(
         commandBuffer, swapchain.nImage(index),
@@ -104,46 +104,52 @@ public:
         vk::PipelineStageFlagBits2::eBottomOfPipe);
   }
 
-  [[nodiscard]] auto getSwapchainConfig() const
+  [[nodiscard]] auto getSwapchainConfig() const noexcept
       -> const engine::vulkan::SwapchainConfig & {
     return swapchainConfig;
   }
 
-  [[nodiscard]] auto getCore() const -> const engine::rendering::Core & {
+  [[nodiscard]] auto getCore() const noexcept
+      -> const engine::rendering::Core & {
     return core;
   }
 
-  [[nodiscard]] auto getCore() -> engine::rendering::Core & { return core; }
+  [[nodiscard]] auto getCore() noexcept -> engine::rendering::Core & {
+    return core;
+  }
 
-  [[nodiscard]] auto getPhysicalDevice() const
+  [[nodiscard]] auto getPhysicalDevice() const noexcept
       -> const vk::raii::PhysicalDevice & {
     return physicalDevice;
   }
 
-  [[nodiscard]] auto getSwapchain() const -> const engine::vulkan::Swapchain & {
+  [[nodiscard]] auto getSwapchain() const noexcept
+      -> const engine::vulkan::Swapchain & {
     return swapchain;
   }
 
-  [[nodiscard]] auto getDevice() const -> const vk::raii::Device & {
+  [[nodiscard]] auto getDevice() const noexcept -> const vk::raii::Device & {
     return device;
   }
 
-  [[nodiscard]] auto getQueues() const -> const Queues & { return queues; }
+  [[nodiscard]] auto getQueues() const noexcept -> const Queues & {
+    return queues;
+  }
 
-  [[nodiscard]] auto getSyncObjects(const uint32_t frameIndex) const
+  [[nodiscard]] auto getSyncObjects(const uint32_t frameIndex) const noexcept
       -> const SyncObjects & {
     return syncObjects[frameIndex];
   }
 
-  [[nodiscard]] auto getCurrentCommandPool() const
+  [[nodiscard]] auto getCurrentCommandPool() const noexcept
       -> const vk::raii::CommandPool & {
     return commandPool;
   }
 
-  void endFrame() {}
+  void endFrame() noexcept {}
 
   [[nodiscard]] auto allocCmdBuffer(const vk::CommandBufferLevel level,
-                                    const uint32_t count) const
+                                    const uint32_t count) const noexcept
       -> std::expected<std::vector<vk::raii::CommandBuffer>, std::string> {
     vk::CommandBufferAllocateInfo allocInfo{.commandPool = *commandPool,
                                             .level = level,
@@ -155,7 +161,7 @@ public:
     return std::move(cmdBuffers);
   }
 
-  void checkSwapchain() {
+  void checkSwapchain() noexcept {
     if (oldSwapchain.has_value()) {
       auto &old = oldSwapchain.value();
 
@@ -180,7 +186,7 @@ public:
     }
   }
 
-  auto getNextImage() -> std::expected<
+  auto getNextImage() noexcept -> std::expected<
       std::pair<uint32_t,
                 std::pair<uint32_t, engine::vulkan::Swapchain::State>>,
       std::string> {

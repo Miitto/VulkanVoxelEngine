@@ -39,7 +39,7 @@ class Program {
         cameraBuffers(std::move(cameraBuffers)), camera(std::move(camera)) {}
 
 public:
-  static auto create() -> std::expected<Program, std::string> {
+  static auto create() noexcept -> std::expected<Program, std::string> {
     auto app_opt = App::create();
     if (!app_opt.has_value()) {
       Logger::critical("Failed to create App.");
@@ -309,7 +309,7 @@ public:
   }
 };
 
-auto main() -> int {
+auto main() noexcept -> int {
   Logger::init();
   auto windowManager = WindowManager();
 

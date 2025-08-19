@@ -4,7 +4,7 @@
 
 namespace engine::vulkan {
 auto chooseSwapSurfaceFormat(
-    const std::vector<vk::SurfaceFormatKHR> &availableFormats)
+    const std::vector<vk::SurfaceFormatKHR> &availableFormats) noexcept
     -> vk::SurfaceFormatKHR {
   for (const auto &availableFormat : availableFormats) {
     if (availableFormat.format == vk::Format::eB8G8R8A8Srgb &&
@@ -17,7 +17,7 @@ auto chooseSwapSurfaceFormat(
 }
 
 auto chooseSwapPresentMode(
-    const std::vector<vk::PresentModeKHR> &availablePresentModes)
+    const std::vector<vk::PresentModeKHR> &availablePresentModes) noexcept
     -> vk::PresentModeKHR {
   for (const auto &availablePresentMode : availablePresentModes) {
     if (availablePresentMode == vk::PresentModeKHR::eMailbox) {
@@ -29,7 +29,7 @@ auto chooseSwapPresentMode(
 
 auto chooseSwapExtent(GLFWwindow *window,
                       const vk::SurfaceCapabilitiesKHR &capabilities,
-                      const bool waitOnZero) -> vk::Extent2D {
+                      const bool waitOnZero) noexcept -> vk::Extent2D {
   if (capabilities.currentExtent.width !=
       std::numeric_limits<uint32_t>::max()) {
     return capabilities.currentExtent;
@@ -54,7 +54,7 @@ auto chooseSwapExtent(GLFWwindow *window,
 }
 
 auto minImageCount(const vk::SurfaceCapabilitiesKHR &capabilities,
-                   uint32_t desired) -> uint32_t {
+                   uint32_t desired) noexcept -> uint32_t {
   auto minImageCount = std::max(desired, capabilities.minImageCount);
   minImageCount = (capabilities.maxImageCount > 0 &&
                    minImageCount > capabilities.maxImageCount)
@@ -64,7 +64,7 @@ auto minImageCount(const vk::SurfaceCapabilitiesKHR &capabilities,
   return minImageCount;
 }
 
-auto desiredImageCount(const vk::SurfaceCapabilitiesKHR &capabilities)
+auto desiredImageCount(const vk::SurfaceCapabilitiesKHR &capabilities) noexcept
     -> uint32_t {
   auto desired = capabilities.minImageCount + 1;
 
@@ -75,12 +75,11 @@ auto desiredImageCount(const vk::SurfaceCapabilitiesKHR &capabilities)
   return desired;
 }
 
-auto Swapchain::create(const vk::raii::Device &device,
-                       const SwapchainConfig &swapchainConfig,
-                       const vk::raii::PhysicalDevice &physicalDevice,
-                       const vk::raii::SurfaceKHR &surface,
-                       const SwapchainQueues &queues,
-                       std::optional<vk::raii::SwapchainKHR *> oldSwapchain)
+auto Swapchain::create(
+    const vk::raii::Device &device, const SwapchainConfig &swapchainConfig,
+    const vk::raii::PhysicalDevice &physicalDevice,
+    const vk::raii::SurfaceKHR &surface, const SwapchainQueues &queues,
+    std::optional<vk::raii::SwapchainKHR *> oldSwapchain) noexcept
     -> std::expected<Swapchain, std::string> {
 
   auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
@@ -152,9 +151,9 @@ auto Swapchain::create(const vk::raii::Device &device,
   return s;
 }
 
-auto Swapchain::getNextImage(const vk::raii::Device &device,
-                             const vk::raii::Fence &waitFence,
-                             const vk::raii::Semaphore &signalSem) const
+auto Swapchain::getNextImage(
+    const vk::raii::Device &device, const vk::raii::Fence &waitFence,
+    const vk::raii::Semaphore &signalSem) const noexcept
     -> std::expected<std::pair<uint32_t, State>, std::string> {
   while (vk::Result::eTimeout ==
          device.waitForFences({waitFence}, VK_TRUE, UINT64_MAX)) {

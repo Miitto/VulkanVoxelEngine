@@ -8,12 +8,12 @@
                                                                                \
   std::shared_ptr<spdlog::logger> Logger::s_logger = nullptr;                  \
                                                                                \
-  void Logger::init() {                                                        \
+  void Logger::init() noexcept {                                               \
     s_logger = spdlog::stdout_color_mt(_LOGGER_NAME);                          \
     s_logger->set_level(spdlog::level::_LOGGER_LEVEL);                         \
   }                                                                            \
                                                                                \
-  void Logger::ensureInit() {                                                  \
+  void Logger::ensureInit() noexcept {                                         \
     if (!s_logger) {                                                           \
       init();                                                                  \
     }                                                                          \
@@ -25,52 +25,52 @@
   private:                                                                     \
     static std::shared_ptr<spdlog::logger> s_logger;                           \
                                                                                \
-    static void ensureInit();                                                  \
+    static void ensureInit() noexcept;                                         \
                                                                                \
   public:                                                                      \
-    static auto init() -> void;                                                \
+    static auto init() noexcept -> void;                                       \
                                                                                \
     template <typename... Args>                                                \
     static auto log(spdlog::level::level_enum lvl,                             \
-                    spdlog::format_string_t<Args...> fmt, Args &&...args)      \
-        -> void {                                                              \
+                    spdlog::format_string_t<Args...> fmt,                      \
+                    Args &&...args) noexcept -> void {                         \
       ensureInit();                                                            \
       s_logger->log(lvl, fmt, std::forward<Args>(args)...);                    \
     }                                                                          \
                                                                                \
     template <typename... Args>                                                \
-    static auto trace(spdlog::format_string_t<Args...> fmt, Args &&...args)    \
-        -> void {                                                              \
+    static auto trace(spdlog::format_string_t<Args...> fmt,                    \
+                      Args &&...args) noexcept -> void {                       \
       ensureInit();                                                            \
       s_logger->trace(fmt, std::forward<Args>(args)...);                       \
     }                                                                          \
     template <typename... Args>                                                \
-    static auto debug(spdlog::format_string_t<Args...> fmt, Args &&...args)    \
-        -> void {                                                              \
+    static auto debug(spdlog::format_string_t<Args...> fmt,                    \
+                      Args &&...args) noexcept -> void {                       \
       ensureInit();                                                            \
       s_logger->debug(fmt, std::forward<Args>(args)...);                       \
     }                                                                          \
     template <typename... Args>                                                \
-    static auto info(spdlog::format_string_t<Args...> fmt, Args &&...args)     \
-        -> void {                                                              \
+    static auto info(spdlog::format_string_t<Args...> fmt,                     \
+                     Args &&...args) noexcept -> void {                        \
       ensureInit();                                                            \
       s_logger->info(fmt, std::forward<Args>(args)...);                        \
     }                                                                          \
     template <typename... Args>                                                \
-    static auto warn(spdlog::format_string_t<Args...> fmt, Args &&...args)     \
-        -> void {                                                              \
+    static auto warn(spdlog::format_string_t<Args...> fmt,                     \
+                     Args &&...args) noexcept -> void {                        \
       ensureInit();                                                            \
       s_logger->warn(fmt, std::forward<Args>(args)...);                        \
     }                                                                          \
     template <typename... Args>                                                \
-    static auto error(spdlog::format_string_t<Args...> fmt, Args &&...args)    \
-        -> void {                                                              \
+    static auto error(spdlog::format_string_t<Args...> fmt,                    \
+                      Args &&...args) noexcept -> void {                       \
       ensureInit();                                                            \
       s_logger->error(fmt, std::forward<Args>(args)...);                       \
     }                                                                          \
     template <typename... Args>                                                \
-    static auto critical(spdlog::format_string_t<Args...> fmt, Args &&...args) \
-        -> void {                                                              \
+    static auto critical(spdlog::format_string_t<Args...> fmt,                 \
+                         Args &&...args) noexcept -> void {                    \
       ensureInit();                                                            \
       s_logger->critical(fmt, std::forward<Args>(args)...);                    \
     }                                                                          \

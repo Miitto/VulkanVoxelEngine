@@ -6,8 +6,9 @@
 #include <engine/vulkan/extensions/swapchain.hpp>
 
 namespace pipelines {
-auto GreedyVoxel::create(const vk::raii::Device &device,
-                         const engine::vulkan::SwapchainConfig &swapchainConfig)
+auto GreedyVoxel::create(
+    const vk::raii::Device &device,
+    const engine::vulkan::SwapchainConfig &swapchainConfig) noexcept
     -> std::expected<GreedyVoxel, std::string> {
   Logger::trace("Creating Graphics Pipeline");
 

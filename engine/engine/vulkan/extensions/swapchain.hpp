@@ -16,20 +16,20 @@ struct SwapchainConfig {
 };
 
 auto chooseSwapSurfaceFormat(
-    const std::vector<vk::SurfaceFormatKHR> &availableFormats)
+    const std::vector<vk::SurfaceFormatKHR> &availableFormats) noexcept
     -> vk::SurfaceFormatKHR;
 auto chooseSwapPresentMode(
-    const std::vector<vk::PresentModeKHR> &availablePresentModes)
+    const std::vector<vk::PresentModeKHR> &availablePresentModes) noexcept
     -> vk::PresentModeKHR;
 
 auto chooseSwapExtent(GLFWwindow *window,
                       const vk::SurfaceCapabilitiesKHR &capabilities,
-                      const bool waitOnZero = false) -> vk::Extent2D;
+                      const bool waitOnZero = false) noexcept -> vk::Extent2D;
 
 auto minImageCount(const vk::SurfaceCapabilitiesKHR &capabilities,
-                   uint32_t desired) -> uint32_t;
+                   uint32_t desired) noexcept -> uint32_t;
 
-auto desiredImageCount(const vk::SurfaceCapabilitiesKHR &capabilities)
+auto desiredImageCount(const vk::SurfaceCapabilitiesKHR &capabilities) noexcept
     -> uint32_t;
 
 struct SwapchainQueues {
@@ -43,7 +43,7 @@ class Swapchain {
   std::vector<vk::raii::ImageView> imageViews;
 
   Swapchain(vk::raii::SwapchainKHR &swapchain, std::vector<vk::Image> &images,
-            std::vector<vk::raii::ImageView> &imageViews)
+            std::vector<vk::raii::ImageView> &imageViews) noexcept
       : swapchain(std::move(swapchain)), imgs(std::move(images)),
         imageViews(std::move(imageViews)) {}
 
@@ -52,50 +52,56 @@ public:
   create(const vk::raii::Device &device, const SwapchainConfig &swapchainConfig,
          const vk::raii::PhysicalDevice &physicalDevice,
          const vk::raii::SurfaceKHR &surface, const SwapchainQueues &queues,
-         std::optional<vk::raii::SwapchainKHR *> oldSwapchain)
+         std::optional<vk::raii::SwapchainKHR *> oldSwapchain) noexcept
       -> std::expected<Swapchain, std::string>;
 
-  [[nodiscard]] auto images() const -> const std::vector<vk::Image> & {
+  [[nodiscard]] auto images() const noexcept -> const std::vector<vk::Image> & {
     return imgs;
   }
 
-  [[nodiscard]] auto views() const -> const std::vector<vk::raii::ImageView> & {
+  [[nodiscard]] auto views() const noexcept
+      -> const std::vector<vk::raii::ImageView> & {
     return imageViews;
   }
 
-  [[nodiscard]] auto nImage(const size_t index) const -> const vk::Image & {
+  [[nodiscard]] auto nImage(const size_t index) const noexcept
+      -> const vk::Image & {
     return imgs[index];
   }
 
-  [[nodiscard]] auto nView(const size_t index) const
+  [[nodiscard]] auto nView(const size_t index) const noexcept
       -> const vk::raii::ImageView & {
     return imageViews[index];
   }
 
-  [[nodiscard]] auto getSwapchain() const -> const vk::raii::SwapchainKHR & {
+  [[nodiscard]] auto getSwapchain() const noexcept
+      -> const vk::raii::SwapchainKHR & {
     return swapchain;
   }
 
-  auto operator*() -> vk::raii::SwapchainKHR & { return swapchain; }
-  auto operator*() const -> const vk::raii::SwapchainKHR & { return swapchain; }
+  auto operator*() noexcept -> vk::raii::SwapchainKHR & { return swapchain; }
+  auto operator*() const noexcept -> const vk::raii::SwapchainKHR & {
+    return swapchain;
+  }
 
-  auto operator->() -> vk::raii::SwapchainKHR * { return &swapchain; }
-  auto operator->() const -> const vk::raii::SwapchainKHR * {
+  auto operator->() noexcept -> vk::raii::SwapchainKHR * { return &swapchain; }
+  auto operator->() const noexcept -> const vk::raii::SwapchainKHR * {
     return &swapchain;
   }
 
-  auto operator[](const size_t index) -> vk::raii::ImageView & {
+  auto operator[](const size_t index) noexcept -> vk::raii::ImageView & {
     return imageViews[index];
   }
-  auto operator[](const size_t index) const -> const vk::raii::ImageView & {
+  auto operator[](const size_t index) const noexcept
+      -> const vk::raii::ImageView & {
     return imageViews[index];
   }
 
   enum class State : uint8_t { Ok, Suboptimal, OutOfDate };
 
-  [[nodiscard]] auto getNextImage(const vk::raii::Device &device,
-                                  const vk::raii::Fence &waitFence,
-                                  const vk::raii::Semaphore &signalSem) const
+  [[nodiscard]] auto
+  getNextImage(const vk::raii::Device &device, const vk::raii::Fence &waitFence,
+               const vk::raii::Semaphore &signalSem) const noexcept
       -> std::expected<std::pair<uint32_t, State>, std::string>;
 };
 } // namespace engine::vulkan

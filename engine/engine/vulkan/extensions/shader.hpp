@@ -9,7 +9,7 @@ namespace engine::vulkan {
 class Shader {
   vk::raii::ShaderModule module;
 
-  Shader(vk::raii::ShaderModule &module) : module(std::move(module)) {}
+  Shader(vk::raii::ShaderModule &module) noexcept : module(std::move(module)) {}
 
 public:
   struct Stage {
@@ -19,15 +19,17 @@ public:
   };
 
   static auto create(const vk::raii::Device &device,
-                     const std::string &filename)
+                     const std::string &filename) noexcept
       -> std::expected<Shader, std::string>;
 
-  [[nodiscard]] auto get() const -> const vk::raii::ShaderModule & {
+  [[nodiscard]] auto get() const noexcept -> const vk::raii::ShaderModule & {
     return module;
   }
 
-  operator const vk::raii::ShaderModule &() const { return module; }
-  auto operator*() const -> const vk::raii::ShaderModule & { return module; }
+  operator const vk::raii::ShaderModule &() const noexcept { return module; }
+  auto operator*() const noexcept -> const vk::raii::ShaderModule & {
+    return module;
+  }
 
   struct ShaderStageParams {
     vk::ShaderStageFlagBits stage;
@@ -36,7 +38,7 @@ public:
 
   template <size_t LEN>
   [[nodiscard]] constexpr inline auto
-  stages(const std::array<ShaderStageParams, LEN> shaderStages) const {
+  stages(const std::array<ShaderStageParams, LEN> shaderStages) const noexcept {
     std::array<vk::PipelineShaderStageCreateInfo, LEN> stages;
 
     for (size_t i = 0; i < LEN; ++i) {
@@ -49,8 +51,9 @@ public:
     return stages;
   }
 
-  constexpr inline auto vertFrag(const char *const vertFn = "vert",
-                                 const char *const fragFn = "frag") const
+  constexpr inline auto
+  vertFrag(const char *const vertFn = "vert",
+           const char *const fragFn = "frag") const noexcept
       -> std::array<vk::PipelineShaderStageCreateInfo, 2> {
 
     std::array<ShaderStageParams, 2> shaderStages = {

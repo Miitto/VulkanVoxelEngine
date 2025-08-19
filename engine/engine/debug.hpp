@@ -8,7 +8,7 @@ VKAPI_ATTR vk::Bool32 VKAPI_CALL
 debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
               vk::DebugUtilsMessageTypeFlagsEXT messageType,
               const vk::DebugUtilsMessengerCallbackDataEXT *pCallbackData,
-              [[maybe_unused]] void *pUserData) {
+              [[maybe_unused]] void *pUserData) noexcept {
   switch (messageSeverity) {
   case vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose:
     Logger::trace("Vulkan ({}): {}", to_string(messageType),
@@ -34,7 +34,7 @@ debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 }
 
 auto makeDebugMessenger(vk::raii::Instance &instance,
-                        void *pUserData = nullptr) {
+                        void *pUserData = nullptr) noexcept {
 
   vk::DebugUtilsMessageSeverityFlagsEXT severityFlags(
       vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |

@@ -10,17 +10,17 @@ template <typename... Args> class DynamicStateInfo {
   vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo;
 
 public:
-  constexpr DynamicStateInfo(Args... args) : dynamicStates{args...} {
+  constexpr DynamicStateInfo(Args... args) noexcept : dynamicStates{args...} {
     dynamicStateCreateInfo = vk::PipelineDynamicStateCreateInfo{
         .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
         .pDynamicStates = dynamicStates.data()};
   }
 
-  operator vk::PipelineDynamicStateCreateInfo() const {
+  operator vk::PipelineDynamicStateCreateInfo() const noexcept {
     return dynamicStateCreateInfo;
   }
 
-  operator vk::PipelineDynamicStateCreateInfo *() {
+  operator vk::PipelineDynamicStateCreateInfo *() noexcept {
     return &dynamicStateCreateInfo;
   }
 };

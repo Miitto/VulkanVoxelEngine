@@ -9,5 +9,5 @@ void transitionImageLayout(const vk::raii::CommandBuffer &commandBuffer,
                            vk::AccessFlags2 srcAccessMask,
                            vk::AccessFlags2 dstAccessMask,
                            vk::PipelineStageFlags2 srcStageMask,
-                           vk::PipelineStageFlags2 dstStageMask);
+                           vk::PipelineStageFlags2 dstStageMask) noexcept;
 } // namespace engine

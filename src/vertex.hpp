@@ -7,8 +7,8 @@ struct Vertex {
   glm::vec3 position;
   glm::vec3 color;
 
-  static auto getBindingDescription()
+  static auto getBindingDescription() noexcept
       -> const vk::VertexInputBindingDescription;
-  static auto getAttributeDescriptions()
+  static auto getAttributeDescriptions() noexcept
       -> const std::array<vk::VertexInputAttributeDescription, 2>;
 };

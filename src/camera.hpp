@@ -18,17 +18,19 @@ public:
   };
 
   PerspectiveCamera(const glm::vec3 &position, const glm::quat &rotation,
-                    const engine::cameras::Perspective::Params &params)
+                    const engine::cameras::Perspective::Params &params) noexcept
       : engine::cameras::Perspective(position, rotation, params) {}
 
-  [[nodiscard]] static auto descriptorLayout(const vk::raii::Device &device)
+  [[nodiscard]] static auto
+  descriptorLayout(const vk::raii::Device &device) noexcept
       -> std::expected<vk::raii::DescriptorSetLayout, std::string>;
 
-  [[nodiscard]] static auto createDescriptorSets(
-      const vk::raii::Device &device,
-      const vk::raii::DescriptorPool &descriptorPool,
-      const vk::raii::DescriptorSetLayout &cameraLayout,
-      std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> &cameraBuffers)
+  [[nodiscard]] static auto
+  createDescriptorSets(const vk::raii::Device &device,
+                       const vk::raii::DescriptorPool &descriptorPool,
+                       const vk::raii::DescriptorSetLayout &cameraLayout,
+                       std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT>
+                           &cameraBuffers) noexcept
       -> std::expected<
           std::array<vk::raii::DescriptorSet, MAX_FRAMES_IN_FLIGHT>,
           std::string>;
@@ -37,6 +39,6 @@ public:
   createBuffers(const vk::raii::Device &device,
                 const vk::raii::PhysicalDevice &physicalDevice,
                 const vk::raii::DescriptorPool &cameraDescriptorPool,
-                const vk::raii::DescriptorSetLayout &cameraLayout)
+                const vk::raii::DescriptorSetLayout &cameraLayout) noexcept
       -> std::expected<Buffers, std::string>;
 };

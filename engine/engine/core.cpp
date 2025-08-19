@@ -7,7 +7,7 @@ namespace engine::rendering {
 
 auto Core::create(const engine::Window::Attribs windowAttribs,
                   const InstanceAdditions &instanceAdditions,
-                  const bool enableValidationLayers)
+                  const bool enableValidationLayers) noexcept
     -> std::expected<Core, std::string> {
   Logger::info("Creating GLFW window...");
   auto window = engine::Window(windowAttribs);

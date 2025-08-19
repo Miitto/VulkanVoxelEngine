@@ -16,7 +16,8 @@ class Window {
 
   static std::atomic_bool s_resizable;
 
-  static void rawOnWindowResize(GLFWwindow *window, int width, int height);
+  static void rawOnWindowResize(GLFWwindow *window, int width,
+                                int height) noexcept;
 
   struct ResizeCallback {
     void *data = nullptr;
@@ -35,7 +36,7 @@ public:
 
   Window() = delete;
 
-  Window(const Attribs &attribs)
+  Window(const Attribs &attribs) noexcept
       : window(nullptr, nullptr), resizeCallback(std::nullopt) {
     if (s_resizable != attribs.resizable) {
       glfwWindowHint(GLFW_RESIZABLE,
@@ -70,7 +71,7 @@ public:
     return *this;
   }
 
-  void onWindowResize(Dimensions dim) {
+  void onWindowResize(Dimensions dim) noexcept {
     Logger::trace("Window resized to {}x{}. Callback: {}", dim.width,
                   dim.height, resizeCallback.has_value());
     newSize = dim;
@@ -80,7 +81,7 @@ public:
     }
   }
 
-  [[nodiscard]] auto getNewSize(const bool reset = true)
+  [[nodiscard]] auto getNewSize(const bool reset = true) noexcept
       -> std::optional<Dimensions> {
     if (newSize) {
       auto size = newSize;
@@ -92,13 +93,17 @@ public:
     return std::nullopt;
   }
 
-  [[nodiscard]] auto get() const -> GLFWwindow * { return window.get(); }
+  [[nodiscard]] auto get() const noexcept -> GLFWwindow * {
+    return window.get();
+  }
 
-  [[nodiscard]] auto isValid() const -> bool { return window != nullptr; }
+  [[nodiscard]] auto isValid() const noexcept -> bool {
+    return window != nullptr;
+  }
 
-  void
-  setResizeCallback(void *data,
-                    std::function<void(engine::Dimensions, void *)> callback) {
+  void setResizeCallback(
+      void *data,
+      std::function<void(engine::Dimensions, void *)> callback) noexcept {
     resizeCallback =
         ResizeCallback{.data = data, .onResizeCallback = std::move(callback)};
   }

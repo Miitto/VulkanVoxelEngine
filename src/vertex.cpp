@@ -1,7 +1,7 @@
 #include "vertex.hpp"
 #include <array>
 
-auto Vertex::getBindingDescription()
+auto Vertex::getBindingDescription() noexcept
     -> const vk::VertexInputBindingDescription {
   return vk::VertexInputBindingDescription{
       .binding = 0,
@@ -10,7 +10,7 @@ auto Vertex::getBindingDescription()
   };
 }
 
-auto Vertex::getAttributeDescriptions()
+auto Vertex::getAttributeDescriptions() noexcept
     -> const std::array<vk::VertexInputAttributeDescription, 2> {
   return std::array<vk::VertexInputAttributeDescription, 2>{{
       {.location = 0,

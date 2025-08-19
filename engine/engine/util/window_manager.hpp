@@ -2,10 +2,10 @@
 
 class WindowManager {
 public:
-  WindowManager() {
+  WindowManager() noexcept {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   }
 
-  ~WindowManager() { glfwTerminate(); }
+  ~WindowManager() noexcept { glfwTerminate(); }
 };

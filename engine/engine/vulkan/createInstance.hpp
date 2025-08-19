@@ -8,10 +8,11 @@
 #include <vulkan/vulkan_raii.hpp>
 
 namespace engine::vulkan {
-auto createInstance(vk::raii::Context &context, const char *appName,
-                    const bool enableValidationLayers,
-                    const std::span<const char *const> extraExtensions = {},
-                    const std::span<const char *const> extraLayers = {})
+auto createInstance(
+    vk::raii::Context &context, const char *appName,
+    const bool enableValidationLayers,
+    const std::span<const char *const> extraExtensions = {},
+    const std::span<const char *const> extraLayers = {}) noexcept
     -> std::expected<vk::raii::Instance, std::string> {
   Logger::trace("Creating Instance");
   auto appInfo = vk::ApplicationInfo{
