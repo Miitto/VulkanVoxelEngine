@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.15...4.0)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/engine/cmake")
+
 project(VoxelEngine VERSION 0.1 DESCRIPTION "Port of my Rust OpenGL Voxel Engine to C++ with Vulkan" LANGUAGES CXX)
 
 set(CMAKE_BUILD_TYPE Debug)
@@ -22,11 +24,6 @@ else()
 endif()
 
 add_executable(${PROJECT_NAME})
-
-# set_target_properties(${PROJECT_NAME} PROPERTIES
-#   CXX_STANDARD 23
-#   CXX_STANDARD_REQUIRED ON
-# )
 
 target_include_directories(${PROJECT_NAME} PRIVATE src)
 

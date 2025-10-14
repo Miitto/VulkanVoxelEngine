@@ -16,15 +16,33 @@ class Window {
 
   static std::atomic_bool s_resizable;
 
-  static void rawOnWindowResize(GLFWwindow *window, int width,
-                                int height) noexcept;
-
   struct ResizeCallback {
     void *data = nullptr;
     std::function<void(engine::Dimensions, void *)> onResizeCallback;
   };
 
   std::optional<ResizeCallback> resizeCallback;
+
+  struct KeyCallback {
+    void *data = nullptr;
+    std::function<void(int, int, int, int, void *)> onKeyCallback;
+  };
+
+  std::optional<KeyCallback> keyCallback;
+
+  struct MouseMoveCallback {
+    void *data = nullptr;
+    std::function<void(double, double, void *)> onMouseMoveCallback;
+  };
+
+  std::optional<MouseMoveCallback> mouseMoveCallback;
+
+  struct MouseButtonCallback {
+    void *data = nullptr;
+    std::function<void(int, int, int, void *)> onMouseButtonCallback;
+  };
+
+  std::optional<MouseButtonCallback> mouseButtonCallback;
 
 public:
   struct Attribs {
@@ -36,76 +54,46 @@ public:
 
   Window() = delete;
 
-  Window(const Attribs &attribs) noexcept
-      : window(nullptr, nullptr), resizeCallback(std::nullopt) {
-    if (s_resizable != attribs.resizable) {
-      glfwWindowHint(GLFW_RESIZABLE,
-                     attribs.resizable ? GLFW_TRUE : GLFW_FALSE);
-      s_resizable = attribs.resizable;
-    }
-
-    window = std::unique_ptr<GLFWwindow, void (*)(GLFWwindow *)>(
-        glfwCreateWindow(attribs.width, attribs.height, attribs.title, nullptr,
-                         nullptr),
-        glfwDestroyWindow);
-
-    glfwSetWindowUserPointer(window.get(), this);
-    glfwSetWindowSizeCallback(window.get(), rawOnWindowResize);
-  }
+  Window(const Attribs &attribs) noexcept;
 
   Window(const Window &) = delete;
   auto operator=(const Window &) -> Window & = delete;
 
   // Need to re-set the user pointer when moving the window
-  Window(Window &&o) noexcept
-      : window(std::move(o.window)),
-        resizeCallback(std::move(o.resizeCallback)) {
-    glfwSetWindowUserPointer(window.get(), this);
-  }
-  auto operator=(Window &&o) noexcept -> Window & {
-    if (this != &o) {
-      window = std::move(o.window);
-      resizeCallback = std::move(o.resizeCallback);
-      glfwSetWindowUserPointer(window.get(), this);
-    }
-    return *this;
-  }
+  Window(Window &&o) noexcept;
+  auto operator=(Window &&o) noexcept -> Window &;
 
-  void onWindowResize(Dimensions dim) noexcept {
-    Logger::trace("Window resized to {}x{}. Callback: {}", dim.width,
-                  dim.height, resizeCallback.has_value());
-    newSize = dim;
-
-    if (resizeCallback.has_value()) {
-      resizeCallback->onResizeCallback(dim, resizeCallback->data);
-    }
-  }
+  void onWindowResize(Dimensions dim) noexcept;
+  void onWindowKeypress(int key, int scancode, int action, int mods) noexcept;
+  void onWindowMouseMove(double xpos, double ypos) noexcept;
+  void onWindowMouseButton(int button, int action, int mods) noexcept;
 
   [[nodiscard]] auto getNewSize(const bool reset = true) noexcept
-      -> std::optional<Dimensions> {
-    if (newSize) {
-      auto size = newSize;
-      if (reset) {
-        newSize = std::nullopt; // Reset after getting the size
-      }
-      return size;
-    }
-    return std::nullopt;
-  }
+      -> std::optional<Dimensions>;
 
-  [[nodiscard]] auto get() const noexcept -> GLFWwindow * {
+  [[nodiscard]] inline auto get() const noexcept -> GLFWwindow * {
     return window.get();
   }
 
-  [[nodiscard]] auto isValid() const noexcept -> bool {
+  [[nodiscard]] inline auto isValid() const noexcept -> bool {
     return window != nullptr;
   }
 
+  void close() noexcept;
+
   void setResizeCallback(
       void *data,
-      std::function<void(engine::Dimensions, void *)> callback) noexcept {
-    resizeCallback =
-        ResizeCallback{.data = data, .onResizeCallback = std::move(callback)};
-  }
+      std::function<void(engine::Dimensions, void *)> callback) noexcept;
+
+  void setKeyCallback(
+      void *data,
+      std::function<void(int, int, int, int, void *)> callback) noexcept;
+
+  void setMouseMoveCallback(
+      void *data,
+      std::function<void(double, double, void *)> callback) noexcept;
+
+  void setMouseButtonCallback(
+      void *data, std::function<void(int, int, int, void *)> callback) noexcept;
 };
 } // namespace engine
