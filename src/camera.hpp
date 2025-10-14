@@ -17,7 +17,8 @@ public:
     std::array<vk::raii::DescriptorSet, MAX_FRAMES_IN_FLIGHT> descriptorSets;
   };
 
-  PerspectiveCamera(const glm::vec3 &position, const glm::quat &rotation,
+  PerspectiveCamera(const glm::vec3 &position,
+                    const engine::Camera::Axes &rotation,
                     const engine::cameras::Perspective::Params &params) noexcept
       : engine::cameras::Perspective(position, rotation, params) {}
 

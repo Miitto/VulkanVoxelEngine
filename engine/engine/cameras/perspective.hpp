@@ -22,7 +22,7 @@ private:
   Params params;
 
 public:
-  Perspective(const glm::vec3 &position, const glm::quat &rotation,
+  Perspective(const glm::vec3 &position, const Camera::Axes &rotation,
               const Params &params) noexcept
       : engine::Camera(position, rotation), params(params) {}
 

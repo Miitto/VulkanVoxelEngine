@@ -14,26 +14,39 @@ public:
     glm::mat4 projection;
   };
 
+  struct Axes {
+    float yaw;
+    float pitch;
+  };
+
 protected:
   glm::vec3 position;
-  glm::quat rotation;
 
-  Camera() : position(0.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f) {}
+  Axes rotation;
+
+  Camera() : position(0.0f), rotation({.yaw = 0.0f, .pitch = 0.0f}) {}
   Camera(const glm::vec3 &position = glm::vec3(0.0f),
-         const glm::quat &rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f)) noexcept
+         const Axes rotation = {.yaw = 0.0f, .pitch = 0.0f}) noexcept
       : position(position), rotation(rotation) {}
 
-  [[nodiscard]] auto rotateVec(const glm::vec3 &vec) const noexcept
-      -> glm::vec3 {
-    return rotation * vec;
+  [[nodiscard]] glm::vec3 rotateVec(const glm::vec3 &v) const noexcept {
+    auto yawRad = glm::radians(rotation.yaw);
+    auto pitchRad = glm::radians(rotation.pitch);
+    auto qYaw = glm::angleAxis(yawRad, glm::vec3(0.0f, 1.0f, 0.0f));
+    auto qPitch = glm::angleAxis(pitchRad, glm::vec3(1.0f, 0.0f, 0.0f));
+
+    auto q = qYaw * qPitch;
+
+    auto rotatedVec = q * glm::vec4(v, 0.0f);
+    auto rotated = glm::vec3(rotatedVec);
+
+    return rotated;
   }
 
 public:
-  auto rotate(const glm::quat &rotation) noexcept -> void {
-    this->rotation = glm::normalize(this->rotation * rotation);
-    Logger::debug("Camera rotated. New rotation: {}, {}, {}, {}",
-                  this->rotation.w, this->rotation.x, this->rotation.y,
-                  this->rotation.z);
+  auto rotate(Axes axes) noexcept -> void {
+    rotation.yaw += axes.yaw;
+    rotation.pitch += axes.pitch;
   }
 
   void moveAbsolute(const glm::vec3 &delta) noexcept { position += delta; }
@@ -42,7 +55,7 @@ public:
 
   void center() noexcept {
     position = glm::vec3(0.0f);
-    rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    rotation = Axes{.yaw = 0.0f, .pitch = 0.0f};
   }
 
   virtual void onResize(uint32_t width, uint32_t height) noexcept = 0;
@@ -61,9 +74,7 @@ public:
   [[nodiscard]] auto getPosition() const noexcept -> glm::vec3 {
     return position;
   }
-  [[nodiscard]] auto getRotation() const noexcept -> glm::quat {
-    return rotation;
-  }
+  [[nodiscard]] auto getRotation() const noexcept -> Axes { return rotation; }
 
   virtual ~Camera() noexcept = default;
 };

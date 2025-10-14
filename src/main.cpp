@@ -118,7 +118,7 @@ public:
             "Failed to create basic vertex pipeline");
 
     PerspectiveCamera camera(
-        {0.0f, 0.0f, 2.0f}, {1.0f, 0.0f, 0.0f, 0.0f},
+        {0.0f, 0.0f, 2.0f}, {},
         engine::cameras::Perspective::Params{
             .fov = glm::radians(90.0f),
             .aspectRatio =
@@ -254,19 +254,12 @@ public:
       return true;
     }
 
-    auto rotationSpeed = 0.0025f;
-    auto yaw =
-        glm::angleAxis(-delta.x * rotationSpeed, glm::vec3(0.0f, 1.0f, 0.0f));
-    auto pitch =
-        glm::angleAxis(-delta.y * rotationSpeed, glm::vec3(1.0f, 0.0f, 0.0f));
+    auto rotationSpeed = 0.025f;
+    engine::Camera::Axes rot{
+        .yaw = -delta.x * rotationSpeed,
+        .pitch = -delta.y * rotationSpeed,
+    };
 
-    auto rot = glm::normalize(pitch * yaw);
-
-    auto camRot = camera.getRotation();
-
-    Logger::debug("Rotation: {}, {}, {}, {}", camRot.w, camRot.x, camRot.y,
-                  camRot.z);
-    Logger::debug("Rotating by {}, {}, {}, {}", rot.w, rot.x, rot.y, rot.z);
     camera.rotate(rot);
 
     return true;
