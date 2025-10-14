@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16...4.0)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 project(VulkanEngine VERSION 0.1 DESCRIPTION "Vulkan engine helpers" LANGUAGES CXX)
 
 add_library(${PROJECT_NAME} STATIC)
@@ -52,3 +54,4 @@ target_precompile_headers(${PROJECT_NAME} PUBLIC
   <memory>
   <utility>
 )
+

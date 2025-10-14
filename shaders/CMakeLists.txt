@@ -1,12 +1,12 @@
-include(cmake/shaders.cmake)
+include(shaders)
 
-compile_shader(shaders SOURCES
+message(STATUS Module Path: ${CMAKE_MODULE_PATH})
+
+compile_shader(shaders SPIRV ${PROJECT_NAME} SOURCES
   basic
   vertex
   INCLUDES
   camera
 )
 
-add_dependencies(${PROJECT_NAME} shaders)
-
-target_compile_definitions(VulkanEngine PUBLIC SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/build/")
+COPY_SHADERS(${PROJECT_NAME} shaders)

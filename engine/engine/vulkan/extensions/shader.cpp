@@ -1,13 +1,40 @@
 #include "shader.hpp"
 
+#include "engine/logger.hpp"
 #include <fstream>
 #include <vector>
 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+#include <Windows.h>
+#endif
+
 namespace engine::vulkan {
+
 namespace {
+
+auto getExecutablePath() -> std::string {
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+  std::array<char, MAX_PATH> buffer;
+  GetModuleFileNameA(nullptr, buffer.data(), MAX_PATH);
+  std::string fullPath(buffer.data());
+  size_t pos = fullPath.find_last_of("\\/");
+  if (pos != std::string::npos) {
+    return std::string(fullPath.substr(0, pos + 1));
+  } else {
+    return "";
+  }
+
+#else
+  static_assert(false, "Not implemented");
+#endif
+}
+
 auto readFile(const std::string &filename) noexcept
     -> std::expected<std::vector<char>, std::string> {
-  std::string path(SHADER_DIR + filename);
+
+  auto exePath = getExecutablePath();
+  std::string path(exePath + "shaders/" + filename);
+  Logger::debug("Reading shader file: {}", path);
   std::ifstream file(path, std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
