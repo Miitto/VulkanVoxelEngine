@@ -104,6 +104,20 @@ public:
         vk::PipelineStageFlagBits2::eBottomOfPipe);
   }
 
+  void setupCmdBuffer(const vk::raii::CommandBuffer &cmdBuffer) {
+    cmdBuffer.setViewport(
+        0, vk::Viewport{
+               .x = 0.0f,
+               .y = 0.0f,
+               .width = static_cast<float>(getSwapchainConfig().extent.width),
+               .height = static_cast<float>(getSwapchainConfig().extent.height),
+               .minDepth = 0.0f,
+               .maxDepth = 1.0f});
+
+    cmdBuffer.setScissor(0, vk::Rect2D{.offset = {.x = 0, .y = 0},
+                                       .extent = getSwapchainConfig().extent});
+  }
+
   [[nodiscard]] auto getSwapchainConfig() const noexcept
       -> const engine::vulkan::SwapchainConfig & {
     return swapchainConfig;

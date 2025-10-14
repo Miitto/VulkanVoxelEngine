@@ -136,13 +136,23 @@ public:
 
   void run() {
     Logger::info("Starting application...");
-    app.getCore().getWindow().setResizeCallback(
-        this, [](engine::Dimensions dim, void *data) {
-          Logger::trace("Window resized to {}x{}", dim.width, dim.height);
-          auto *self = reinterpret_cast<Program *>(data);
+    auto &window = app.getCore().getWindow();
+    window.setResizeCallback(this, [](engine::Dimensions dim, void *data) {
+      Logger::trace("Window resized to {}x{}", dim.width, dim.height);
+      auto *self = reinterpret_cast<Program *>(data);
 
-          self->camera.onResize(dim.width, dim.height);
-          self->redraw();
+      self->camera.onResize(dim.width, dim.height);
+      self->redraw();
+    });
+
+    window.setKeyCallback(
+        this, [](int key, int scancode, int action, int mods, void *data) {
+          (void)scancode;
+          (void)mods;
+          auto *self = reinterpret_cast<Program *>(data);
+          if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+            self->app.getCore().getWindow().close();
+          }
         });
 
     while (!app.shouldClose()) {
@@ -229,20 +239,7 @@ public:
 
     cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
-    cmdBuffer.setViewport(
-        0,
-        vk::Viewport{
-            .x = 0.0f,
-            .y = 0.0f,
-            .width = static_cast<float>(app.getSwapchainConfig().extent.width),
-            .height =
-                static_cast<float>(app.getSwapchainConfig().extent.height),
-            .minDepth = 0.0f,
-            .maxDepth = 1.0f});
-
-    cmdBuffer.setScissor(0,
-                         vk::Rect2D{.offset = {.x = 0, .y = 0},
-                                    .extent = app.getSwapchainConfig().extent});
+    app.setupCmdBuffer(cmdBuffer);
 
     cmdBuffer.bindVertexBuffers(0, *vertexBuffer, {0});
     cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,

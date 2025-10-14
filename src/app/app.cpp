@@ -1,5 +1,4 @@
 #include "app/app.hpp"
-#include <algorithm>
 #include <expected>
 
 #include <GLFW/glfw3.h>
@@ -25,6 +24,7 @@ const bool enableValidationLayers = true;
 const bool enableValidationLayers = false;
 #endif
 
+namespace {
 const std::array<const char *, 3> requiredDeviceExtensions = {
     vk::KHRSwapchainExtensionName, vk::KHRSpirv14ExtensionName,
     vk::KHRCreateRenderpass2ExtensionName};
@@ -68,72 +68,124 @@ auto pickPhysicalDevice(const vk::raii::Instance &instance) noexcept
   return physicalDevice;
 }
 
-auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
-                         const vk::raii::SurfaceKHR &surface) noexcept
-    -> std::expected<std::tuple<vk::raii::Device, App::Queues>, std::string> {
-  Logger::trace("Creating Logical Device");
+struct QueueFamilyIndices {
+  uint32_t graphicsFamily;
+  uint32_t presentFamily;
+};
 
-  engine::vulkan::QueueFinder finder(physicalDevice);
-
-  std::optional<uint32_t> graphicsQueueFamilyIndex_opt = std::nullopt;
-  std::optional<uint32_t> presentQueueFamilyIndex_opt = std::nullopt;
-
+auto findQueues(const vk::raii::PhysicalDevice &physicalDevice,
+                const vk::raii::SurfaceKHR &surface) noexcept
+    -> std::expected<QueueFamilyIndices, std::string> {
   using engine::vulkan::QueueFinder;
 
+  QueueFinder finder(physicalDevice);
+
   auto combinedFinder = finder.findCombined(
-      {QueueFinder::QueueType{.type = QueueFinder::QueueTypeFlags::Graphics},
-       {.type = QueueFinder::QueueTypeFlags::Present,
-        .params = QueueFinder::QueueTypeParams{
-            .presentQueue = {.device = physicalDevice, .surface = surface}}}});
+      {{QueueFinder::QueueType{.type = QueueFinder::QueueTypeFlags::Graphics}},
+       {QueueFinder::QueueType{.type = QueueFinder::QueueTypeFlags::Present,
+                               .params = QueueFinder::QueueTypeParams{
+                                   .presentQueue = {.device = physicalDevice,
+                                                    .surface = surface}}}}});
 
   if (combinedFinder.hasQueue()) {
     auto &queue = combinedFinder.first();
-    graphicsQueueFamilyIndex_opt = queue.index;
-    presentQueueFamilyIndex_opt = queue.index;
+    return QueueFamilyIndices{.graphicsFamily = queue.index,
+                              .presentFamily = queue.index};
   } else {
+    QueueFamilyIndices ind{};
     auto graphicsFinder = finder.findType(
         QueueFinder::QueueType{.type = QueueFinder::QueueTypeFlags::Graphics});
     if (graphicsFinder.hasQueue()) {
-      graphicsQueueFamilyIndex_opt = graphicsFinder.first().index;
+      auto queue = graphicsFinder.first();
+      ind.graphicsFamily = queue.index;
     } else {
-      Logger::error("No suitable graphics queue family found");
-      return std::unexpected("No suitable graphics queue family found");
+      Logger::error("No graphics queue family found");
+      return std::unexpected("No graphics queue family found");
     }
 
     auto presentFinder = finder.findType(QueueFinder::QueueType{
         .type = QueueFinder::QueueTypeFlags::Present,
         .params = QueueFinder::QueueTypeParams{
             .presentQueue = {.device = physicalDevice, .surface = surface}}});
-
     if (presentFinder.hasQueue()) {
-      presentQueueFamilyIndex_opt = presentFinder.first().index;
+      auto presentFamily = presentFinder.first();
+      ind.presentFamily = presentFamily.index;
     } else {
-      Logger::error("No suitable present queue family found");
-      return std::unexpected("No suitable present queue family found");
+      Logger::error("No present queue family found");
+      return std::unexpected("No present queue family found");
     }
+
+    return ind;
+  }
+}
+
+auto retrieveQueues(const vk::raii::Device &device,
+                    const QueueFamilyIndices &indices)
+    -> std::expected<App::Queues, std::string> {
+  auto graphicsQueue_res = device.getQueue(indices.graphicsFamily, 0);
+  if (!graphicsQueue_res) {
+    Logger::error("Failed to get graphics queue: {}",
+                  vk::to_string(graphicsQueue_res.error()));
+    return std::unexpected("Failed to get graphics queue");
+  }
+  auto graphicsQueue =
+      std::make_shared<vk::raii::Queue>(std::move(graphicsQueue_res.value()));
+
+  std::shared_ptr<vk::raii::Queue> presentQueue = nullptr;
+
+  if (indices.presentFamily != indices.graphicsFamily) {
+    auto presentQueue_res = device.getQueue(indices.presentFamily, 0);
+    if (!presentQueue_res) {
+      Logger::error("Failed to get present queue: {}",
+                    vk::to_string(presentQueue_res.error()));
+      return std::unexpected("Failed to get present queue");
+    }
+    presentQueue =
+        std::make_shared<vk::raii::Queue>(std::move(presentQueue_res.value()));
+  } else {
+    presentQueue = graphicsQueue;
   }
 
-  auto graphicsQueueFamilyIndex = graphicsQueueFamilyIndex_opt.value();
+  App::Queues queues{
+      .graphicsQueue =
+          App::Queue{.index = indices.graphicsFamily, .queue = graphicsQueue},
+      .presentQueue =
+          App::Queue{.index = indices.presentFamily, .queue = presentQueue}};
 
-  auto presentQueueFamilyIndex = presentQueueFamilyIndex_opt.value();
+  return queues;
+}
+
+auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
+                         const vk::raii::SurfaceKHR &surface) noexcept
+    -> std::expected<std::tuple<vk::raii::Device, App::Queues>, std::string> {
+  Logger::trace("Creating Logical Device");
+
+  auto queueFamilies_res = findQueues(physicalDevice, surface);
+  if (!queueFamilies_res) {
+    Logger::error("Failed to find queue families: {}",
+                  queueFamilies_res.error());
+    return std::unexpected(queueFamilies_res.error());
+  }
+  auto &queueFamilies = queueFamilies_res.value();
 
   Logger::trace("Found Graphics Queue Family at index {}",
-                graphicsQueueFamilyIndex);
+                queueFamilies.graphicsFamily);
 
   std::array<float, 1> queuePriority = {1.0f};
 
   std::vector<vk::DeviceQueueCreateInfo> queueCreateInfo = {
-      vk::DeviceQueueCreateInfo{.queueFamilyIndex = graphicsQueueFamilyIndex,
+      vk::DeviceQueueCreateInfo{.queueFamilyIndex =
+                                    queueFamilies.graphicsFamily,
                                 .queueCount = 1,
                                 .pQueuePriorities = queuePriority.data()}};
 
-  if (presentQueueFamilyIndex != graphicsQueueFamilyIndex) {
+  if (queueFamilies.presentFamily != queueFamilies.graphicsFamily) {
     Logger::trace("Found Present Queue Family at index {}",
-                  presentQueueFamilyIndex);
-    queueCreateInfo.push_back(
-        vk::DeviceQueueCreateInfo{.queueFamilyIndex = presentQueueFamilyIndex,
-                                  .queueCount = 1,
-                                  .pQueuePriorities = queuePriority.data()});
+                  queueFamilies.presentFamily);
+    queueCreateInfo.push_back(vk::DeviceQueueCreateInfo{
+        .queueFamilyIndex = queueFamilies.presentFamily,
+        .queueCount = 1,
+        .pQueuePriorities = queuePriority.data()});
   }
 
   vk::StructureChain<vk::PhysicalDeviceFeatures2,
@@ -158,37 +210,14 @@ auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
   VK_MAKE(device, physicalDevice.createDevice(deviceCreateInfo),
           "Failed to create logical device");
 
-  auto graphicsQueue_res = device.getQueue(graphicsQueueFamilyIndex, 0);
-  if (!graphicsQueue_res) {
-    Logger::error("Failed to get graphics queue: {}",
-                  vk::to_string(graphicsQueue_res.error()));
-    return std::unexpected("Failed to get graphics queue");
+  auto queues_res = retrieveQueues(device, queueFamilies);
+  if (!queues_res) {
+    Logger::error("Failed to retrieve queues: {}", queues_res.error());
+    return std::unexpected(queues_res.error());
   }
-  auto graphicsQueue =
-      std::make_shared<vk::raii::Queue>(std::move(graphicsQueue_res.value()));
+  auto &queues = queues_res.value();
 
-  std::shared_ptr<vk::raii::Queue> presentQueue = nullptr;
-
-  if (presentQueueFamilyIndex != graphicsQueueFamilyIndex) {
-    auto presentQueue_res = device.getQueue(presentQueueFamilyIndex, 0);
-    if (!presentQueue_res) {
-      Logger::error("Failed to get present queue: {}",
-                    vk::to_string(presentQueue_res.error()));
-      return std::unexpected("Failed to get present queue");
-    }
-    presentQueue =
-        std::make_shared<vk::raii::Queue>(std::move(presentQueue_res.value()));
-  } else {
-    presentQueue = graphicsQueue;
-  }
-
-  App::Queues queues{
-      .graphicsQueue =
-          App::Queue{.index = graphicsQueueFamilyIndex, .queue = graphicsQueue},
-      .presentQueue =
-          App::Queue{.index = presentQueueFamilyIndex, .queue = presentQueue}};
-
-  return std::make_tuple(std::move(device), queues);
+  return std::make_tuple(std::move(device), std::move(queues));
 }
 
 auto createSwapchain(
@@ -252,6 +281,7 @@ auto createSyncObjects(const vk::raii::Device &device) noexcept
 
   return syncObjects;
 }
+} // namespace
 
 auto App::create() noexcept -> std::expected<App, std::string> {
   EG_MAKE(core,
