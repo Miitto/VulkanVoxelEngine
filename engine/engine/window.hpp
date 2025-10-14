@@ -53,6 +53,14 @@ enum class Key {
   Eight = GLFW_KEY_8,
   Nine = GLFW_KEY_9,
   Zero = GLFW_KEY_0,
+  Space = GLFW_KEY_SPACE,
+  Ctrl = GLFW_KEY_LEFT_CONTROL,
+};
+
+enum class CursorMode {
+  Normal = GLFW_CURSOR_NORMAL,
+  Hidden = GLFW_CURSOR_HIDDEN,
+  Disabled = GLFW_CURSOR_DISABLED
 };
 
 class Window {
@@ -76,6 +84,8 @@ class Window {
   using MouseButtonCallback = std::function<void(int, int, int)>;
 
   std::optional<MouseButtonCallback> mouseButtonCallback;
+
+  CursorMode m_cursorMode = CursorMode::Normal;
 
 public:
   struct Attribs {
@@ -113,6 +123,14 @@ public:
   }
 
   void close() noexcept;
+  void setCursorMode(CursorMode mode) noexcept;
+  [[nodiscard]] inline CursorMode getCursorMode() const noexcept {
+    return m_cursorMode;
+  }
+
+  [[nodiscard]] inline auto shouldClose() const noexcept -> bool {
+    return glfwWindowShouldClose(window.get()) == GLFW_TRUE;
+  }
 
   void setResizeCallback(ResizeCallback callback) noexcept;
 

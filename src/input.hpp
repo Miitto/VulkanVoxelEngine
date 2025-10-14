@@ -31,6 +31,7 @@ public:
   Input() = default;
 
   [[nodiscard]] const Mouse &mouse() const { return m_mouse; }
+  [[nodiscard]] Mouse &mouseMut() { return m_mouse; }
   [[nodiscard]] const std::unordered_map<engine::Key, KeyState> &
   keyStates() const {
     return m_keyStates;

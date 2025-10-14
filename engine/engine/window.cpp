@@ -119,6 +119,22 @@ void Window::close() noexcept {
   return std::nullopt;
 }
 
+void Window::setCursorMode(CursorMode mode) noexcept {
+  switch (mode) {
+  case CursorMode::Normal:
+    glfwSetInputMode(window.get(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    break;
+  case CursorMode::Hidden:
+    glfwSetInputMode(window.get(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+    break;
+  case CursorMode::Disabled:
+    glfwSetInputMode(window.get(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    break;
+  }
+
+  m_cursorMode = mode;
+}
+
 void Window::setResizeCallback(ResizeCallback callback) noexcept {
   resizeCallback = std::move(callback);
 }

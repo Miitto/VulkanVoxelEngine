@@ -2,6 +2,7 @@
 
 #include "camera.hpp"
 #include "engine/vulkan/memorySelector.hpp"
+#include "glm/geometric.hpp"
 #include "input.hpp"
 #include "logger.hpp"
 #include "pipelines/pipelines.hpp"
@@ -27,6 +28,8 @@ class Program {
   PerspectiveCamera::Buffers cameraBuffers;
 
   PerspectiveCamera camera;
+
+  std::chrono::time_point<std::chrono::high_resolution_clock> lastFrameTime;
 
   Program(App &app, pipelines::BasicVertex &pipeline,
           std::vector<vk::raii::CommandBuffer> &commandBuffers,
@@ -115,7 +118,7 @@ public:
             "Failed to create basic vertex pipeline");
 
     PerspectiveCamera camera(
-        {0.0f, 0.0f, 2.0f}, {},
+        {0.0f, 0.0f, 2.0f}, {1.0f, 0.0f, 0.0f, 0.0f},
         engine::cameras::Perspective::Params{
             .fov = glm::radians(90.0f),
             .aspectRatio =
@@ -142,11 +145,21 @@ public:
     window.setResizeCallback([this](engine::Dimensions dim) {
       Logger::trace("Window resized to {}x{}", dim.width, dim.height);
       camera.onResize(dim.width, dim.height);
-      redraw();
+
+      auto now = std::chrono::high_resolution_clock::now();
+
+      auto deltaTime =
+          std::chrono::duration<float, std::chrono::seconds::period>(
+              now - lastFrameTime)
+              .count();
+
+      redraw(deltaTime);
+
+      lastFrameTime = now;
     });
 
-    window.setKeyCallback([this](engine::Key key, int scancode,
-                                 engine::KeyAction action, int mods) {
+    window.setKeyCallback([this, &window](engine::Key key, int scancode,
+                                          engine::KeyAction action, int mods) {
       (void)scancode;
       (void)mods;
 
@@ -154,7 +167,11 @@ public:
 
       switch (key) {
       case Key::Esc:
-        app.getCore().getWindow().close();
+        if (window.getCursorMode() == engine::CursorMode::Disabled) {
+          window.setCursorMode(engine::CursorMode::Normal);
+        } else {
+          window.setCursorMode(engine::CursorMode::Disabled);
+        }
         break;
       default:
         input.key(key, action);
@@ -162,25 +179,44 @@ public:
       }
     });
 
+    window.setCursorMode(engine::CursorMode::Disabled);
+
+    window.setMouseMoveCallback([this](double xpos, double ypos) {
+      input.mouseMut().move(
+          glm::vec2(static_cast<float>(xpos), static_cast<float>(ypos)));
+    });
+
+    lastFrameTime = std::chrono::high_resolution_clock::now();
+
     while (!app.shouldClose()) {
       app.poll();
 
-      if (redraw()) {
+      auto now = std::chrono::high_resolution_clock::now();
+
+      auto deltaTime =
+          std::chrono::duration<float, std::chrono::seconds::period>(
+              now - lastFrameTime)
+              .count();
+
+      if (redraw(deltaTime)) {
         Logger::error("Redraw failed, exiting...");
         break;
       }
 
       app.endFrame();
+      input.onFrameEnd();
+
+      lastFrameTime = now;
     }
   }
 
-  auto redraw() -> bool {
-    if (!update()) {
+  auto redraw(float deltaMs) -> bool {
+    if (!update(deltaMs)) {
       Logger::error("Update failed, exiting...");
       return true;
     }
 
-    if (!render()) {
+    if (!render(deltaMs)) {
       Logger::error("Render failed, exiting...");
       return true;
     }
@@ -188,9 +224,56 @@ public:
     return false;
   }
 
-  auto update() -> bool { return true; }
+  auto update(float deltaMs) -> bool {
+    if (input.isDown(engine::Key::W)) {
+      camera.move(glm::vec3(0.0f, 0.0f, -1.f) * deltaMs);
+    }
+    if (input.isDown(engine::Key::S)) {
+      camera.move(glm::vec3(0.0f, 0.0f, 1.f) * deltaMs);
+    }
+    if (input.isDown(engine::Key::A)) {
+      camera.move(glm::vec3(-1.f, 0.0f, 0.0f) * deltaMs);
+    }
+    if (input.isDown(engine::Key::D)) {
+      camera.move(glm::vec3(1.f, 0.0f, 0.0f) * deltaMs);
+    }
+    if (input.isDown(engine::Key::Space)) {
+      camera.moveAbsolute(glm::vec3(0.0f, 1.0f, 0.0f) * deltaMs);
+    }
+    if (input.isDown(engine::Key::Ctrl)) {
+      camera.moveAbsolute(glm::vec3(0.0f, -1.0f, 0.0f) * deltaMs);
+    }
 
-  auto render() -> bool {
+    if (input.isPressed(engine::Key::C)) {
+      camera.center();
+    }
+
+    auto delta = input.mouse().delta();
+
+    if (delta == glm::vec2(0.0f)) {
+      return true;
+    }
+
+    auto rotationSpeed = 0.0025f;
+    auto yaw =
+        glm::angleAxis(-delta.x * rotationSpeed, glm::vec3(0.0f, 1.0f, 0.0f));
+    auto pitch =
+        glm::angleAxis(-delta.y * rotationSpeed, glm::vec3(1.0f, 0.0f, 0.0f));
+
+    auto rot = glm::normalize(pitch * yaw);
+
+    auto camRot = camera.getRotation();
+
+    Logger::debug("Rotation: {}, {}, {}, {}", camRot.w, camRot.x, camRot.y,
+                  camRot.z);
+    Logger::debug("Rotating by {}, {}, {}, {}", rot.w, rot.x, rot.y, rot.z);
+    camera.rotate(rot);
+
+    return true;
+  }
+
+  auto render(float deltaMs) -> bool {
+    (void)deltaMs;
     Logger::trace("Rendering frame...");
     app.checkSwapchain();
     auto nextImage_res = app.getNextImage();
