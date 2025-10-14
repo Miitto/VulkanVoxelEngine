@@ -41,27 +41,30 @@ std::atomic_bool Window::s_resizable = true;
 void Window::onWindowResize(Dimensions dim) noexcept {
   newSize = dim;
   if (resizeCallback.has_value()) {
-    resizeCallback->onResizeCallback(dim, resizeCallback->data);
+    (*resizeCallback)(dim);
   }
 }
 
 void Window::onWindowKeypress(int key, int scancode, int action,
                               int mods) noexcept {
   if (keyCallback.has_value()) {
-    keyCallback->onKeyCallback(key, scancode, action, mods, keyCallback->data);
+    auto a = static_cast<KeyAction>(action);
+
+    auto k = static_cast<Key>(key);
+
+    (*keyCallback)(k, scancode, a, mods);
   }
 }
 
 void Window::onWindowMouseMove(double xpos, double ypos) noexcept {
   if (mouseMoveCallback.has_value()) {
-    mouseMoveCallback->onMouseMoveCallback(xpos, ypos, mouseMoveCallback->data);
+    (*mouseMoveCallback)(xpos, ypos);
   }
 }
 
 void Window::onWindowMouseButton(int button, int action, int mods) noexcept {
   if (mouseButtonCallback.has_value()) {
-    mouseButtonCallback->onMouseButtonCallback(button, action, mods,
-                                               mouseButtonCallback->data);
+    (*mouseButtonCallback)(button, action, mods);
   }
 }
 
@@ -109,36 +112,27 @@ void Window::close() noexcept {
   if (newSize) {
     auto size = newSize;
     if (reset) {
-      newSize = std::nullopt; // Reset after getting the size
+      newSize = std::nullopt;
     }
     return size;
   }
   return std::nullopt;
 }
 
-void Window::setResizeCallback(
-    void *data,
-    std::function<void(engine::Dimensions, void *)> callback) noexcept {
-  resizeCallback =
-      ResizeCallback{.data = data, .onResizeCallback = std::move(callback)};
+void Window::setResizeCallback(ResizeCallback callback) noexcept {
+  resizeCallback = std::move(callback);
 }
 
-void Window::setKeyCallback(
-    void *data,
-    std::function<void(int, int, int, int, void *)> callback) noexcept {
-  keyCallback = KeyCallback{.data = data, .onKeyCallback = std::move(callback)};
+void Window::setKeyCallback(KeyCallback callback) noexcept {
+  keyCallback = std::move(callback);
 }
 
-void Window::setMouseMoveCallback(
-    void *data, std::function<void(double, double, void *)> callback) noexcept {
-  mouseMoveCallback = MouseMoveCallback{
-      .data = data, .onMouseMoveCallback = std::move(callback)};
+void Window::setMouseMoveCallback(MouseMoveCallback callback) noexcept {
+  mouseMoveCallback = std::move(callback);
 }
 
-void Window::setMouseButtonCallback(
-    void *data, std::function<void(int, int, int, void *)> callback) noexcept {
-  mouseButtonCallback = MouseButtonCallback{
-      .data = data, .onMouseButtonCallback = std::move(callback)};
+void Window::setMouseButtonCallback(MouseButtonCallback callback) noexcept {
+  mouseButtonCallback = std::move(callback);
 }
 
 } // namespace engine

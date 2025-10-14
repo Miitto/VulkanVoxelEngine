@@ -1,12 +1,12 @@
 #include "app/app.hpp"
 
+#include "camera.hpp"
 #include "engine/vulkan/memorySelector.hpp"
+#include "input.hpp"
 #include "logger.hpp"
 #include "pipelines/pipelines.hpp"
 #include "vertex.hpp"
 #include <engine/util/macros.hpp>
-
-#include "camera.hpp"
 #include <engine/util/window_manager.hpp>
 #include <engine/vulkan/extensions/shader.hpp>
 #include <utility>
@@ -14,6 +14,8 @@
 
 class Program {
   App app;
+  Input input;
+
   pipelines::GreedyVoxel pipeline;
 
   std::vector<vk::raii::CommandBuffer> commandBuffers;
@@ -137,23 +139,28 @@ public:
   void run() {
     Logger::info("Starting application...");
     auto &window = app.getCore().getWindow();
-    window.setResizeCallback(this, [](engine::Dimensions dim, void *data) {
+    window.setResizeCallback([this](engine::Dimensions dim) {
       Logger::trace("Window resized to {}x{}", dim.width, dim.height);
-      auto *self = reinterpret_cast<Program *>(data);
-
-      self->camera.onResize(dim.width, dim.height);
-      self->redraw();
+      camera.onResize(dim.width, dim.height);
+      redraw();
     });
 
-    window.setKeyCallback(
-        this, [](int key, int scancode, int action, int mods, void *data) {
-          (void)scancode;
-          (void)mods;
-          auto *self = reinterpret_cast<Program *>(data);
-          if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-            self->app.getCore().getWindow().close();
-          }
-        });
+    window.setKeyCallback([this](engine::Key key, int scancode,
+                                 engine::KeyAction action, int mods) {
+      (void)scancode;
+      (void)mods;
+
+      using engine::Key;
+
+      switch (key) {
+      case Key::Esc:
+        app.getCore().getWindow().close();
+        break;
+      default:
+        input.key(key, action);
+        break;
+      }
+    });
 
     while (!app.shouldClose()) {
       app.poll();
