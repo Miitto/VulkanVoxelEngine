@@ -1,8 +1,7 @@
 #include "camera.hpp"
-#include "defines.hpp"
+#include "engine/defines.hpp"
 #include "engine/vulkan/memorySelector.hpp"
 #include "logger.hpp"
-#include <intrin.h>
 
 [[nodiscard]] auto PerspectiveCamera::createDescriptorSets(
     const vk::raii::Device &device,

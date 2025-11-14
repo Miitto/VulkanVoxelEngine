@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <unordered_map>
 
+namespace engine {
 class Mouse {
   glm::vec2 m_position;
   glm::vec2 m_lastPosition;
@@ -29,6 +30,21 @@ class Input {
 
 public:
   Input() = default;
+
+  void setupWindow(engine::Window &window) {
+    window.setKeyCallback([this, &window](engine::Key key, int scancode,
+                                          engine::KeyAction action, int mods) {
+      (void)scancode;
+      (void)mods;
+
+      this->key(key, action);
+    });
+
+    window.setMouseMoveCallback([this](double xpos, double ypos) {
+      m_mouse.move(
+          glm::vec2(static_cast<float>(xpos), static_cast<float>(ypos)));
+    });
+  }
 
   [[nodiscard]] const Mouse &mouse() const { return m_mouse; }
   [[nodiscard]] Mouse &mouseMut() { return m_mouse; }
@@ -92,3 +108,4 @@ public:
     }
   }
 };
+} // namespace engine

@@ -15,7 +15,6 @@ public:
     float fov;
     float aspectRatio;
     float nearPlane;
-    float farPlane;
   };
 
 private:
@@ -37,9 +36,14 @@ public:
   }
 
   [[nodiscard]] auto projection() const noexcept -> glm::mat4 override {
-    auto proj = glm::perspective(params.fov, params.aspectRatio,
-                                 params.nearPlane, params.farPlane);
-    proj[1][1] *= -1; // Flip Y for Vulkan
+    glm::mat4 proj = glm::zero<glm::mat4>();
+    float f = 1.0f / tan(params.fov / 2.0f);
+
+    proj[0][0] = f / params.aspectRatio;
+    proj[1][1] = f;
+    proj[2][3] = 1.0f;
+    proj[3][2] = params.nearPlane;
+
     return proj;
   }
 };

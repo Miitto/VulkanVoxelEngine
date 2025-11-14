@@ -12,7 +12,9 @@
 #include <engine/util/macros.hpp>
 #include <engine/vulkan/extensions/pipeline.hpp>
 #include <engine/vulkan/extensions/shader.hpp>
+#include <engine/vulkan/memorySelector.hpp>
 #include <engine/vulkan/physicalDeviceSelector.hpp>
+#include <vertex.hpp>
 
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
@@ -28,332 +30,177 @@ namespace {
 const std::array<const char *, 3> requiredDeviceExtensions = {
     vk::KHRSwapchainExtensionName, vk::KHRSpirv14ExtensionName,
     vk::KHRCreateRenderpass2ExtensionName};
-
-auto pickPhysicalDevice(const vk::raii::Instance &instance) noexcept
-    -> std::expected<vk::raii::PhysicalDevice, std::string> {
-  EG_MAKE(physicalDeviceSelector,
-          engine::vulkan::PhysicalDeviceSelector::create(instance),
-          "Failed to create physical device selector");
-
-  physicalDeviceSelector.requireExtensions(requiredDeviceExtensions);
-  physicalDeviceSelector.requireVersion(1, 4, 0);
-  physicalDeviceSelector.requireQueueFamily(vk::QueueFlagBits::eGraphics);
-
-  physicalDeviceSelector.scoreDevices(
-      [](const engine::vulkan::PhysicalDeviceSelector::DeviceSpecs &spec) {
-        uint32_t score = 0;
-        if (spec.properties.deviceType ==
-            vk::PhysicalDeviceType::eDiscreteGpu) {
-          score += 1000;
-        }
-
-        return score;
-      });
-
-  physicalDeviceSelector.sortDevices();
-
-  auto physicalDevices = physicalDeviceSelector.select();
-
-  if (physicalDevices.empty()) {
-    Logger::error("No suitable physical devices found");
-    return std::unexpected("No suitable physical devices found");
-  }
-
-  Logger::info("Found {} suitable physical devices", physicalDevices.size());
-  const auto &physicalDevice = physicalDevices.front();
-
-  Logger::info("Using physical device: {}",
-               physicalDevice.getProperties().deviceName.data());
-
-  return physicalDevice;
 }
-
-struct QueueFamilyIndices {
-  uint32_t graphicsFamily;
-  uint32_t presentFamily;
-};
-
-auto findQueues(const vk::raii::PhysicalDevice &physicalDevice,
-                const vk::raii::SurfaceKHR &surface) noexcept
-    -> std::expected<QueueFamilyIndices, std::string> {
-  using engine::vulkan::QueueFinder;
-
-  QueueFinder finder(physicalDevice);
-
-  auto combinedFinder = finder.findCombined(
-      {{QueueFinder::QueueType{.type = QueueFinder::QueueTypeFlags::Graphics}},
-       {QueueFinder::QueueType{.type = QueueFinder::QueueTypeFlags::Present,
-                               .params = QueueFinder::QueueTypeParams{
-                                   .presentQueue = {.device = physicalDevice,
-                                                    .surface = surface}}}}});
-
-  if (combinedFinder.hasQueue()) {
-    auto &queue = combinedFinder.first();
-    return QueueFamilyIndices{.graphicsFamily = queue.index,
-                              .presentFamily = queue.index};
-  } else {
-    QueueFamilyIndices ind{};
-    auto graphicsFinder = finder.findType(
-        QueueFinder::QueueType{.type = QueueFinder::QueueTypeFlags::Graphics});
-    if (graphicsFinder.hasQueue()) {
-      auto queue = graphicsFinder.first();
-      ind.graphicsFamily = queue.index;
-    } else {
-      Logger::error("No graphics queue family found");
-      return std::unexpected("No graphics queue family found");
-    }
-
-    auto presentFinder = finder.findType(QueueFinder::QueueType{
-        .type = QueueFinder::QueueTypeFlags::Present,
-        .params = QueueFinder::QueueTypeParams{
-            .presentQueue = {.device = physicalDevice, .surface = surface}}});
-    if (presentFinder.hasQueue()) {
-      auto presentFamily = presentFinder.first();
-      ind.presentFamily = presentFamily.index;
-    } else {
-      Logger::error("No present queue family found");
-      return std::unexpected("No present queue family found");
-    }
-
-    return ind;
-  }
-}
-
-auto retrieveQueues(const vk::raii::Device &device,
-                    const QueueFamilyIndices &indices)
-    -> std::expected<App::Queues, std::string> {
-  auto graphicsQueue_res = device.getQueue(indices.graphicsFamily, 0);
-  if (!graphicsQueue_res) {
-    Logger::error("Failed to get graphics queue: {}",
-                  vk::to_string(graphicsQueue_res.error()));
-    return std::unexpected("Failed to get graphics queue");
-  }
-  auto graphicsQueue =
-      std::make_shared<vk::raii::Queue>(std::move(graphicsQueue_res.value()));
-
-  std::shared_ptr<vk::raii::Queue> presentQueue = nullptr;
-
-  if (indices.presentFamily != indices.graphicsFamily) {
-    auto presentQueue_res = device.getQueue(indices.presentFamily, 0);
-    if (!presentQueue_res) {
-      Logger::error("Failed to get present queue: {}",
-                    vk::to_string(presentQueue_res.error()));
-      return std::unexpected("Failed to get present queue");
-    }
-    presentQueue =
-        std::make_shared<vk::raii::Queue>(std::move(presentQueue_res.value()));
-  } else {
-    presentQueue = graphicsQueue;
-  }
-
-  App::Queues queues{
-      .graphicsQueue =
-          App::Queue{.index = indices.graphicsFamily, .queue = graphicsQueue},
-      .presentQueue =
-          App::Queue{.index = indices.presentFamily, .queue = presentQueue}};
-
-  return queues;
-}
-
-auto createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
-                         const vk::raii::SurfaceKHR &surface) noexcept
-    -> std::expected<std::tuple<vk::raii::Device, App::Queues>, std::string> {
-  Logger::trace("Creating Logical Device");
-
-  auto queueFamilies_res = findQueues(physicalDevice, surface);
-  if (!queueFamilies_res) {
-    Logger::error("Failed to find queue families: {}",
-                  queueFamilies_res.error());
-    return std::unexpected(queueFamilies_res.error());
-  }
-  auto &queueFamilies = queueFamilies_res.value();
-
-  Logger::trace("Found Graphics Queue Family at index {}",
-                queueFamilies.graphicsFamily);
-
-  std::array<float, 1> queuePriority = {1.0f};
-
-  std::vector<vk::DeviceQueueCreateInfo> queueCreateInfo = {
-      vk::DeviceQueueCreateInfo{.queueFamilyIndex =
-                                    queueFamilies.graphicsFamily,
-                                .queueCount = 1,
-                                .pQueuePriorities = queuePriority.data()}};
-
-  if (queueFamilies.presentFamily != queueFamilies.graphicsFamily) {
-    Logger::trace("Found Present Queue Family at index {}",
-                  queueFamilies.presentFamily);
-    queueCreateInfo.push_back(vk::DeviceQueueCreateInfo{
-        .queueFamilyIndex = queueFamilies.presentFamily,
-        .queueCount = 1,
-        .pQueuePriorities = queuePriority.data()});
-  }
-
-  vk::StructureChain<vk::PhysicalDeviceFeatures2,
-                     vk::PhysicalDeviceVulkan11Features,
-                     vk::PhysicalDeviceVulkan13Features,
-                     vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
-      featursChain = {{},
-                      {.shaderDrawParameters = true},
-                      {.synchronization2 = true, .dynamicRendering = true},
-                      {.extendedDynamicState = true}};
-
-  auto deviceCreateInfo = vk::DeviceCreateInfo{
-      .pNext = &featursChain.get<vk::PhysicalDeviceFeatures2>(),
-      .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfo.size()),
-      .pQueueCreateInfos = queueCreateInfo.data(),
-      .enabledExtensionCount =
-          static_cast<uint32_t>(requiredDeviceExtensions.size()),
-      .ppEnabledExtensionNames = requiredDeviceExtensions.data()};
-
-  Logger::trace("Creating logical device");
-
-  VK_MAKE(device, physicalDevice.createDevice(deviceCreateInfo),
-          "Failed to create logical device");
-
-  auto queues_res = retrieveQueues(device, queueFamilies);
-  if (!queues_res) {
-    Logger::error("Failed to retrieve queues: {}", queues_res.error());
-    return std::unexpected(queues_res.error());
-  }
-  auto &queues = queues_res.value();
-
-  return std::make_tuple(std::move(device), std::move(queues));
-}
-
-auto createSwapchain(
-    const vk::raii::PhysicalDevice &physicalDevice,
-    const vk::raii::Device &device, GLFWwindow *window,
-    const vk::raii::SurfaceKHR &surface, const App::Queues &queues,
-    std::optional<vk::raii::SwapchainKHR *> oldSwapchain) noexcept
-    -> std::expected<
-        std::tuple<engine::vulkan::SwapchainConfig, engine::vulkan::Swapchain>,
-        std::string> {
-  auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
-
-  auto format = engine::vulkan::chooseSwapSurfaceFormat(
-      physicalDevice.getSurfaceFormatsKHR(surface));
-  auto presentMode = engine::vulkan::chooseSwapPresentMode(
-      physicalDevice.getSurfacePresentModesKHR(surface));
-  auto extent =
-      engine::vulkan::chooseSwapExtent(window, surfaceCapabilities, true);
-  auto minImageCount =
-      engine::vulkan::minImageCount(surfaceCapabilities, MAX_FRAMES_IN_FLIGHT);
-  auto desiredImageCount =
-      engine::vulkan::desiredImageCount(surfaceCapabilities);
-
-  engine::vulkan::SwapchainConfig swapchainConfig{
-      .format = format,
-      .presentMode = presentMode,
-      .extent = extent,
-      .minImageCount = minImageCount,
-      .imageCount = desiredImageCount};
-
-  EG_MAKE(swapchain,
-          engine::vulkan::Swapchain::create(
-              device, swapchainConfig, physicalDevice, surface,
-              {.graphicsQueueIndex = queues.graphicsQueue.index,
-               .presentQueueIndex = queues.presentQueue.index},
-              oldSwapchain),
-          "Failed to create swapchain");
-
-  return std::make_tuple(swapchainConfig, std::move(swapchain));
-}
-
-auto createSyncObjects(const vk::raii::Device &device) noexcept
-    -> std::expected<App::SyncObjects, std::string> {
-  VK_MAKE(presentCompleteSemaphore,
-          device.createSemaphore(vk::SemaphoreCreateInfo{}),
-          "Failed to create present complete semaphore");
-
-  VK_MAKE(renderCompleteSemaphore,
-          device.createSemaphore(vk::SemaphoreCreateInfo{}),
-          "Failed to create render complete semaphore");
-
-  VK_MAKE(drawingFence,
-          device.createFence(
-              vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled}),
-          "Failed to create drawing fence");
-
-  App::SyncObjects syncObjects{
-      .presentCompleteSemaphore = std::move(presentCompleteSemaphore),
-      .renderCompleteSemaphore = std::move(renderCompleteSemaphore),
-      .drawingFence = std::move(drawingFence)};
-
-  return syncObjects;
-}
-} // namespace
 
 auto App::create() noexcept -> std::expected<App, std::string> {
   EG_MAKE(core,
-          engine::rendering::Core::create({.width = WINDOW_WIDTH,
-                                           .height = WINDOW_HEIGHT,
-                                           .title = WINDOW_TITLE},
-                                          {
-                                              .extraExtensions = {},
-                                              .extraLayers = {},
-                                          },
-                                          enableValidationLayers),
-          "Failed to create rendering core");
+          engine::rendering::Core::create(
+              engine::Window::Attribs{
+                  .width = WINDOW_WIDTH,
+                  .height = WINDOW_HEIGHT,
+                  .title = WINDOW_TITLE,
+              },
+              {}, enableValidationLayers),
+          "Failed to create core");
 
-  auto &instance = core.getInstance();
-  auto &window = core.getWindow();
-  auto &surface = core.getSurface();
+  EG_MAKE(physicalDevice,
+          engine::setup::selectPhysicalDevice(
+              core.getInstance(),
+              [](engine::vulkan::PhysicalDeviceSelector &selector)
+                  -> std::optional<std::string> {
+                selector.requireExtensions(requiredDeviceExtensions);
+                selector.requireVersion(1, 4, 0);
+                selector.requireQueueFamily(vk::QueueFlagBits::eGraphics);
 
-  EG_MAKE(physicalDevice, pickPhysicalDevice(instance),
-          "Failed to pick physical device");
+                selector.scoreDevices(
+                    [](const engine::vulkan::PhysicalDeviceSelector::DeviceSpecs
+                           &spec) {
+                      uint32_t score = 0;
+                      if (spec.properties.deviceType ==
+                          vk::PhysicalDeviceType::eDiscreteGpu) {
+                        score += 1000;
+                      }
 
-  EG_MAKE(deviceParts, createLogicalDevice(physicalDevice, surface),
+                      return score;
+                    });
+                return std::nullopt;
+              }),
+          "Failed to select physical device");
+
+  EG_MAKE(coreQueuesIndices,
+          engine::setup::findCoreQueues(physicalDevice, core.getSurface()),
+          "Failed to find core queue families");
+
+  std::vector<engine::setup::QueueCreateInfo> queueCreateInfos;
+  queueCreateInfos.push_back(
+      {.familyIndex = coreQueuesIndices.graphics, .priority = 1.0f});
+  if (coreQueuesIndices.present != coreQueuesIndices.graphics)
+    queueCreateInfos.push_back(
+        {.familyIndex = coreQueuesIndices.present, .priority = 1.0f});
+
+  EG_MAKE(device,
+          engine::setup::createLogicalDevice(
+              physicalDevice, queueCreateInfos,
+              engine::setup::ENGINE_DEVICE_EXTENSIONS,
+              requiredDeviceExtensions),
           "Failed to create logical device");
-  auto &[device, queues] = deviceParts;
 
-  EG_MAKE(swapchainParts,
-          createSwapchain(physicalDevice, device, window.get(), surface, queues,
-                          std::nullopt),
+  EG_MAKE(queues,
+          engine::setup::retrieveQueues(
+              device, {coreQueuesIndices.graphics, coreQueuesIndices.present}),
+          "Failed to retrieve queues");
+
+  engine::App::Queues coreQueues{
+      .graphics = queues[0],
+      .present = queues[1],
+  };
+
+  EG_MAKE(swapchainTuple,
+          engine::setup::createSwapchain(
+              physicalDevice, device, core.getWindow().get(), core.getSurface(),
+              coreQueuesIndices, std::nullopt),
           "Failed to create swapchain");
-  auto &[swapchainConfig, swapchain] = swapchainParts;
+  auto &[swapchainConfig, swapchain] = swapchainTuple;
 
   VK_MAKE(commandPool,
           device.createCommandPool(vk::CommandPoolCreateInfo{
               .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-              .queueFamilyIndex = queues.graphicsQueue.index}),
+              .queueFamilyIndex = coreQueuesIndices.graphics}),
           "Failed to create command pool");
 
-  EG_MAKE(syncObjects1, createSyncObjects(device),
-          "Failed to create sync objects for frame 1");
+  EG_MAKE(sync1, engine::setup::createSyncObjects(device),
+          "Failed to create sync objects");
+  EG_MAKE(sync2, engine::setup::createSyncObjects(device),
+          "Failed to create sync objects");
 
-  EG_MAKE(syncObjects2, createSyncObjects(device),
-          "Failed to create sync objects for frame 2");
+  std::array<engine::SyncObjects, MAX_FRAMES_IN_FLIGHT> syncObjects = {
+      std::move(sync1), std::move(sync2)};
 
-  std::array<App::SyncObjects, MAX_FRAMES_IN_FLIGHT> syncObjects = {
-      std::move(syncObjects1), std::move(syncObjects2)};
+  vk::CommandBufferAllocateInfo commandBufferAllocInfo{
+      .commandPool = *commandPool,
+      .level = vk::CommandBufferLevel::ePrimary,
+      .commandBufferCount = MAX_FRAMES_IN_FLIGHT};
 
-  Logger::trace("Creating App");
-  App app(core, physicalDevice, device, queues, swapchainConfig, swapchain,
-          commandPool, syncObjects);
+  EG_MAKE(commandBuffersV,
+          device.allocateCommandBuffers(commandBufferAllocInfo),
+          "Failed to allocate command buffers");
 
-  return app;
-}
+  std::array<vk::raii::CommandBuffer, MAX_FRAMES_IN_FLIGHT> commandBuffers{
+      std::move(commandBuffersV[0]), std::move(commandBuffersV[1])};
 
-auto App::recreateSwapchain() noexcept -> std::expected<void, std::string> {
-  Logger::trace("Recreating Swapchain");
+  std::array<Vertex, 4> vertices = {
+      Vertex{.position = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}},
+      Vertex{.position = {0.5f, -0.5f, 0.0f}, .color = {0.0f, 1.0f, 0.0f}},
+      Vertex{.position = {-0.5f, 0.5f, 0.0f}, .color = {0.0f, 0.0f, 1.0f}},
+      Vertex{.position = {0.5f, 0.5f, 0.0f}, .color = {1.0f, 1.0f, 1.0f}}};
 
-  auto &window = core.getWindow();
-  auto &surface = core.getSurface();
+  vk::BufferCreateInfo vertexBufferInfo{
+      .size = sizeof(vertices[0]) * vertices.size(),
+      .usage = vk::BufferUsageFlagBits::eVertexBuffer,
+      .sharingMode = vk::SharingMode::eExclusive};
 
-  EG_MAKE(newSwapchainParts,
-          createSwapchain(physicalDevice, device, window.get(), surface, queues,
-                          &*swapchain),
-          "Failed to create new swapchain");
-  auto &[newSwapchainConfig, newSwapchain] = newSwapchainParts;
+  VK_MAKE(vertexBuffer, device.createBuffer(vertexBufferInfo),
+          "Failed to create vertex buffer");
 
-  oldSwapchain = OldSwapchain{
-      .swapchain = std::move(swapchain),
-      .frameIndex = currentFrame,
-  };
+  auto memSelector =
+      engine::vulkan::MemorySelector(vertexBuffer, physicalDevice);
 
-  swapchainConfig = newSwapchainConfig;
-  swapchain = std::move(newSwapchain);
+  EG_MAKE(vertexAllocInfo,
+          memSelector.allocInfo(vk::MemoryPropertyFlagBits::eHostVisible |
+                                vk::MemoryPropertyFlagBits::eHostCoherent),
+          "Failed to get memory allocation info");
 
-  Logger::trace("Swapchain recreated successfully");
-  return {};
+  VK_MAKE(vBufferMemory, device.allocateMemory(vertexAllocInfo),
+          "Failed to allocate vertex buffer memory");
+
+  vertexBuffer.bindMemory(*vBufferMemory, 0);
+
+  void *data = vBufferMemory.mapMemory(0, vertexBufferInfo.size);
+  memcpy(data, vertices.data(), vertexBufferInfo.size);
+  vBufferMemory.unmapMemory();
+
+  vk::DescriptorPoolSize poolSize{.type = vk::DescriptorType::eUniformBuffer,
+                                  .descriptorCount = MAX_FRAMES_IN_FLIGHT};
+  vk::DescriptorPoolCreateInfo poolInfo{
+      .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+      .maxSets = MAX_FRAMES_IN_FLIGHT,
+      .poolSizeCount = 1,
+      .pPoolSizes = &poolSize};
+  VK_MAKE(cameraDescriptorPool, device.createDescriptorPool(poolInfo),
+          "Failed to create camera descriptor pool");
+
+  EG_MAKE(cameraDescriptorLayout, PerspectiveCamera::descriptorLayout(device),
+          "Failed to create camera descriptor layout");
+
+  EG_MAKE(cameraBuffers,
+          PerspectiveCamera::createBuffers(device, physicalDevice,
+                                           cameraDescriptorPool,
+                                           cameraDescriptorLayout),
+          "Failed to create uniform buffers");
+
+  EG_MAKE(
+      basicVertexPipeline,
+      pipelines::BasicVertex::create(device, swapchainConfig,
+                                     pipelines::BasicVertex::DescriptorLayouts{
+                                         .camera = cameraDescriptorLayout}),
+      "Failed to create basic vertex pipeline");
+
+  PerspectiveCamera camera(
+      {0.0f, 0.0f, 2.0f}, {},
+      engine::cameras::Perspective::Params{
+          .fov = glm::radians(90.0f),
+          .aspectRatio = static_cast<float>(swapchainConfig.extent.width) /
+                         static_cast<float>(swapchainConfig.extent.height),
+          .nearPlane = 0.1f});
+
+  CameraObjects camObjs{.pool = std::move(cameraDescriptorPool),
+                        .buffers = std::move(cameraBuffers),
+                        .camera = std::move(camera)};
+
+  return App(std::move(core), std::move(physicalDevice), std::move(device),
+             std::move(coreQueues), std::move(swapchainConfig),
+             std::move(swapchain), std::move(commandPool),
+             std::move(syncObjects), std::move(commandBuffers),
+             std::move(camObjs), std::move(basicVertexPipeline),
+             std::move(vBufferMemory), std::move(vertexBuffer));
 }

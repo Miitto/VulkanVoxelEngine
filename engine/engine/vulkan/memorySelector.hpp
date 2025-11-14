@@ -31,8 +31,8 @@ public:
         "Failed to find suitable memory type for the given requirements.");
   }
 
-  [[nodiscard]] auto roundToAlign(const uint32_t size) const noexcept
-      -> uint32_t {
+  [[nodiscard]] auto roundToAlign(const vk::DeviceSize size) const noexcept
+      -> vk::DeviceSize {
     auto &alignment = memReqs.alignment;
     auto remainder = size % alignment;
     return remainder == 0 ? size : size + alignment - remainder;
@@ -51,7 +51,7 @@ public:
   }
 
   [[nodiscard]] auto
-  allocInfo(const uint32_t memSize,
+  allocInfo(const vk::DeviceSize memSize,
             const vk::MemoryPropertyFlags &properties) const noexcept
       -> std::expected<vk::MemoryAllocateInfo, std::string> {
     auto memoryTypeIndex = selectMemoryType(properties);

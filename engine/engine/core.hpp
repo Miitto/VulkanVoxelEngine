@@ -10,6 +10,7 @@ struct InstanceAdditions {
   const std::span<const char *const> extraExtensions;
   const std::span<const char *const> extraLayers;
 };
+
 class Core {
   engine::Window window;
   vk::raii::Context context;
@@ -23,9 +24,9 @@ class Core {
         instance(std::move(instance)), surface(std::move(surface)) {}
 
   inline auto
-  setDebugMessenger(vk::raii::DebugUtilsMessengerEXT &debugMessenger) noexcept
+  setDebugMessenger(vk::raii::DebugUtilsMessengerEXT &dbgMessenger) noexcept
       -> void {
-    this->debugMessenger = std::move(debugMessenger);
+    debugMessenger = std::move(dbgMessenger);
   }
 
 public:

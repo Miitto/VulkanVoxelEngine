@@ -1,6 +1,7 @@
 #include "pipelines.hpp"
 
 #include "logger.hpp"
+#include <engine/util/macros.hpp>
 #include <engine/vulkan/extensions/pipeline.hpp>
 #include <engine/vulkan/extensions/shader.hpp>
 #include <engine/vulkan/extensions/swapchain.hpp>
@@ -24,78 +25,41 @@ auto GreedyVoxel::create(
   [[maybe_unused]]
   auto shaderStages = shaderModule.vertFrag();
 
-  engine::vulkan::DynamicStateInfo dynamicStateInfo(vk::DynamicState::eViewport,
-                                                    vk::DynamicState::eScissor);
-
-  vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
-
-  vk::PipelineInputAssemblyStateCreateInfo inputAssembly{
-      .topology = vk::PrimitiveTopology::eTriangleStrip};
-
-  vk::PipelineViewportStateCreateInfo viewportState{.viewportCount = 1,
-                                                    .scissorCount = 1};
-
-  vk::PipelineRasterizationStateCreateInfo rasterizer{
-      .depthClampEnable = vk::False,
-      .rasterizerDiscardEnable = vk::False,
-      .polygonMode = vk::PolygonMode::eFill,
-      .cullMode = vk::CullModeFlagBits::eBack,
-      .frontFace = vk::FrontFace::eClockwise,
-      .depthBiasEnable = vk::False,
-      .depthBiasSlopeFactor = 1.0f,
-      .lineWidth = 1.0f};
-
-  vk::PipelineMultisampleStateCreateInfo multisampling{
-      .rasterizationSamples = vk::SampleCountFlagBits::e1,
-      .sampleShadingEnable = vk::False,
-      .minSampleShading = 1.0f};
-
-  vk::PipelineColorBlendAttachmentState colorBlendAttachment{
-      .blendEnable = vk::False,
-      .colorWriteMask =
-          vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-          vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
-
-  vk::PipelineColorBlendStateCreateInfo colorBlending{
-      .logicOpEnable = vk::False,
-      .attachmentCount = 1,
-      .pAttachments = &colorBlendAttachment};
-
   vk::PipelineLayoutCreateInfo layoutInfo{.setLayoutCount = 0,
                                           .pushConstantRangeCount = 0};
+  VK_MAKE(layout, device.createPipelineLayout(layoutInfo),
+          "Failed to create pipeline layout");
 
-  auto pipelineLayout_res = device.createPipelineLayout(layoutInfo);
-  if (!pipelineLayout_res) {
-    Logger::error("Failed to create pipeline layout: {}",
-                  vk::to_string(pipelineLayout_res.error()));
-    return std::unexpected("Failed to create pipeline layout");
-  }
-
-  auto &pipelineLayout = pipelineLayout_res.value();
-
-  vk::PipelineRenderingCreateInfo renderingCreateInfo{
-      .colorAttachmentCount = 1,
-      .pColorAttachmentFormats = &swapchainConfig.format.format,
-  };
-
-  vk::GraphicsPipelineCreateInfo pipelineCreateInfo{
-      .pNext = &renderingCreateInfo,
-      .stageCount = static_cast<uint32_t>(shaderStages.size()),
-      .pStages = shaderStages.data(),
-      .pVertexInputState = &vertexInputInfo,
-      .pInputAssemblyState = &inputAssembly,
-      .pViewportState = &viewportState,
-      .pRasterizationState = &rasterizer,
-      .pMultisampleState = &multisampling,
-      .pColorBlendState = &colorBlending,
-      .pDynamicState = dynamicStateInfo,
-      .layout = pipelineLayout,
-      .renderPass = nullptr,
+  engine::vulkan::GraphicsPipelineConfig pipelineConfig = {
+      .rendering = {.colorAttachmentCount = 1,
+                    .pColorAttachmentFormats = &swapchainConfig.format.format},
+      .shaders = shaderStages,
+      .vertexInput = {},
+      .inputAssembly = {.topology = vk::PrimitiveTopology::eTriangleStrip},
+      .viewport = {.viewportCount = 1, .scissorCount = 1},
+      .rasterizer = {.depthClampEnable = vk::False,
+                     .rasterizerDiscardEnable = vk::False,
+                     .polygonMode = vk::PolygonMode::eFill,
+                     .cullMode = vk::CullModeFlagBits::eBack,
+                     .frontFace = vk::FrontFace::eClockwise,
+                     .depthBiasEnable = vk::False,
+                     .depthBiasSlopeFactor = 1.0f,
+                     .lineWidth = 1.0f},
+      .multisampling = {.rasterizationSamples = vk::SampleCountFlagBits::e1,
+                        .sampleShadingEnable = vk::False,
+                        .minSampleShading = 1.0f},
+      .blendAttachments = {{.blendEnable = vk::False,
+                            .colorWriteMask = vk::ColorComponentFlagBits::eR |
+                                              vk::ColorComponentFlagBits::eG |
+                                              vk::ColorComponentFlagBits::eB |
+                                              vk::ColorComponentFlagBits::eA}},
+      .blending = {.logicOpEnable = vk::False},
+      .dynamicState = {vk::DynamicState::eViewport, vk::DynamicState::eScissor},
+      .layout = layout,
   };
 
   Logger::trace("Creating Graphics Pipeline");
-  auto pipeline_res =
-      device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
+  auto pipeline_res = device.createGraphicsPipeline(nullptr, pipelineConfig);
 
   if (!pipeline_res) {
     Logger::error("Failed to create graphics pipeline: {}",
@@ -104,7 +68,6 @@ auto GreedyVoxel::create(
   }
   Logger::trace("Graphics Pipeline created");
 
-  return GreedyVoxel(
-      {std::move(pipelineLayout), std::move(pipeline_res.value())});
+  return GreedyVoxel({std::move(layout), std::move(pipeline_res.value())});
 }
 } // namespace pipelines

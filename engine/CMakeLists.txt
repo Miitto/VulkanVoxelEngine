@@ -7,6 +7,7 @@ project(VulkanEngine VERSION 0.1 DESCRIPTION "Vulkan engine helpers" LANGUAGES C
 add_library(${PROJECT_NAME} STATIC)
 
 target_sources(${PROJECT_NAME} PUBLIC
+engine/app.cpp
   engine/core.cpp
   engine/logger.cpp
   engine/image.cpp

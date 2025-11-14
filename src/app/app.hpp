@@ -1,219 +1,52 @@
 #pragma once
 
-#include <expected>
-#include <string>
+#include "camera.hpp"
+#include "pipelines/pipelines.hpp"
+#include <engine/app.hpp>
 
-#include "engine/core.hpp"
-#include "engine/vulkan/extensions/swapchain.hpp"
-#include "logger.hpp"
-#include "vulkan/vulkan_raii.hpp"
-#include <GLFW/glfw3.h>
-#include <engine/util/macros.hpp>
-#include <memory>
-
-#include <engine/image.hpp>
-
-#include "defines.hpp"
-
-class App {
+class App : public engine::App {
 public:
-  struct Queue {
-    uint32_t index;
-    std::shared_ptr<vk::raii::Queue> queue;
-  };
-
-  struct Queues {
-    Queue graphicsQueue;
-    Queue presentQueue;
-  };
-
-  struct SyncObjects {
-    vk::raii::Semaphore presentCompleteSemaphore;
-    vk::raii::Semaphore renderCompleteSemaphore;
-    vk::raii::Fence drawingFence;
-  };
-
-private:
-  engine::rendering::Core core;
-
-  vk::raii::PhysicalDevice physicalDevice;
-  vk::raii::Device device;
-  Queues queues;
-  engine::vulkan::SwapchainConfig swapchainConfig;
-  engine::vulkan::Swapchain swapchain;
-
-  vk::raii::CommandPool commandPool;
-
-  std::array<SyncObjects, MAX_FRAMES_IN_FLIGHT> syncObjects;
-
-  int currentFrame = 0;
-
-  struct OldSwapchain {
-    engine::vulkan::Swapchain swapchain;
-    int frameIndex;
-  };
-
-  std::optional<OldSwapchain> oldSwapchain = std::nullopt;
-
-public:
-  App(const App &) = delete;
-  App(App &&) = default;
-
   static auto create() noexcept -> std::expected<App, std::string>;
 
-  void poll() const noexcept { glfwPollEvents(); }
+  void update(float deltaTime) noexcept override;
+  void render() noexcept override;
 
-  [[nodiscard]]
-  auto shouldClose() const noexcept -> bool {
-    return glfwWindowShouldClose(core.getWindow().get());
-  }
+  ~App() { device.waitIdle(); }
 
-  auto recreateSwapchain() noexcept -> std::expected<void, std::string>;
+protected:
+#define EG_APP_PARAMS                                                          \
+  engine::rendering::Core &&core, vk::raii::PhysicalDevice &&physicalDevice,   \
+      vk::raii::Device &&device, Queues &&queues,                              \
+      engine::vulkan::SwapchainConfig &&swapchainConfig,                       \
+      engine::vulkan::Swapchain &&swapchain,                                   \
+      vk::raii::CommandPool &&commandPool,                                     \
+      std::array<engine::SyncObjects, MAX_FRAMES_IN_FLIGHT> &&syncObjects
 
-  App(engine::rendering::Core &core, vk::raii::PhysicalDevice &physicalDevice,
-      vk::raii::Device &device, Queues &queues,
-      engine::vulkan::SwapchainConfig &swapchainConfig,
-      engine::vulkan::Swapchain &swapchain, vk::raii::CommandPool &commandPool,
-      std::array<SyncObjects, 2> &syncObjects) noexcept
-      : core(std::move(core)), physicalDevice(std::move(physicalDevice)),
-        device(std::move(device)), queues(std::move(queues)),
-        swapchainConfig(swapchainConfig), swapchain(std::move(swapchain)),
-        commandPool(std::move(commandPool)),
-        syncObjects(std::move(syncObjects)) {}
+  struct CameraObjects {
+    vk::raii::DescriptorPool pool;
+    PerspectiveCamera::Buffers buffers;
+    PerspectiveCamera camera;
+  };
 
-  void preRender(const vk::raii::CommandBuffer &commandBuffer,
-                 const size_t index) noexcept {
-    Logger::trace("Pre render");
-    engine::transitionImageLayout(
-        commandBuffer, swapchain.nImage(index), vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eColorAttachmentOptimal, {},
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::PipelineStageFlagBits2::eTopOfPipe,
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput);
-  }
+  App(EG_APP_PARAMS,
+      std::array<vk::raii::CommandBuffer, MAX_FRAMES_IN_FLIGHT> commandBuffers,
+      CameraObjects camera, pipelines::BasicVertex greedyPipeline,
+      vk::raii::DeviceMemory vertexMemory,
+      vk::raii::Buffer vertexBuffer) noexcept
+      : engine::App(std::move(core), std::move(physicalDevice),
+                    std::move(device), std::move(queues),
+                    std::move(swapchainConfig), std::move(swapchain),
+                    std::move(commandPool), std::move(syncObjects)),
+        commandBuffers(std::move(commandBuffers)), camera(std::move(camera)),
+        pipeline(std::move(greedyPipeline)),
+        vBufferMemory(std::move(vertexMemory)),
+        vertexBuffer(std::move(vertexBuffer)) {}
 
-  void postRender(const vk::raii::CommandBuffer &commandBuffer,
-                  const size_t index) noexcept {
-    Logger::trace("Post render");
-    engine::transitionImageLayout(
-        commandBuffer, swapchain.nImage(index),
-        vk::ImageLayout::eColorAttachmentOptimal,
-        vk::ImageLayout::ePresentSrcKHR,
-        vk::AccessFlagBits2::eColorAttachmentWrite, {},
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::PipelineStageFlagBits2::eBottomOfPipe);
-  }
+  std::array<vk::raii::CommandBuffer, MAX_FRAMES_IN_FLIGHT> commandBuffers;
 
-  void setupCmdBuffer(const vk::raii::CommandBuffer &cmdBuffer) {
-    cmdBuffer.setViewport(
-        0, vk::Viewport{
-               .x = 0.0f,
-               .y = 0.0f,
-               .width = static_cast<float>(getSwapchainConfig().extent.width),
-               .height = static_cast<float>(getSwapchainConfig().extent.height),
-               .minDepth = 0.0f,
-               .maxDepth = 1.0f});
+  CameraObjects camera;
 
-    cmdBuffer.setScissor(0, vk::Rect2D{.offset = {.x = 0, .y = 0},
-                                       .extent = getSwapchainConfig().extent});
-  }
-
-  [[nodiscard]] auto getSwapchainConfig() const noexcept
-      -> const engine::vulkan::SwapchainConfig & {
-    return swapchainConfig;
-  }
-
-  [[nodiscard]] auto getCore() const noexcept
-      -> const engine::rendering::Core & {
-    return core;
-  }
-
-  [[nodiscard]] auto getCore() noexcept -> engine::rendering::Core & {
-    return core;
-  }
-
-  [[nodiscard]] auto getPhysicalDevice() const noexcept
-      -> const vk::raii::PhysicalDevice & {
-    return physicalDevice;
-  }
-
-  [[nodiscard]] auto getSwapchain() const noexcept
-      -> const engine::vulkan::Swapchain & {
-    return swapchain;
-  }
-
-  [[nodiscard]] auto getDevice() const noexcept -> const vk::raii::Device & {
-    return device;
-  }
-
-  [[nodiscard]] auto getQueues() const noexcept -> const Queues & {
-    return queues;
-  }
-
-  [[nodiscard]] auto getSyncObjects(const uint32_t frameIndex) const noexcept
-      -> const SyncObjects & {
-    return syncObjects[frameIndex];
-  }
-
-  [[nodiscard]] auto getCurrentCommandPool() const noexcept
-      -> const vk::raii::CommandPool & {
-    return commandPool;
-  }
-
-  void endFrame() noexcept {}
-
-  [[nodiscard]] auto allocCmdBuffer(const vk::CommandBufferLevel level,
-                                    const uint32_t count) const noexcept
-      -> std::expected<std::vector<vk::raii::CommandBuffer>, std::string> {
-    vk::CommandBufferAllocateInfo allocInfo{.commandPool = *commandPool,
-                                            .level = level,
-                                            .commandBufferCount = count};
-
-    VK_MAKE(cmdBuffers, device.allocateCommandBuffers(allocInfo),
-            "Failed to allocate command buffers");
-
-    return std::move(cmdBuffers);
-  }
-
-  void checkSwapchain() noexcept {
-    if (oldSwapchain.has_value()) {
-      auto &old = oldSwapchain.value();
-
-      if (device.waitForFences({*syncObjects[old.frameIndex].drawingFence},
-                               VK_TRUE, 0) == vk::Result::eSuccess) {
-        oldSwapchain = std::nullopt;
-      }
-    }
-
-    auto size = core.getWindow().getNewSize();
-    if (size.has_value()) {
-      Logger::trace("Window resized, recreating swapchain");
-      if (oldSwapchain.has_value()) {
-        Logger::trace(
-            "Recreating too fast, Waiting for old swapchain to be idle");
-        device.waitIdle();
-      }
-      auto res = recreateSwapchain();
-      if (!res) {
-        Logger::error("Failed to recreate swapchain: {}", res.error());
-      }
-    }
-  }
-
-  auto getNextImage() noexcept -> std::expected<
-      std::pair<uint32_t,
-                std::pair<uint32_t, engine::vulkan::Swapchain::State>>,
-      std::string> {
-    auto &sync = getSyncObjects(currentFrame);
-    auto res = swapchain.getNextImage(device, sync.drawingFence,
-                                      sync.presentCompleteSemaphore);
-    if (res.has_value()) {
-
-      auto val = std::make_pair(currentFrame, res.value());
-      currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-      return std::move(val);
-    }
-
-    return std::unexpected(res.error());
-  }
+  pipelines::BasicVertex pipeline;
+  vk::raii::DeviceMemory vBufferMemory;
+  vk::raii::Buffer vertexBuffer;
 };
