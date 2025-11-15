@@ -32,8 +32,8 @@ public:
   Input() = default;
 
   void setupWindow(engine::Window &window) {
-    window.setKeyCallback([this, &window](engine::Key key, int scancode,
-                                          engine::KeyAction action, int mods) {
+    window.setKeyCallback([this](engine::Key key, int scancode,
+                                 engine::KeyAction action, int mods) {
       (void)scancode;
       (void)mods;
 

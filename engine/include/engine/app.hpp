@@ -1,22 +1,20 @@
 #pragma once
 
+#include <chrono>
 #include <expected>
 #include <string>
 
 #include "engine/core.hpp"
-#include "logger.hpp"
 #include "vkh/swapchain.hpp"
 #include "vulkan/vulkan_raii.hpp"
 #include <GLFW/glfw3.h>
 #include <engine/util/macros.hpp>
-#include <memory>
 
 #include <engine/image.hpp>
 
 #include "defines.hpp"
 #include "engine/input.hpp"
 #include "engine/structs.hpp"
-#include "vkh/physicalDeviceSelector.hpp"
 #include <vkh/structs.hpp>
 
 namespace engine {
@@ -32,6 +30,7 @@ public:
   App &operator=(const App &) = delete;
   App(App &&) = default;
   App &operator=(App &&) = default;
+  virtual ~App() = default;
 
   void poll() const noexcept { glfwPollEvents(); }
 

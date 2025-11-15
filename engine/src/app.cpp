@@ -11,14 +11,6 @@
 #include <engine/util/macros.hpp>
 #include <vkh/physicalDeviceSelector.hpp>
 
-#ifndef NDEBUG
-const bool enableValidationLayers = true;
-#else
-const bool enableValidationLayers = false;
-#endif
-
-using engine::Logger;
-
 namespace engine {
 void App::endFrame() noexcept { _input.onFrameEnd(); }
 

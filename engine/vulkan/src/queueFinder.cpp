@@ -3,7 +3,7 @@
 namespace vkh {
 
 [[nodiscard]] auto
-QueueFinder::find(const std::function<bool(QueueFamily)> &finder) const noexcept
+QueueFinder::find(const std::function<bool(QueueFamily)> &finder) const
     -> QueueFinder {
   auto filtered = std::vector<QueueFinder::QueueFamily>{};
 
@@ -16,7 +16,7 @@ QueueFinder::find(const std::function<bool(QueueFamily)> &finder) const noexcept
   return {std::move(filtered)};
 }
 
-[[nodiscard]] auto QueueFinder::findType(const QueueType type) const noexcept
+[[nodiscard]] auto QueueFinder::findType(const QueueType type) const
     -> QueueFinder {
   auto filtered = std::vector<QueueFinder::QueueFamily>{};
 
@@ -48,7 +48,7 @@ QueueFinder::find(const std::function<bool(QueueFamily)> &finder) const noexcept
 }
 
 [[nodiscard]] auto
-QueueFinder::findCombined(const std::vector<QueueType> &types) const noexcept
+QueueFinder::findCombined(const std::vector<QueueType> &types) const
     -> QueueFinder {
   QueueFinder finder = *this;
 

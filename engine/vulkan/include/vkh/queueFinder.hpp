@@ -38,20 +38,17 @@ public:
     queueFamilyProperties.reserve(props.size());
 
     for (uint32_t i = 0; i < props.size(); ++i) {
-      queueFamilyProperties.push_back({props[i], i});
+      queueFamilyProperties.push_back({.properties = props[i], .index = i});
     }
   }
 
   QueueFinder(std::vector<QueueFamily> &&queueFamilyProperties) noexcept
       : queueFamilyProperties(std::move(queueFamilyProperties)) {}
 
-  [[nodiscard]] auto
-  find(const std::function<bool(QueueFamily)> &finder) const noexcept
+  [[nodiscard]] auto find(const std::function<bool(QueueFamily)> &finder) const
       -> QueueFinder;
-  [[nodiscard]] auto findType(const QueueType type) const noexcept
-      -> QueueFinder;
-  [[nodiscard]] auto
-  findCombined(const std::vector<QueueType> &types) const noexcept
+  [[nodiscard]] auto findType(const QueueType type) const -> QueueFinder;
+  [[nodiscard]] auto findCombined(const std::vector<QueueType> &types) const
       -> QueueFinder;
 
   [[nodiscard]] auto queues() const noexcept

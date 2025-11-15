@@ -50,7 +50,7 @@ struct GraphicsPipelineConfig {
   vk::PipelineLayout layout;
 
   std::optional<vk::PipelineVertexInputStateCreateInfo>
-      __internalVertexInputInfo;
+      __internalVertexInputInfo = std::nullopt;
 
   vk::GraphicsPipelineCreateInfo build() noexcept {
     __internalVertexInputInfo = {
