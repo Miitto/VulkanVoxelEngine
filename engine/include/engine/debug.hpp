@@ -1,6 +1,5 @@
 #pragma once
 
-#include "logger.hpp"
 #include <vulkan/vulkan_raii.hpp>
 
 namespace engine {
@@ -9,6 +8,8 @@ debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
               vk::DebugUtilsMessageTypeFlagsEXT messageType,
               const vk::DebugUtilsMessengerCallbackDataEXT *pCallbackData,
               [[maybe_unused]] void *pUserData) noexcept;
-auto makeDebugMessenger(vk::raii::Instance &instance,
-                        void *pUserData = nullptr) noexcept;
+
+std::expected<vk::raii::DebugUtilsMessengerEXT, vk::Result>
+makeDebugMessenger(vk::raii::Instance &instance,
+                   void *pUserData = nullptr) noexcept;
 } // namespace engine

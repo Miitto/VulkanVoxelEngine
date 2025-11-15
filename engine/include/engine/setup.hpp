@@ -3,18 +3,14 @@
 #include <expected>
 #include <string>
 
-#include "engine/core.hpp"
 #include "logger.hpp"
 #include "vkh/swapchain.hpp"
 #include <GLFW/glfw3.h>
 #include <engine/util/macros.hpp>
-#include <memory>
 #include <vulkan/vulkan_raii.hpp>
 
 #include <engine/image.hpp>
 
-#include "defines.hpp"
-#include "engine/input.hpp"
 #include "engine/structs.hpp"
 #include "vkh/physicalDeviceSelector.hpp"
 #include <vkh/structs.hpp>
@@ -45,13 +41,14 @@ struct QueueCreateInfo {
   float priority = 1.0f;
 };
 
-const vk::StructureChain<vk::PhysicalDeviceFeatures2,
-                         vk::PhysicalDeviceVulkan11Features,
-                         vk::PhysicalDeviceVulkan13Features,
-                         vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
+const vk::StructureChain<
+    vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
+    vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features,
+    vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
     ENGINE_DEVICE_EXTENSIONS = {
         {},
         {.shaderDrawParameters = true},
+        {.bufferDeviceAddress = true},
         {.synchronization2 = true, .dynamicRendering = true},
         {.extendedDynamicState = true}};
 
@@ -92,13 +89,24 @@ std::expected<std::vector<vkh::Queue>, std::string>
 retrieveQueues(const vk::raii::Device &device,
                const std::vector<uint32_t> &indices);
 
-std::expected<std::tuple<vkh::SwapchainConfig, vkh::Swapchain>, std::string>
+std::expected<vkh::Swapchain, std::string>
 createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
                 const vk::raii::Device &device, const Window &window,
                 const vk::raii::SurfaceKHR &surface,
                 const CoreQueueFamilyIndices &queues,
                 std::optional<vk::raii::SwapchainKHR *> oldSwapchain) noexcept;
 
+std::expected<vkh::AllocatedImage, std::string>
+createRenderImage(const vk::raii::Device &device, const vma::Allocator &alloc,
+                  const vkh::SwapchainConfig &swapchainConfig,
+                  vk::Format format);
+
 auto createSyncObjects(const vk::raii::Device &device) noexcept
     -> std::expected<SyncObjects, std::string>;
+
+std::expected<ImGuiVkObjects, std::string>
+setupImGui(GLFWwindow *window, const vk::raii::Instance &instance,
+           const vk::raii::Device &device,
+           const vk::raii::PhysicalDevice &physicalDevice,
+           const vkh::Queue &graphicsQueue, const vk::Format swapchainFormat);
 } // namespace engine::setup

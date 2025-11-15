@@ -32,8 +32,8 @@ debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
   return VK_FALSE;
 }
 
-auto makeDebugMessenger(vk::raii::Instance &instance,
-                        void *pUserData) noexcept {
+std::expected<vk::raii::DebugUtilsMessengerEXT, vk::Result>
+makeDebugMessenger(vk::raii::Instance &instance, void *pUserData) noexcept {
   vk::DebugUtilsMessageSeverityFlagsEXT severityFlags(
       vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
       vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo |
@@ -49,6 +49,7 @@ auto makeDebugMessenger(vk::raii::Instance &instance,
       .pfnUserCallback = &debugCallback,
       .pUserData = pUserData,
   };
+
   return instance.createDebugUtilsMessengerEXT(
       debugUtilsMessengerCreateInfoEXT);
 }

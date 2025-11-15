@@ -96,12 +96,32 @@ std::expected<App, std::string> App::create() noexcept {
       .present = queues[1],
   };
 
-  EG_MAKE(swapchainTuple,
+  vma::AllocatorCreateInfo allocCreateInfo{
+      .flags = vma::AllocatorCreateFlagBits::eBufferDeviceAddress,
+      .physicalDevice = physicalDevice,
+      .device = device,
+      .instance = core.getInstance(),
+  };
+
+  auto allocatorRes = vma::createAllocator(allocCreateInfo);
+  if (allocatorRes.result != vk::Result::eSuccess) {
+    Logger::error("Failed to create VMA allocator: {}",
+                  vk::to_string(allocatorRes.result));
+    return std::unexpected("Failed to create VMA allocator");
+  }
+  auto allocator = allocatorRes.value;
+
+  EG_MAKE(swapchain,
           engine::setup::createSwapchain(physicalDevice, device,
                                          core.getWindow(), core.getSurface(),
                                          coreQueuesIndices, std::nullopt),
           "Failed to create swapchain");
-  auto &[swapchainConfig, swapchain] = swapchainTuple;
+
+  EG_MAKE(renderImage,
+          engine::setup::createRenderImage(device, allocator,
+                                           swapchain.config(),
+                                           vk::Format::eR16G16B16A16Sfloat),
+          "Failed to create render image");
 
   VK_MAKE(commandPool,
           device.createCommandPool(vk::CommandPoolCreateInfo{
@@ -116,6 +136,12 @@ std::expected<App, std::string> App::create() noexcept {
 
   std::array<engine::SyncObjects, MAX_FRAMES_IN_FLIGHT> syncObjects = {
       std::move(sync1), std::move(sync2)};
+
+  EG_MAKE(imGuiObjects,
+          engine::setup::setupImGui(core.getWindow().get(), core.getInstance(),
+                                    device, physicalDevice, coreQueues.graphics,
+                                    swapchain.config().format.format),
+          "Failed to setup ImGui Vulkan objects");
 
   vk::CommandBufferAllocateInfo commandBufferAllocInfo{
       .commandPool = *commandPool,
@@ -180,7 +206,7 @@ std::expected<App, std::string> App::create() noexcept {
 
   EG_MAKE(
       basicVertexPipeline,
-      pipelines::BasicVertex::create(device, swapchainConfig,
+      pipelines::BasicVertex::create(device, renderImage.format,
                                      pipelines::BasicVertex::DescriptorLayouts{
                                          .camera = cameraDescriptorLayout}),
       "Failed to create basic vertex pipeline");
@@ -189,8 +215,8 @@ std::expected<App, std::string> App::create() noexcept {
       {0.0f, 0.0f, 2.0f}, {},
       engine::cameras::Perspective::Params{
           .fov = glm::radians(90.0f),
-          .aspectRatio = static_cast<float>(swapchainConfig.extent.width) /
-                         static_cast<float>(swapchainConfig.extent.height),
+          .aspectRatio = static_cast<float>(swapchain.config().extent.width) /
+                         static_cast<float>(swapchain.config().extent.height),
           .nearPlane = 0.1f});
 
   CameraObjects camObjs{.pool = std::move(cameraDescriptorPool),
@@ -198,9 +224,10 @@ std::expected<App, std::string> App::create() noexcept {
                         .camera = std::move(camera)};
 
   return App(std::move(core), std::move(physicalDevice), std::move(device),
-             std::move(coreQueues), std::move(swapchainConfig),
-             std::move(swapchain), std::move(commandPool),
-             std::move(syncObjects), std::move(commandBuffers),
-             std::move(camObjs), std::move(basicVertexPipeline),
-             std::move(vBufferMemory), std::move(vertexBuffer));
+             allocator, std::move(coreQueues), std::move(swapchain),
+             std::move(renderImage), std::move(commandPool),
+             std::move(syncObjects), std::move(imGuiObjects),
+             std::move(commandBuffers), std::move(camObjs),
+             std::move(basicVertexPipeline), std::move(vBufferMemory),
+             std::move(vertexBuffer));
 }

@@ -15,4 +15,8 @@ struct FrameData {
   const Input &input;
 };
 
+struct ImGuiVkObjects {
+  vk::raii::DescriptorPool descriptorPool;
+};
+
 } // namespace engine

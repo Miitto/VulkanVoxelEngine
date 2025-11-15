@@ -44,8 +44,7 @@ public:
   struct DescriptorLayouts {
     const vk::raii::DescriptorSetLayout &camera;
   };
-  static auto create(const vk::raii::Device &device,
-                     const vkh::SwapchainConfig &swapchainConfig,
+  static auto create(const vk::raii::Device &device, const vk::Format outFormat,
                      const DescriptorLayouts &layouts) noexcept
       -> std::expected<BasicVertex, std::string>;
 };

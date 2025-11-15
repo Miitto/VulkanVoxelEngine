@@ -52,7 +52,7 @@ void PerspectiveCamera::update(const engine::FrameData &data) noexcept {
     std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> &cameraBuffers) noexcept
     -> std::expected<std::array<vk::raii::DescriptorSet, MAX_FRAMES_IN_FLIGHT>,
                      std::string> {
-  std::array<vk::DescriptorSetLayout, _MM_FIXUP_MAX_FLOAT> layouts{
+  std::array<vk::DescriptorSetLayout, MAX_FRAMES_IN_FLIGHT> layouts{
       *cameraLayout, *cameraLayout};
   vk::DescriptorSetAllocateInfo allocInfo{.descriptorPool = *descriptorPool,
                                           .descriptorSetCount =

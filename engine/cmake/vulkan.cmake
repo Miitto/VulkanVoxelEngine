@@ -1,6 +1,20 @@
 function(find_vulkan)
   find_package (Vulkan REQUIRED)
 
+  FetchContent_Declare(VulkanMemoryAllocator
+    GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+    GIT_TAG v3.2.1
+    SYSTEM
+  )
+  FetchContent_MakeAvailable(VulkanMemoryAllocator)
+
+  FetchContent_Declare(VulkanMemoryAllocator-Hpp
+    GIT_REPOSITORY https://github.com/YaaZ/VulkanMemoryAllocator-Hpp.git
+    GIT_TAG v3.2.1
+    SYSTEM
+  )
+  FetchContent_MakeAvailable(VulkanMemoryAllocator-Hpp)
+
   # set up Vulkan C++ module
   add_library(VulkanCppModule)
   add_library(Vulkan::cppm ALIAS VulkanCppModule)
@@ -32,7 +46,12 @@ function(find_vulkan)
 endfunction()
 
 function(link_vulkan target ACCESS)
-  target_link_libraries(${target} ${ACCESS} Vulkan::cppm)
+  target_link_libraries(${target} ${ACCESS}
+    Vulkan::cppm
+    GPUOpen::VulkanMemoryAllocator
+    VulkanMemoryAllocator-Hpp::VulkanMemoryAllocator-Hpp
+  )
+
   target_precompile_headers(${target} ${ACCESS}
     <vulkan/vulkan_raii.hpp>
   )

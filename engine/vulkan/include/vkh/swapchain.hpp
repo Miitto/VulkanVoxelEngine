@@ -43,7 +43,7 @@ public:
   create(const vk::raii::Device &device, const SwapchainConfig &swapchainConfig,
          const vk::raii::PhysicalDevice &physicalDevice,
          const vk::raii::SurfaceKHR &surface, const SwapchainQueues &queues,
-         std::optional<vk::raii::SwapchainKHR *> oldSwapchain) noexcept
+         std::optional<vk::raii::SwapchainKHR *> oldSwapchain)
       -> std::expected<Swapchain, std::string>;
 
   [[nodiscard]] auto images() const noexcept -> const std::vector<vk::Image> & {
@@ -53,6 +53,15 @@ public:
   [[nodiscard]] auto views() const noexcept
       -> const std::vector<vk::raii::ImageView> & {
     return imageViews;
+  }
+
+  [[nodiscard]] const SwapchainConfig &config() const noexcept {
+    return _config;
+  }
+
+  [[nodiscard]] auto nImageView(const size_t index) const noexcept
+      -> const vk::raii::ImageView & {
+    return imageViews[index];
   }
 
   [[nodiscard]] auto nImage(const size_t index) const noexcept
@@ -101,13 +110,15 @@ public:
       -> std::expected<AcquireResult, std::string>;
 
 protected:
+  SwapchainConfig _config;
   vk::raii::SwapchainKHR swapchain;
   std::vector<vk::Image> imgs;
   std::vector<vk::raii::ImageView> imageViews;
 
-  Swapchain(vk::raii::SwapchainKHR &swapchain, std::vector<vk::Image> &images,
+  Swapchain(vk::raii::SwapchainKHR &swapchain, SwapchainConfig config,
+            std::vector<vk::Image> &images,
             std::vector<vk::raii::ImageView> &imageViews) noexcept
-      : swapchain(std::move(swapchain)), imgs(std::move(images)),
-        imageViews(std::move(imageViews)) {}
+      : _config(config), swapchain(std::move(swapchain)),
+        imgs(std::move(images)), imageViews(std::move(imageViews)) {}
 };
 } // namespace vkh

@@ -2,17 +2,163 @@
 #include <expected>
 
 #include <GLFW/glfw3.h>
-#include <memory>
-
-#include "vkh/queueFinder.hpp"
 
 #include <engine/core.hpp>
 #include <engine/setup.hpp>
 #include <engine/util/macros.hpp>
 #include <vkh/physicalDeviceSelector.hpp>
 
+#include <imgui/backends/imgui_impl_glfw.h>
+#include <imgui/backends/imgui_impl_vulkan.h>
+#include <imgui/imgui.h>
+
 namespace engine {
-void App::endFrame() noexcept { _input.onFrameEnd(); }
+
+App::App(App &&o) noexcept
+    : moveGuard(std::move(o.moveGuard)), core(std::move(o.core)),
+      physicalDevice(std::move(o.physicalDevice)), device(std::move(o.device)),
+      allocator(o.allocator), queues(std::move(o.queues)),
+      swapchain(std::move(o.swapchain)), renderImage(std::move(o.renderImage)),
+      commandPool(std::move(o.commandPool)),
+      syncObjects(std::move(o.syncObjects)), currentFrame(o.currentFrame),
+      oldSwapchain(std::move(o.oldSwapchain)),
+      imguiObjects(std::move(o.imguiObjects)) {
+  auto &window = this->core.getWindow();
+  window.setResizeCallback([&](Dimensions dim) { this->onWindowResize(dim); });
+}
+
+App &App::operator=(App &&o) noexcept {
+  if (this != &o) {
+    moveGuard = std::move(o.moveGuard);
+    core = std::move(o.core);
+    physicalDevice = std::move(o.physicalDevice);
+    device = std::move(o.device);
+    allocator = o.allocator;
+    queues = std::move(o.queues);
+    swapchain = std::move(o.swapchain);
+    renderImage = std::move(o.renderImage);
+    commandPool = std::move(o.commandPool);
+    syncObjects = std::move(o.syncObjects);
+    currentFrame = o.currentFrame;
+    oldSwapchain = std::move(o.oldSwapchain);
+    imguiObjects = std::move(o.imguiObjects);
+
+    auto &window = this->core.getWindow();
+    window.setResizeCallback(
+        [&](Dimensions dim) { this->onWindowResize(dim); });
+  }
+  return *this;
+}
+
+std::expected<App::FrameInfo, App::TickResult> App::newFrame() noexcept {
+  checkSwapchain();
+  auto nextImage_res = getNextImage();
+  if (!nextImage_res) {
+    Logger::critical("Failed to acquire next image: {}", nextImage_res.error());
+    return std::unexpected(App::TickResult::Bail);
+  }
+
+  auto &[frameIndex, nextImage] = nextImage_res.value();
+  auto &[imageIndex, state] = nextImage;
+
+  if (state == vkh::Swapchain::State::OutOfDate ||
+      state == vkh::Swapchain::State::Suboptimal) {
+    Logger::warn("Swapchain is out of date, recreating it.");
+    auto res = recreateSwapchain();
+    if (!res) {
+      Logger::critical("Failed to recreate swapchain: {}", res.error());
+      return std::unexpected(App::TickResult::Bail);
+    }
+    return std::unexpected(App::TickResult::Recoverable);
+  }
+
+  ImGui_ImplVulkan_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+
+  return App::FrameInfo{.frameIndex = frameIndex, .imageIndex = imageIndex};
+}
+
+App::TickResult
+App::presentFrame(FrameInfo frameInfo,
+                  std::span<vk::CommandBuffer> cmdBuffers) noexcept {
+  vk::PipelineStageFlags waitStage(
+      vk::PipelineStageFlagBits::eColorAttachmentOutput);
+
+  const auto &so = this->syncObjects[frameInfo.frameIndex];
+  const vk::SubmitInfo submitInfo{
+      .waitSemaphoreCount = 1,
+      .pWaitSemaphores = &*so.presentCompleteSemaphore,
+      .pWaitDstStageMask = &waitStage,
+      .commandBufferCount = 1,
+      .pCommandBuffers = cmdBuffers.data(),
+      .signalSemaphoreCount = 1,
+      .pSignalSemaphores = &*so.renderCompleteSemaphore};
+
+  queues.graphics.queue->submit(submitInfo, *so.drawingFence);
+
+  const vk::PresentInfoKHR presentInfo{.waitSemaphoreCount = 1,
+                                       .pWaitSemaphores =
+                                           &*so.renderCompleteSemaphore,
+                                       .swapchainCount = 1,
+                                       .pSwapchains = &**swapchain,
+                                       .pImageIndices = &frameInfo.imageIndex};
+
+  auto result = static_cast<vk::Result>(
+      queues.present.queue->getDispatcher()->vkQueuePresentKHR(
+          **queues.present.queue, &*presentInfo));
+
+  if (result == vk::Result::eSuboptimalKHR ||
+      result == vk::Result::eErrorOutOfDateKHR) {
+    Logger::warn("Swapchain is suboptimal, recreating it.");
+    auto res = recreateSwapchain();
+    if (!res) {
+      Logger::critical("Failed to recreate swapchain: {}", res.error());
+      return TickResult::Bail;
+    }
+
+    return TickResult::Recoverable;
+  }
+
+  if (result != vk::Result::eSuccess) {
+    Logger::error("Failed to present image: {}", vk::to_string(result));
+    return TickResult::Recoverable;
+  }
+
+  return TickResult::Success;
+}
+
+void App::endFrame() noexcept {
+  _input.onFrameEnd();
+  ImGui::EndFrame();
+}
+
+void App::drawImGui(vk::raii::CommandBuffer &cmdBuffer,
+                    uint32_t imageIndex) const noexcept {
+  ImGui::Render();
+
+  vk::RenderingAttachmentInfo attachmentInfo{
+      .imageView = swapchain.nImageView(imageIndex),
+      .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+      .loadOp = vk::AttachmentLoadOp::eLoad,
+      .storeOp = vk::AttachmentStoreOp::eStore,
+      .clearValue = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)};
+
+  vk::RenderingInfo renderingInfo{
+      .renderArea =
+          vk::Rect2D{.offset = {.x = 0, .y = 0},
+                     .extent = {.width = swapchain.config().extent.width,
+                                .height = swapchain.config().extent.height}},
+      .layerCount = 1,
+      .colorAttachmentCount = 1,
+      .pColorAttachments = &attachmentInfo};
+
+  cmdBuffer.beginRendering(renderingInfo);
+
+  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *cmdBuffer);
+
+  cmdBuffer.endRendering();
+}
 
 auto App::recreateSwapchain() noexcept -> std::expected<void, std::string> {
   Logger::trace("Recreating Swapchain");
@@ -20,58 +166,36 @@ auto App::recreateSwapchain() noexcept -> std::expected<void, std::string> {
   auto &window = core.getWindow();
   auto &surface = core.getSurface();
 
-  EG_MAKE(newSwapchainParts,
+  EG_MAKE(newSwapchain,
           setup::createSwapchain(physicalDevice, device, window, surface,
                                  {queues.graphics.index, queues.present.index},
                                  &*swapchain),
           "Failed to create new swapchain");
-  auto &[newSwapchainConfig, newSwapchain] = newSwapchainParts;
-
   oldSwapchain = OldSwapchain{
       .swapchain = std::move(swapchain),
       .frameIndex = currentFrame,
   };
 
-  swapchainConfig = newSwapchainConfig;
   swapchain = std::move(newSwapchain);
 
   Logger::trace("Swapchain recreated successfully");
   return {};
 }
 
-void App::preRender(const vk::raii::CommandBuffer &commandBuffer,
-                    const size_t index) noexcept {
-  engine::transitionImageLayout(
-      commandBuffer, swapchain.nImage(index), vk::ImageLayout::eUndefined,
-      vk::ImageLayout::eColorAttachmentOptimal, {},
-      vk::AccessFlagBits2::eColorAttachmentWrite,
-      vk::PipelineStageFlagBits2::eTopOfPipe,
-      vk::PipelineStageFlagBits2::eColorAttachmentOutput);
-}
-
-void App::postRender(const vk::raii::CommandBuffer &commandBuffer,
-                     const size_t index) noexcept {
-  engine::transitionImageLayout(
-      commandBuffer, swapchain.nImage(index),
-      vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR,
-      vk::AccessFlagBits2::eColorAttachmentWrite, {},
-      vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-      vk::PipelineStageFlagBits2::eBottomOfPipe);
-}
-
 void App::setupCmdBuffer(
     const vk::raii::CommandBuffer &cmdBuffer) const noexcept {
   cmdBuffer.setViewport(
-      0,
-      vk::Viewport{.x = 0.0f,
-                   .y = 0.0f,
-                   .width = static_cast<float>(swapchainConfig.extent.width),
-                   .height = static_cast<float>(swapchainConfig.extent.height),
-                   .minDepth = 1.0f,
-                   .maxDepth = 0.0f});
+      0, vk::Viewport{.x = 0.0f,
+                      .y = 0.0f,
+                      .width = static_cast<float>(renderImage.extent.width),
+                      .height = static_cast<float>(renderImage.extent.height),
+                      .minDepth = 1.0f,
+                      .maxDepth = 0.0f});
 
-  cmdBuffer.setScissor(0, vk::Rect2D{.offset = {.x = 0, .y = 0},
-                                     .extent = swapchainConfig.extent});
+  cmdBuffer.setScissor(
+      0, vk::Rect2D{.offset = {.x = 0, .y = 0},
+                    .extent = {.width = renderImage.extent.width,
+                               .height = renderImage.extent.height}});
 }
 
 auto App::allocCmdBuffer(const vk::CommandBufferLevel level,
@@ -118,9 +242,9 @@ auto App::getNextImage() noexcept
                                     sync.presentCompleteSemaphore);
   if (res.has_value()) {
 
-    SwapchainImageResult val = {currentFrame, res.value()};
+    SwapchainImageResult val = {.thisFrame = currentFrame, .img = res.value()};
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-    return std::move(val);
+    return val;
   }
 
   return std::unexpected(res.error());

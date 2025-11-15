@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <vulkan/vulkan_raii.hpp>
 
 namespace vkh {
@@ -50,10 +49,10 @@ struct GraphicsPipelineConfig {
   vk::PipelineLayout layout;
 
   std::optional<vk::PipelineVertexInputStateCreateInfo>
-      __internalVertexInputInfo = std::nullopt;
+      _internalVertexInputInfo = std::nullopt;
 
   vk::GraphicsPipelineCreateInfo build() noexcept {
-    __internalVertexInputInfo = {
+    _internalVertexInputInfo = {
         .vertexBindingDescriptionCount =
             static_cast<uint32_t>(vertexInput.bindings.size()),
         .pVertexBindingDescriptions = vertexInput.bindings.data(),
@@ -69,7 +68,7 @@ struct GraphicsPipelineConfig {
         .pNext = &rendering,
         .stageCount = static_cast<uint32_t>(shaders.size()),
         .pStages = shaders.data(),
-        .pVertexInputState = &*__internalVertexInputInfo,
+        .pVertexInputState = &*_internalVertexInputInfo,
         .pInputAssemblyState = &inputAssembly,
         .pViewportState = &viewport,
         .pRasterizationState = &rasterizer,

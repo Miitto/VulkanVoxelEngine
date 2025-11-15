@@ -1,7 +1,10 @@
 #include "engine/core.hpp"
 
+#include "engine/util/macros.hpp"
 #include "logger.hpp"
 #include "vkh/instance.hpp"
+
+#include "engine/debug.hpp"
 
 namespace engine::rendering {
 
@@ -32,6 +35,15 @@ auto Core::create(const engine::Window::Attribs windowAttribs,
 
   auto surface = vk::raii::SurfaceKHR(instance, rawSurface);
 
-  return Core(window, context, instance, surface);
+  Core core(window, context, instance, surface);
+
+#ifndef NDEBUG
+  VK_MAKE(dbgCallback, engine::makeDebugMessenger(core.instance),
+          "Failed to create debug messenger");
+
+  core.setDebugMessenger(dbgCallback);
+#endif
+
+  return core;
 }
 } // namespace engine::rendering

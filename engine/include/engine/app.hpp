@@ -4,6 +4,7 @@
 #include <expected>
 #include <string>
 
+#include "backends/imgui_impl_vulkan.h"
 #include "engine/core.hpp"
 #include "vkh/swapchain.hpp"
 #include "vulkan/vulkan_raii.hpp"
@@ -17,7 +18,29 @@
 #include "engine/structs.hpp"
 #include <vkh/structs.hpp>
 
+#include <vk_mem_alloc.hpp>
+
 namespace engine {
+
+class MoveGuard {
+public:
+  MoveGuard() = default;
+  MoveGuard(const MoveGuard &) = delete;
+  MoveGuard(MoveGuard &&o) noexcept { o._moved = true; }
+  MoveGuard &operator=(const MoveGuard &) = delete;
+  MoveGuard &operator=(MoveGuard &&o) noexcept {
+    if (this != &o) {
+      o._moved = true;
+    }
+    return *this;
+  }
+  ~MoveGuard() = default;
+
+  [[nodiscard]] bool moved() const noexcept { return _moved; }
+
+protected:
+  bool _moved = false;
+};
 
 class App {
 public:
@@ -28,14 +51,40 @@ public:
 
   App(const App &) = delete;
   App &operator=(const App &) = delete;
-  App(App &&) = default;
-  App &operator=(App &&) = default;
-  virtual ~App() = default;
+  App(App &&) noexcept;
+  App &operator=(App &&) noexcept;
+
+  virtual ~App() {
+    if (moveGuard.moved())
+      return;
+
+    ImGui_ImplVulkan_Shutdown();
+
+    device.waitIdle();
+    allocator.destroyImage(renderImage.image, renderImage.alloc);
+
+    allocator.destroy();
+  }
 
   void poll() const noexcept { glfwPollEvents(); }
 
-  virtual bool update(float deltaTime) noexcept = 0;
-  virtual bool render() noexcept = 0;
+  struct FrameInfo {
+    uint32_t frameIndex;
+    uint32_t imageIndex;
+  };
+
+  enum class TickResult : uint8_t { Success, Recoverable, Bail };
+
+  std::expected<FrameInfo, TickResult> newFrame() noexcept;
+
+  TickResult presentFrame(FrameInfo frameInfo,
+                          std::span<vk::CommandBuffer> cmdBuffers) noexcept;
+
+  virtual TickResult update(float deltaTime) noexcept = 0;
+  virtual TickResult render() noexcept = 0;
+
+  void drawImGui(vk::raii::CommandBuffer &cmdBuffer,
+                 uint32_t imageIndex) const noexcept;
 
   [[nodiscard]]
   auto shouldClose() const noexcept -> bool {
@@ -45,12 +94,6 @@ public:
   virtual void onWindowResize(Dimensions dim) noexcept = 0;
 
   auto recreateSwapchain() noexcept -> std::expected<void, std::string>;
-
-  virtual void preRender(const vk::raii::CommandBuffer &commandBuffer,
-                         const size_t index) noexcept;
-
-  virtual void postRender(const vk::raii::CommandBuffer &commandBuffer,
-                          const size_t index) noexcept;
 
   virtual void endFrame() noexcept;
 
@@ -71,15 +114,20 @@ public:
   std::expected<SwapchainImageResult, std::string> getNextImage() noexcept;
 
 protected:
+  MoveGuard moveGuard;
+
   Input _input;
   engine::rendering::Core core;
 
   vk::raii::PhysicalDevice physicalDevice;
   vk::raii::Device device;
+
+  vma::Allocator allocator;
+
   Queues queues;
 
-  vkh::SwapchainConfig swapchainConfig;
   vkh::Swapchain swapchain;
+  vkh::AllocatedImage renderImage;
 
   vk::raii::CommandPool commandPool;
 
@@ -94,16 +142,21 @@ protected:
 
   std::optional<OldSwapchain> oldSwapchain = std::nullopt;
 
+  ImGuiVkObjects imguiObjects;
+
   App(engine::rendering::Core &&core, vk::raii::PhysicalDevice &&physicalDevice,
-      vk::raii::Device &&device, Queues &&queues,
-      vkh::SwapchainConfig &&swapchainConfig, vkh::Swapchain &&swapchain,
+      vk::raii::Device &&device, vma::Allocator allocator, Queues &&queues,
+      vkh::Swapchain &&swapchain, vkh::AllocatedImage &&renderImage,
       vk::raii::CommandPool &&commandPool,
-      std::array<SyncObjects, MAX_FRAMES_IN_FLIGHT> &&syncObjects) noexcept
+      std::array<SyncObjects, MAX_FRAMES_IN_FLIGHT> &&syncObjects,
+      ImGuiVkObjects &&imGuiObjects) noexcept
       : core(std::move(core)), physicalDevice(std::move(physicalDevice)),
-        device(std::move(device)), queues(std::move(queues)),
-        swapchainConfig(swapchainConfig), swapchain(std::move(swapchain)),
+        device(std::move(device)), allocator(allocator),
+        queues(std::move(queues)), swapchain(std::move(swapchain)),
+        renderImage(std::move(renderImage)),
         commandPool(std::move(commandPool)),
-        syncObjects(std::move(syncObjects)) {
+        syncObjects(std::move(syncObjects)),
+        imguiObjects(std::move(imGuiObjects)) {
     auto &window = this->core.getWindow();
     window.setResizeCallback(
         [&](Dimensions dim) { this->onWindowResize(dim); });
@@ -120,13 +173,28 @@ void run(T &app) {
     auto deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(
                          now - lastFrame)
                          .count();
-    if (!app.update(deltaTime))
-      return;
-    if (!app.render())
-      return;
+    switch (app.update(deltaTime)) {
+    case App::TickResult::Success:
+      break;
+    case App::TickResult::Recoverable:
+      goto next;
+    case App::TickResult::Bail:
+      goto end;
+    }
+
+    switch (app.render()) {
+    case App::TickResult::Success:
+    case App::TickResult::Recoverable:
+      break;
+    case App::TickResult::Bail:
+      goto end;
+    }
+
+  next:
     app.endFrame();
 
     lastFrame = now;
   }
+end:
 }
 } // namespace engine

@@ -2,26 +2,25 @@
 #include <expected>
 
 #include <GLFW/glfw3.h>
-#include <memory>
 
 #include "logger.hpp"
-#include "vkh/queueFinder.hpp"
 
 #include <engine/core.hpp>
 #include <engine/debug.hpp>
 #include <engine/util/macros.hpp>
 #include <vertex.hpp>
-#include <vkh/memorySelector.hpp>
 #include <vkh/physicalDeviceSelector.hpp>
 #include <vkh/pipeline.hpp>
 #include <vkh/shader.hpp>
+
+#include <imgui/imgui.h>
 
 void App::onWindowResize(engine::Dimensions dim) noexcept {
   Logger::info("Window resized to {}x{}", dim.width, dim.height);
   camera.camera.onResize(dim.width, dim.height);
 }
 
-bool App::update(float deltaTime) noexcept {
+App::TickResult App::update(float deltaTime) noexcept {
   engine::FrameData frameData{
       .deltaTimeMs = deltaTime,
       .input = _input,
@@ -29,37 +28,20 @@ bool App::update(float deltaTime) noexcept {
 
   camera.camera.update(frameData);
 
-  return true;
+  return TickResult::Success;
 }
 
-bool App::render() noexcept {
-  Logger::trace("Rendering frame...");
-  checkSwapchain();
-  auto nextImage_res = getNextImage();
-  if (!nextImage_res) {
-    Logger::error("Failed to acquire next image: {}", nextImage_res.error());
-    return false;
+App::TickResult App::render() noexcept {
+  auto res = newFrame();
+  if (!res) {
+    return res.error();
   }
-  Logger::trace("Acquired next image successfully.");
+  auto fInfo = res.value();
 
-  auto &[frameIndex, nextImage] = nextImage_res.value();
-  auto &[imageIndex, state] = nextImage;
-
-  if (state == vkh::Swapchain::State::OutOfDate) {
-    Logger::warn("Swapchain is out of date, recreating it.");
-    auto res = recreateSwapchain();
-    if (!res) {
-      Logger::error("Failed to recreate swapchain: {}", res.error());
-      return false;
-    }
-    return true;
-  }
-  Logger::trace("Image index: {}", imageIndex);
-
-  auto &cmdBuffer = commandBuffers[frameIndex];
+  auto &cmdBuffer = commandBuffers[fInfo.frameIndex];
 
   [[maybe_unused]]
-  auto offset = frameIndex * sizeof(engine::Camera::Matrices);
+  auto offset = fInfo.frameIndex * sizeof(engine::Camera::Matrices);
 
   auto cameraMatrices = camera.camera.matrices();
   memcpy((char *)camera.buffers.mapping + offset, &cameraMatrices,
@@ -68,10 +50,15 @@ bool App::render() noexcept {
   cmdBuffer.begin(vk::CommandBufferBeginInfo{
       .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
-  preRender(cmdBuffer, imageIndex);
+  engine::transitionImageLayout(
+      cmdBuffer, renderImage.image, vk::ImageLayout::eUndefined,
+      vk::ImageLayout::eColorAttachmentOptimal, {},
+      vk::AccessFlagBits2::eColorAttachmentWrite,
+      vk::PipelineStageFlagBits2::eTopOfPipe,
+      vk::PipelineStageFlagBits2::eColorAttachmentOutput);
 
   vk::RenderingAttachmentInfo attachmentInfo{
-      .imageView = swapchain[imageIndex],
+      .imageView = renderImage.view,
       .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
       .loadOp = vk::AttachmentLoadOp::eClear,
       .storeOp = vk::AttachmentStoreOp::eStore,
@@ -79,7 +66,8 @@ bool App::render() noexcept {
 
   vk::RenderingInfo renderingInfo{
       .renderArea = vk::Rect2D{.offset = {.x = 0, .y = 0},
-                               .extent = swapchainConfig.extent},
+                               .extent = {.width = renderImage.extent.width,
+                                          .height = renderImage.extent.height}},
       .layerCount = 1,
       .colorAttachmentCount = 1,
       .pColorAttachments = &attachmentInfo};
@@ -87,6 +75,99 @@ bool App::render() noexcept {
   Logger::trace("Beginning rendering");
   cmdBuffer.beginRendering(renderingInfo);
 
+  draw(cmdBuffer);
+
+  cmdBuffer.endRendering();
+
+  engine::transitionImageLayout(
+      cmdBuffer, renderImage.image, vk::ImageLayout::eColorAttachmentOptimal,
+      vk::ImageLayout::eTransferSrcOptimal,
+      vk::AccessFlagBits2::eColorAttachmentWrite,
+      vk::AccessFlagBits2::eTransferRead,
+      vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+      vk::PipelineStageFlagBits2::eTransfer);
+
+  engine::transitionImageLayout(cmdBuffer, swapchain.images()[fInfo.imageIndex],
+                                vk::ImageLayout::eUndefined,
+                                vk::ImageLayout::eTransferDstOptimal, {},
+                                vk::AccessFlagBits2::eTransferWrite,
+                                vk::PipelineStageFlagBits2::eTopOfPipe,
+                                vk::PipelineStageFlagBits2::eTransfer);
+
+  vk::ImageBlit2 blit{
+      .srcSubresource =
+          vk::ImageSubresourceLayers{
+              .aspectMask = vk::ImageAspectFlagBits::eColor,
+              .mipLevel = 0,
+              .baseArrayLayer = 0,
+              .layerCount = 1,
+          },
+      .srcOffsets = {{
+          vk::Offset3D{.x = 0, .y = 0, .z = 0},
+          vk::Offset3D{
+              .x = static_cast<int32_t>(renderImage.extent.width),
+              .y = static_cast<int32_t>(renderImage.extent.height),
+              .z = 1,
+          },
+      }},
+      .dstSubresource =
+          vk::ImageSubresourceLayers{
+              .aspectMask = vk::ImageAspectFlagBits::eColor,
+              .mipLevel = 0,
+              .baseArrayLayer = 0,
+              .layerCount = 1,
+          },
+      .dstOffsets = {{
+          vk::Offset3D{.x = 0, .y = 0, .z = 0},
+          vk::Offset3D{
+              .x = static_cast<int32_t>(swapchain.config().extent.width),
+              .y = static_cast<int32_t>(swapchain.config().extent.height),
+              .z = 1,
+          },
+      }}};
+
+  vk::BlitImageInfo2 blitInfo{
+      .srcImage = renderImage.image,
+      .srcImageLayout = vk::ImageLayout::eTransferSrcOptimal,
+      .dstImage = swapchain.images()[fInfo.imageIndex],
+      .dstImageLayout = vk::ImageLayout::eTransferDstOptimal,
+      .regionCount = 1,
+      .pRegions = &blit,
+      .filter = vk::Filter::eLinear,
+  };
+
+  cmdBuffer.blitImage2(blitInfo);
+
+  {
+    ImGui::ShowDemoWindow();
+  }
+
+  engine::transitionImageLayout(
+      cmdBuffer, swapchain.images()[fInfo.imageIndex],
+      vk::ImageLayout::eTransferDstOptimal,
+      vk::ImageLayout::eColorAttachmentOptimal,
+      vk::AccessFlagBits2::eTransferWrite,
+      vk::AccessFlagBits2::eColorAttachmentWrite,
+      vk::PipelineStageFlagBits2::eTransfer,
+      vk::PipelineStageFlagBits2::eColorAttachmentOutput);
+
+  drawImGui(cmdBuffer, fInfo.imageIndex);
+
+  engine::transitionImageLayout(
+      cmdBuffer, swapchain.images()[fInfo.imageIndex],
+      vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR,
+      vk::AccessFlagBits2::eColorAttachmentWrite, {},
+      vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+      vk::PipelineStageFlagBits2::eBottomOfPipe);
+
+  cmdBuffer.end();
+
+  auto cmdBuf = static_cast<vk::CommandBuffer>(cmdBuffer);
+
+  return presentFrame(fInfo, {&cmdBuf, 1});
+}
+
+void App::draw(vk::raii::CommandBuffer &cmdBuffer) {
   cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
   setupCmdBuffer(cmdBuffer);
@@ -97,59 +178,4 @@ bool App::render() noexcept {
                                {camera.buffers.descriptorSets[0]}, nullptr);
 
   cmdBuffer.draw(4, 1, 0, 0);
-
-  cmdBuffer.endRendering();
-
-  postRender(cmdBuffer, imageIndex);
-
-  cmdBuffer.end();
-
-  vk::PipelineStageFlags waitStage(
-      vk::PipelineStageFlagBits::eColorAttachmentOutput);
-
-  const auto &so = this->syncObjects[frameIndex];
-  const vk::SubmitInfo submitInfo{
-      .waitSemaphoreCount = 1,
-      .pWaitSemaphores = &*so.presentCompleteSemaphore,
-      .pWaitDstStageMask = &waitStage,
-      .commandBufferCount = 1,
-      .pCommandBuffers = &*cmdBuffer,
-      .signalSemaphoreCount = 1,
-      .pSignalSemaphores = &*so.renderCompleteSemaphore};
-
-  Logger::trace("Submitting command buffer to graphics queue");
-  queues.graphics.queue->submit(submitInfo, *so.drawingFence);
-
-  const vk::PresentInfoKHR presentInfo{.waitSemaphoreCount = 1,
-                                       .pWaitSemaphores =
-                                           &*so.renderCompleteSemaphore,
-                                       .swapchainCount = 1,
-                                       .pSwapchains = &**swapchain,
-                                       .pImageIndices = &imageIndex};
-
-  Logger::trace("Presenting image to swapchain");
-  auto result = static_cast<vk::Result>(
-      queues.present.queue->getDispatcher()->vkQueuePresentKHR(
-          **queues.present.queue, &*presentInfo));
-
-  if (state == vkh::Swapchain::State::Suboptimal ||
-      result == vk::Result::eSuboptimalKHR ||
-      result == vk::Result::eErrorOutOfDateKHR) {
-    Logger::warn("Swapchain is suboptimal, consider recreating it.");
-    auto res = recreateSwapchain();
-    if (!res) {
-      Logger::error("Failed to recreate swapchain: {}", res.error());
-      return false;
-    }
-
-    return true;
-  }
-
-  if (result != vk::Result::eSuccess) {
-    Logger::error("Failed to present image: {}", vk::to_string(result));
-    return false;
-  }
-
-  Logger::trace("Frame rendered successfully.");
-  return true;
 }

@@ -13,6 +13,9 @@ link_glm(${PROJECT_NAME} PUBLIC)
 include(glfw)
 link_glfw(${PROJECT_NAME} PUBLIC)
 
+include(imgui)
+link_imgui(${PROJECT_NAME} PUBLIC)
+
 add_subdirectory(vulkan)
 add_subdirectory(logger)
 add_subdirectory(src)

@@ -9,7 +9,7 @@
 
 namespace pipelines {
 auto BasicVertex::create(const vk::raii::Device &device,
-                         const vkh::SwapchainConfig &swapchainConfig,
+                         const vk::Format outFormat,
                          const DescriptorLayouts &layouts) noexcept
     -> std::expected<BasicVertex, std::string> {
   Logger::trace("Creating Graphics Pipeline");
@@ -38,7 +38,7 @@ auto BasicVertex::create(const vk::raii::Device &device,
 
   vkh::GraphicsPipelineConfig pipelineConfig = {
       .rendering = {.colorAttachmentCount = 1,
-                    .pColorAttachmentFormats = &swapchainConfig.format.format},
+                    .pColorAttachmentFormats = &outFormat},
       .shaders = shaderStages,
       .vertexInput = {.bindings = {&bindingDescription, 1},
                       .attributes = attributeDescriptions},

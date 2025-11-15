@@ -9,4 +9,5 @@ target_sources(${PROJECT_NAME} PRIVATE
   instance.cpp
   validators.cpp
   physicalDevice.cpp
+  vmaImpl.cpp
 )

@@ -64,11 +64,12 @@ auto desiredImageCount(const vk::SurfaceCapabilitiesKHR &capabilities) noexcept
   return desired;
 }
 
-auto Swapchain::create(
-    const vk::raii::Device &device, const SwapchainConfig &swapchainConfig,
-    const vk::raii::PhysicalDevice &physicalDevice,
-    const vk::raii::SurfaceKHR &surface, const SwapchainQueues &queues,
-    std::optional<vk::raii::SwapchainKHR *> oldSwapchain) noexcept
+auto Swapchain::create(const vk::raii::Device &device,
+                       const SwapchainConfig &swapchainConfig,
+                       const vk::raii::PhysicalDevice &physicalDevice,
+                       const vk::raii::SurfaceKHR &surface,
+                       const SwapchainQueues &queues,
+                       std::optional<vk::raii::SwapchainKHR *> oldSwapchain)
     -> std::expected<Swapchain, std::string> {
 
   auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
@@ -80,7 +81,8 @@ auto Swapchain::create(
       .imageColorSpace = swapchainConfig.format.colorSpace,
       .imageExtent = swapchainConfig.extent,
       .imageArrayLayers = 1,
-      .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
+      .imageUsage = vk::ImageUsageFlagBits::eColorAttachment |
+                    vk::ImageUsageFlagBits::eTransferDst,
       .preTransform = surfaceCapabilities.currentTransform,
       .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
       .presentMode = swapchainConfig.presentMode,
@@ -135,7 +137,7 @@ auto Swapchain::create(
     imageViews.push_back(std::move(imageView_res.value()));
   }
 
-  Swapchain s(swapchain, images, imageViews);
+  Swapchain s(swapchain, swapchainConfig, images, imageViews);
 
   return s;
 }

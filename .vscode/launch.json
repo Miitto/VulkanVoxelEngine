@@ -4,9 +4,16 @@
     {
       "type": "codelldb",
       "request": "launch",
-      "name": "Windows Engine - Clang",
+      "name": "Clang",
       "expressions": "native",
-      "program": "${workspaceFolder}/__output/windows-clang-x64/Debug/VoxelEngine.exe"
+      "program": "${workspaceFolder}/__output/clang-x64/Debug/VoxelEngine.exe"
+    },
+{
+      "type": "codelldb",
+      "request": "launch",
+      "name": "Clang Release",
+      "expressions": "native",
+      "program": "${workspaceFolder}/__output/clang-x64/Release/VoxelEngine.exe"
     }
   ]
 }
