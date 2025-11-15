@@ -23,19 +23,16 @@ else()
   message(STATUS "sccache not found, using default compiler")
 endif()
 
-add_executable(${PROJECT_NAME})
-
-target_include_directories(${PROJECT_NAME} PRIVATE src)
-
-add_subdirectory(src)
-
 include(FetchContent)
 
+add_executable(${PROJECT_NAME})
+
 add_subdirectory(engine)
-target_link_libraries(${PROJECT_NAME} PRIVATE VulkanEngine)
-target_include_directories(${PROJECT_NAME} PRIVATE VulkanEngine)
+add_subdirectory(src)
 
 add_subdirectory(shaders)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE vkEngine::vkEngine logger::logger)
 
 target_compile_options(${PROJECT_NAME} PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd5050>

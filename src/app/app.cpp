@@ -4,203 +4,152 @@
 #include <GLFW/glfw3.h>
 #include <memory>
 
-#include "engine/vulkan/queueFinder.hpp"
 #include "logger.hpp"
+#include "vkh/queueFinder.hpp"
 
 #include <engine/core.hpp>
 #include <engine/debug.hpp>
 #include <engine/util/macros.hpp>
-#include <engine/vulkan/extensions/pipeline.hpp>
-#include <engine/vulkan/extensions/shader.hpp>
-#include <engine/vulkan/memorySelector.hpp>
-#include <engine/vulkan/physicalDeviceSelector.hpp>
 #include <vertex.hpp>
+#include <vkh/memorySelector.hpp>
+#include <vkh/physicalDeviceSelector.hpp>
+#include <vkh/pipeline.hpp>
+#include <vkh/shader.hpp>
 
-const int WINDOW_WIDTH = 800;
-const int WINDOW_HEIGHT = 600;
-const char *WINDOW_TITLE = "Vulkan App";
-
-#ifndef NDEBUG
-const bool enableValidationLayers = true;
-#else
-const bool enableValidationLayers = false;
-#endif
-
-namespace {
-const std::array<const char *, 3> requiredDeviceExtensions = {
-    vk::KHRSwapchainExtensionName, vk::KHRSpirv14ExtensionName,
-    vk::KHRCreateRenderpass2ExtensionName};
+void App::onWindowResize(engine::Dimensions dim) noexcept {
+  Logger::info("Window resized to {}x{}", dim.width, dim.height);
+  camera.camera.onResize(dim.width, dim.height);
 }
 
-auto App::create() noexcept -> std::expected<App, std::string> {
-  EG_MAKE(core,
-          engine::rendering::Core::create(
-              engine::Window::Attribs{
-                  .width = WINDOW_WIDTH,
-                  .height = WINDOW_HEIGHT,
-                  .title = WINDOW_TITLE,
-              },
-              {}, enableValidationLayers),
-          "Failed to create core");
-
-  EG_MAKE(physicalDevice,
-          engine::setup::selectPhysicalDevice(
-              core.getInstance(),
-              [](engine::vulkan::PhysicalDeviceSelector &selector)
-                  -> std::optional<std::string> {
-                selector.requireExtensions(requiredDeviceExtensions);
-                selector.requireVersion(1, 4, 0);
-                selector.requireQueueFamily(vk::QueueFlagBits::eGraphics);
-
-                selector.scoreDevices(
-                    [](const engine::vulkan::PhysicalDeviceSelector::DeviceSpecs
-                           &spec) {
-                      uint32_t score = 0;
-                      if (spec.properties.deviceType ==
-                          vk::PhysicalDeviceType::eDiscreteGpu) {
-                        score += 1000;
-                      }
-
-                      return score;
-                    });
-                return std::nullopt;
-              }),
-          "Failed to select physical device");
-
-  EG_MAKE(coreQueuesIndices,
-          engine::setup::findCoreQueues(physicalDevice, core.getSurface()),
-          "Failed to find core queue families");
-
-  std::vector<engine::setup::QueueCreateInfo> queueCreateInfos;
-  queueCreateInfos.push_back(
-      {.familyIndex = coreQueuesIndices.graphics, .priority = 1.0f});
-  if (coreQueuesIndices.present != coreQueuesIndices.graphics)
-    queueCreateInfos.push_back(
-        {.familyIndex = coreQueuesIndices.present, .priority = 1.0f});
-
-  EG_MAKE(device,
-          engine::setup::createLogicalDevice(
-              physicalDevice, queueCreateInfos,
-              engine::setup::ENGINE_DEVICE_EXTENSIONS,
-              requiredDeviceExtensions),
-          "Failed to create logical device");
-
-  EG_MAKE(queues,
-          engine::setup::retrieveQueues(
-              device, {coreQueuesIndices.graphics, coreQueuesIndices.present}),
-          "Failed to retrieve queues");
-
-  engine::App::Queues coreQueues{
-      .graphics = queues[0],
-      .present = queues[1],
+bool App::update(float deltaTime) noexcept {
+  engine::FrameData frameData{
+      .deltaTimeMs = deltaTime,
+      .input = _input,
   };
 
-  EG_MAKE(swapchainTuple,
-          engine::setup::createSwapchain(
-              physicalDevice, device, core.getWindow().get(), core.getSurface(),
-              coreQueuesIndices, std::nullopt),
-          "Failed to create swapchain");
-  auto &[swapchainConfig, swapchain] = swapchainTuple;
+  camera.camera.update(frameData);
 
-  VK_MAKE(commandPool,
-          device.createCommandPool(vk::CommandPoolCreateInfo{
-              .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-              .queueFamilyIndex = coreQueuesIndices.graphics}),
-          "Failed to create command pool");
+  return true;
+}
 
-  EG_MAKE(sync1, engine::setup::createSyncObjects(device),
-          "Failed to create sync objects");
-  EG_MAKE(sync2, engine::setup::createSyncObjects(device),
-          "Failed to create sync objects");
+bool App::render() noexcept {
+  Logger::trace("Rendering frame...");
+  checkSwapchain();
+  auto nextImage_res = getNextImage();
+  if (!nextImage_res) {
+    Logger::error("Failed to acquire next image: {}", nextImage_res.error());
+    return false;
+  }
+  Logger::trace("Acquired next image successfully.");
 
-  std::array<engine::SyncObjects, MAX_FRAMES_IN_FLIGHT> syncObjects = {
-      std::move(sync1), std::move(sync2)};
+  auto &[frameIndex, nextImage] = nextImage_res.value();
+  auto &[imageIndex, state] = nextImage;
 
-  vk::CommandBufferAllocateInfo commandBufferAllocInfo{
-      .commandPool = *commandPool,
-      .level = vk::CommandBufferLevel::ePrimary,
-      .commandBufferCount = MAX_FRAMES_IN_FLIGHT};
+  if (state == vkh::Swapchain::State::OutOfDate) {
+    Logger::warn("Swapchain is out of date, recreating it.");
+    auto res = recreateSwapchain();
+    if (!res) {
+      Logger::error("Failed to recreate swapchain: {}", res.error());
+      return false;
+    }
+    return true;
+  }
+  Logger::trace("Image index: {}", imageIndex);
 
-  EG_MAKE(commandBuffersV,
-          device.allocateCommandBuffers(commandBufferAllocInfo),
-          "Failed to allocate command buffers");
+  auto &cmdBuffer = commandBuffers[frameIndex];
 
-  std::array<vk::raii::CommandBuffer, MAX_FRAMES_IN_FLIGHT> commandBuffers{
-      std::move(commandBuffersV[0]), std::move(commandBuffersV[1])};
+  [[maybe_unused]]
+  auto offset = frameIndex * sizeof(engine::Camera::Matrices);
 
-  std::array<Vertex, 4> vertices = {
-      Vertex{.position = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}},
-      Vertex{.position = {0.5f, -0.5f, 0.0f}, .color = {0.0f, 1.0f, 0.0f}},
-      Vertex{.position = {-0.5f, 0.5f, 0.0f}, .color = {0.0f, 0.0f, 1.0f}},
-      Vertex{.position = {0.5f, 0.5f, 0.0f}, .color = {1.0f, 1.0f, 1.0f}}};
+  auto cameraMatrices = camera.camera.matrices();
+  memcpy((char *)camera.buffers.mapping + offset, &cameraMatrices,
+         sizeof(engine::Camera::Matrices));
 
-  vk::BufferCreateInfo vertexBufferInfo{
-      .size = sizeof(vertices[0]) * vertices.size(),
-      .usage = vk::BufferUsageFlagBits::eVertexBuffer,
-      .sharingMode = vk::SharingMode::eExclusive};
+  cmdBuffer.begin(vk::CommandBufferBeginInfo{
+      .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
-  VK_MAKE(vertexBuffer, device.createBuffer(vertexBufferInfo),
-          "Failed to create vertex buffer");
+  preRender(cmdBuffer, imageIndex);
 
-  auto memSelector =
-      engine::vulkan::MemorySelector(vertexBuffer, physicalDevice);
+  vk::RenderingAttachmentInfo attachmentInfo{
+      .imageView = swapchain[imageIndex],
+      .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+      .loadOp = vk::AttachmentLoadOp::eClear,
+      .storeOp = vk::AttachmentStoreOp::eStore,
+      .clearValue = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)};
 
-  EG_MAKE(vertexAllocInfo,
-          memSelector.allocInfo(vk::MemoryPropertyFlagBits::eHostVisible |
-                                vk::MemoryPropertyFlagBits::eHostCoherent),
-          "Failed to get memory allocation info");
+  vk::RenderingInfo renderingInfo{
+      .renderArea = vk::Rect2D{.offset = {.x = 0, .y = 0},
+                               .extent = swapchainConfig.extent},
+      .layerCount = 1,
+      .colorAttachmentCount = 1,
+      .pColorAttachments = &attachmentInfo};
 
-  VK_MAKE(vBufferMemory, device.allocateMemory(vertexAllocInfo),
-          "Failed to allocate vertex buffer memory");
+  Logger::trace("Beginning rendering");
+  cmdBuffer.beginRendering(renderingInfo);
 
-  vertexBuffer.bindMemory(*vBufferMemory, 0);
+  cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
-  void *data = vBufferMemory.mapMemory(0, vertexBufferInfo.size);
-  memcpy(data, vertices.data(), vertexBufferInfo.size);
-  vBufferMemory.unmapMemory();
+  setupCmdBuffer(cmdBuffer);
 
-  vk::DescriptorPoolSize poolSize{.type = vk::DescriptorType::eUniformBuffer,
-                                  .descriptorCount = MAX_FRAMES_IN_FLIGHT};
-  vk::DescriptorPoolCreateInfo poolInfo{
-      .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-      .maxSets = MAX_FRAMES_IN_FLIGHT,
-      .poolSizeCount = 1,
-      .pPoolSizes = &poolSize};
-  VK_MAKE(cameraDescriptorPool, device.createDescriptorPool(poolInfo),
-          "Failed to create camera descriptor pool");
+  cmdBuffer.bindVertexBuffers(0, *vertexBuffer, {0});
+  cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                               pipeline.getLayout(), 0,
+                               {camera.buffers.descriptorSets[0]}, nullptr);
 
-  EG_MAKE(cameraDescriptorLayout, PerspectiveCamera::descriptorLayout(device),
-          "Failed to create camera descriptor layout");
+  cmdBuffer.draw(4, 1, 0, 0);
 
-  EG_MAKE(cameraBuffers,
-          PerspectiveCamera::createBuffers(device, physicalDevice,
-                                           cameraDescriptorPool,
-                                           cameraDescriptorLayout),
-          "Failed to create uniform buffers");
+  cmdBuffer.endRendering();
 
-  EG_MAKE(
-      basicVertexPipeline,
-      pipelines::BasicVertex::create(device, swapchainConfig,
-                                     pipelines::BasicVertex::DescriptorLayouts{
-                                         .camera = cameraDescriptorLayout}),
-      "Failed to create basic vertex pipeline");
+  postRender(cmdBuffer, imageIndex);
 
-  PerspectiveCamera camera(
-      {0.0f, 0.0f, 2.0f}, {},
-      engine::cameras::Perspective::Params{
-          .fov = glm::radians(90.0f),
-          .aspectRatio = static_cast<float>(swapchainConfig.extent.width) /
-                         static_cast<float>(swapchainConfig.extent.height),
-          .nearPlane = 0.1f});
+  cmdBuffer.end();
 
-  CameraObjects camObjs{.pool = std::move(cameraDescriptorPool),
-                        .buffers = std::move(cameraBuffers),
-                        .camera = std::move(camera)};
+  vk::PipelineStageFlags waitStage(
+      vk::PipelineStageFlagBits::eColorAttachmentOutput);
 
-  return App(std::move(core), std::move(physicalDevice), std::move(device),
-             std::move(coreQueues), std::move(swapchainConfig),
-             std::move(swapchain), std::move(commandPool),
-             std::move(syncObjects), std::move(commandBuffers),
-             std::move(camObjs), std::move(basicVertexPipeline),
-             std::move(vBufferMemory), std::move(vertexBuffer));
+  const auto &so = this->syncObjects[frameIndex];
+  const vk::SubmitInfo submitInfo{
+      .waitSemaphoreCount = 1,
+      .pWaitSemaphores = &*so.presentCompleteSemaphore,
+      .pWaitDstStageMask = &waitStage,
+      .commandBufferCount = 1,
+      .pCommandBuffers = &*cmdBuffer,
+      .signalSemaphoreCount = 1,
+      .pSignalSemaphores = &*so.renderCompleteSemaphore};
+
+  Logger::trace("Submitting command buffer to graphics queue");
+  queues.graphics.queue->submit(submitInfo, *so.drawingFence);
+
+  const vk::PresentInfoKHR presentInfo{.waitSemaphoreCount = 1,
+                                       .pWaitSemaphores =
+                                           &*so.renderCompleteSemaphore,
+                                       .swapchainCount = 1,
+                                       .pSwapchains = &**swapchain,
+                                       .pImageIndices = &imageIndex};
+
+  Logger::trace("Presenting image to swapchain");
+  auto result = static_cast<vk::Result>(
+      queues.present.queue->getDispatcher()->vkQueuePresentKHR(
+          **queues.present.queue, &*presentInfo));
+
+  if (state == vkh::Swapchain::State::Suboptimal ||
+      result == vk::Result::eSuboptimalKHR ||
+      result == vk::Result::eErrorOutOfDateKHR) {
+    Logger::warn("Swapchain is suboptimal, consider recreating it.");
+    auto res = recreateSwapchain();
+    if (!res) {
+      Logger::error("Failed to recreate swapchain: {}", res.error());
+      return false;
+    }
+
+    return true;
+  }
+
+  if (result != vk::Result::eSuccess) {
+    Logger::error("Failed to present image: {}", vk::to_string(result));
+    return false;
+  }
+
+  Logger::trace("Frame rendered successfully.");
+  return true;
 }

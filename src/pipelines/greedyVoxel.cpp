@@ -2,18 +2,17 @@
 
 #include "logger.hpp"
 #include <engine/util/macros.hpp>
-#include <engine/vulkan/extensions/pipeline.hpp>
-#include <engine/vulkan/extensions/shader.hpp>
-#include <engine/vulkan/extensions/swapchain.hpp>
+#include <vkh/pipeline.hpp>
+#include <vkh/shader.hpp>
+#include <vkh/swapchain.hpp>
 
 namespace pipelines {
-auto GreedyVoxel::create(
-    const vk::raii::Device &device,
-    const engine::vulkan::SwapchainConfig &swapchainConfig) noexcept
+auto GreedyVoxel::create(const vk::raii::Device &device,
+                         const vkh::SwapchainConfig &swapchainConfig) noexcept
     -> std::expected<GreedyVoxel, std::string> {
   Logger::trace("Creating Graphics Pipeline");
 
-  auto shader_res = engine::vulkan::Shader::create(device, "basic.spv");
+  auto shader_res = vkh::Shader::create(device, "basic.spv");
 
   if (!shader_res) {
     Logger::error("Failed to create shader module: {}", shader_res.error());
@@ -30,7 +29,7 @@ auto GreedyVoxel::create(
   VK_MAKE(layout, device.createPipelineLayout(layoutInfo),
           "Failed to create pipeline layout");
 
-  engine::vulkan::GraphicsPipelineConfig pipelineConfig = {
+  vkh::GraphicsPipelineConfig pipelineConfig = {
       .rendering = {.colorAttachmentCount = 1,
                     .pColorAttachmentFormats = &swapchainConfig.format.format},
       .shaders = shaderStages,
@@ -59,7 +58,10 @@ auto GreedyVoxel::create(
   };
 
   Logger::trace("Creating Graphics Pipeline");
-  auto pipeline_res = device.createGraphicsPipeline(nullptr, pipelineConfig);
+
+  auto cfg = pipelineConfig.build();
+
+  auto pipeline_res = device.createGraphicsPipeline(nullptr, cfg);
 
   if (!pipeline_res) {
     Logger::error("Failed to create graphics pipeline: {}",

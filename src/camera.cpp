@@ -1,7 +1,49 @@
 #include "camera.hpp"
 #include "engine/defines.hpp"
-#include "engine/vulkan/memorySelector.hpp"
 #include "logger.hpp"
+#include "vkh/memorySelector.hpp"
+
+void PerspectiveCamera::update(const engine::FrameData &data) noexcept {
+  auto deltaMs = data.deltaTimeMs;
+  const auto &input = data.input;
+
+  if (input.isDown(engine::Key::W)) {
+    move(glm::vec3(0.0f, 0.0f, -1.f) * deltaMs);
+  }
+  if (input.isDown(engine::Key::S)) {
+    move(glm::vec3(0.0f, 0.0f, 1.f) * deltaMs);
+  }
+  if (input.isDown(engine::Key::A)) {
+    move(glm::vec3(-1.f, 0.0f, 0.0f) * deltaMs);
+  }
+  if (input.isDown(engine::Key::D)) {
+    move(glm::vec3(1.f, 0.0f, 0.0f) * deltaMs);
+  }
+  if (input.isDown(engine::Key::Space)) {
+    moveAbsolute(glm::vec3(0.0f, 1.0f, 0.0f) * deltaMs);
+  }
+  if (input.isDown(engine::Key::Ctrl)) {
+    moveAbsolute(glm::vec3(0.0f, -1.0f, 0.0f) * deltaMs);
+  }
+
+  if (input.isPressed(engine::Key::C)) {
+    center();
+  }
+
+  auto delta = input.mouse().delta();
+
+  if (delta == glm::vec2(0.0f)) {
+    return;
+  }
+
+  auto rotationSpeed = 0.025f;
+  engine::Camera::Axes rot{
+      .yaw = delta.x * rotationSpeed,
+      .pitch = -delta.y * rotationSpeed,
+  };
+
+  rotate(rot);
+}
 
 [[nodiscard]] auto PerspectiveCamera::createDescriptorSets(
     const vk::raii::Device &device,
@@ -68,7 +110,7 @@ auto PerspectiveCamera::createBuffers(
               .sharingMode = vk::SharingMode::eExclusive}),
           "Failed to create uniform buffer 2");
 
-  engine::vulkan::MemorySelector memSelector(buf1, physicalDevice);
+  vkh::MemorySelector memSelector(buf1, physicalDevice);
   EG_MAKE(allocInfo,
           memSelector.allocInfo(MEM_SIZE,
                                 vk::MemoryPropertyFlagBits::eHostVisible |

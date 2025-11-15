@@ -3,18 +3,18 @@
 #include "logger.hpp"
 #include "vertex.hpp"
 #include <engine/util/macros.hpp>
-#include <engine/vulkan/extensions/pipeline.hpp>
-#include <engine/vulkan/extensions/shader.hpp>
-#include <engine/vulkan/extensions/swapchain.hpp>
+#include <vkh/pipeline.hpp>
+#include <vkh/shader.hpp>
+#include <vkh/swapchain.hpp>
 
 namespace pipelines {
 auto BasicVertex::create(const vk::raii::Device &device,
-                         const engine::vulkan::SwapchainConfig &swapchainConfig,
+                         const vkh::SwapchainConfig &swapchainConfig,
                          const DescriptorLayouts &layouts) noexcept
     -> std::expected<BasicVertex, std::string> {
   Logger::trace("Creating Graphics Pipeline");
 
-  auto shader_res = engine::vulkan::Shader::create(device, "vertex.spv");
+  auto shader_res = vkh::Shader::create(device, "vertex.spv");
 
   if (!shader_res) {
     Logger::error("Failed to create shader module: {}", shader_res.error());
@@ -36,7 +36,7 @@ auto BasicVertex::create(const vk::raii::Device &device,
   VK_MAKE(layout, device.createPipelineLayout(layoutInfo),
           "Failed to create pipeline layout");
 
-  engine::vulkan::GraphicsPipelineConfig pipelineConfig = {
+  vkh::GraphicsPipelineConfig pipelineConfig = {
       .rendering = {.colorAttachmentCount = 1,
                     .pColorAttachmentFormats = &swapchainConfig.format.format},
       .shaders = shaderStages,
@@ -66,7 +66,10 @@ auto BasicVertex::create(const vk::raii::Device &device,
   };
 
   Logger::trace("Creating Graphics Pipeline");
-  VK_MAKE(pipeline, device.createGraphicsPipeline(nullptr, pipelineConfig),
+
+  auto cfg = pipelineConfig.build();
+
+  VK_MAKE(pipeline, device.createGraphicsPipeline(nullptr, cfg),
           "Failed to create graphics pipeline");
   Logger::trace("Graphics Pipeline created");
 

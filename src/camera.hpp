@@ -8,7 +8,6 @@
 #include <vulkan/vulkan_raii.hpp>
 
 class PerspectiveCamera : public engine::cameras::Perspective {
-
 public:
   struct Buffers {
     std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers;
@@ -21,6 +20,8 @@ public:
                     const engine::Camera::Axes &rotation,
                     const engine::cameras::Perspective::Params &params) noexcept
       : engine::cameras::Perspective(position, rotation, params) {}
+
+  void update(const engine::FrameData &) noexcept override;
 
   [[nodiscard]] static auto
   descriptorLayout(const vk::raii::Device &device) noexcept

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "engine/vulkan/extensions/swapchain.hpp"
+#include "vkh/swapchain.hpp"
+
 class Pipeline {
 protected:
   vk::raii::PipelineLayout layout;
@@ -33,9 +34,8 @@ namespace pipelines {
 
 class GreedyVoxel : public Pipeline {
 public:
-  static auto
-  create(const vk::raii::Device &device,
-         const engine::vulkan::SwapchainConfig &swapchainConfig) noexcept
+  static auto create(const vk::raii::Device &device,
+                     const vkh::SwapchainConfig &swapchainConfig) noexcept
       -> std::expected<GreedyVoxel, std::string>;
 };
 
@@ -45,7 +45,7 @@ public:
     const vk::raii::DescriptorSetLayout &camera;
   };
   static auto create(const vk::raii::Device &device,
-                     const engine::vulkan::SwapchainConfig &swapchainConfig,
+                     const vkh::SwapchainConfig &swapchainConfig,
                      const DescriptorLayouts &layouts) noexcept
       -> std::expected<BasicVertex, std::string>;
 };

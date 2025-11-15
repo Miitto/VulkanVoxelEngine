@@ -2,42 +2,28 @@ cmake_minimum_required(VERSION 3.16...4.0)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-project(VulkanEngine VERSION 0.1 DESCRIPTION "Vulkan engine helpers" LANGUAGES CXX)
+project(VulkanEngine VERSION 0.1 DESCRIPTION "Vulkan engine" LANGUAGES CXX)
 
-add_library(${PROJECT_NAME} STATIC)
+add_library(${PROJECT_NAME})
+add_library(vkEngine::vkEngine ALIAS ${PROJECT_NAME})
+
+include(glm)
+link_glm(${PROJECT_NAME} PUBLIC)
+
+include(glfw)
+link_glfw(${PROJECT_NAME} PUBLIC)
+
+add_subdirectory(vulkan)
+add_subdirectory(logger)
+add_subdirectory(src)
 
 target_sources(${PROJECT_NAME} PUBLIC
-engine/app.cpp
-  engine/core.cpp
-  engine/logger.cpp
-  engine/image.cpp
-  engine/window.cpp
-  engine/vulkan/vk-logger.cpp
-  engine/vulkan/extensions/swapchain.cpp
-  engine/vulkan/extensions/shader.cpp
-  engine/vulkan/queueFinder.cpp
+  FILE_SET HEADERS
+  BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
-target_include_directories(${PROJECT_NAME} INTERFACE
-  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
-  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-)
-
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-include(cmake/vulkan.cmake)
-find_vulkan()
-link_vulkan(${PROJECT_NAME})
-
-include(cmake/glm.cmake)
-link_glm(${PROJECT_NAME})
-
-include(cmake/glfw.cmake)
-link_glfw(${PROJECT_NAME})
-
-include(cmake/spdlog.cmake)
-link_spdlog_header_only(${PROJECT_NAME})
-
+target_link_libraries(${PROJECT_NAME} PRIVATE logger::logger)
+target_link_libraries(${PROJECT_NAME} PUBLIC vkHelpers::vkHelpers)
 
 target_compile_options(${PROJECT_NAME} PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd5050>
