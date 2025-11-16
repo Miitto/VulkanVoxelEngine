@@ -133,7 +133,7 @@ auto PerspectiveCamera::createBuffers(
                                                   cameraLayout, uniformBuffers),
           "Failed to create descriptor sets for camera");
 
-  return PerspectiveCamera::Buffers{.uniformBuffers = std::move(uniformBuffers),
+  return PerspectiveCamera::Buffers{.uniformBuffers = uniformBuffers,
                                     .descriptorSets = std::move(cameraSets)};
 }
 
