@@ -12,6 +12,10 @@ public:
   struct Matrices {
     glm::mat4 view;
     glm::mat4 projection;
+    glm::mat4 viewProjection;
+    glm::mat4 invView;
+    glm::mat4 invProjection;
+    glm::mat4 invViewProjection;
   };
 
   struct Axes {
@@ -22,6 +26,18 @@ public:
   auto rotate(Axes axes) noexcept -> void {
     rotation.yaw += axes.yaw;
     rotation.pitch += axes.pitch;
+
+    if (rotation.pitch > 89.0f) {
+      rotation.pitch = 89.0f;
+    } else if (rotation.pitch < -89.0f) {
+      rotation.pitch = -89.0f;
+    }
+
+    if (rotation.yaw > 360.0f) {
+      rotation.yaw -= 360.0f;
+    } else if (rotation.yaw < 0.0f) {
+      rotation.yaw += 360.0f;
+    }
   }
 
   virtual void update(const FrameData &) noexcept = 0;
@@ -37,6 +53,16 @@ public:
 
   virtual void onResize(uint32_t width, uint32_t height) noexcept = 0;
 
+  glm::vec3 forward() const noexcept {
+    glm::vec3 forward;
+    forward.x = -std::sin(glm::radians(rotation.yaw)) *
+                std::cos(glm::radians(rotation.pitch));
+    forward.y = std::sin(glm::radians(rotation.pitch));
+    forward.z = -std::cos(glm::radians(rotation.yaw)) *
+                std::cos(glm::radians(rotation.pitch));
+    return glm::normalize(forward);
+  }
+
   [[nodiscard]] virtual auto view() const noexcept -> glm::mat4 = 0;
   [[nodiscard]] auto inverseView() const noexcept -> glm::mat4 {
     return glm::inverse(view());
@@ -45,7 +71,21 @@ public:
   [[nodiscard]] virtual auto projection() const noexcept -> glm::mat4 = 0;
 
   [[nodiscard]] virtual auto matrices() const noexcept -> Matrices {
-    return Matrices{.view = view(), .projection = projection()};
+    glm::mat4 v = view();
+    glm::mat4 p = projection();
+
+    glm::mat4 vp = p * v;
+
+    glm::mat4 iv = glm::inverse(v);
+    glm::mat4 ip = glm::inverse(p);
+    glm::mat4 ivp = glm::inverse(vp);
+
+    return Matrices{.view = v,
+                    .projection = p,
+                    .viewProjection = vp,
+                    .invView = iv,
+                    .invProjection = ip,
+                    .invViewProjection = ivp};
   }
 
   [[nodiscard]] auto getPosition() const noexcept -> glm::vec3 {

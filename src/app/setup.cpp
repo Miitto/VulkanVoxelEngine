@@ -128,6 +128,8 @@ std::expected<App, std::string> App::create() noexcept {
   std::array<engine::SyncObjects, MAX_FRAMES_IN_FLIGHT> syncObjects = {
       std::move(sync1), std::move(sync2)};
 
+  engine::Input::instance().setupWindow(core.getWindow());
+
   EG_MAKE(imGuiObjects,
           engine::setup::setupImGui(core.getWindow().get(), core.getInstance(),
                                     device, physicalDevice, coreQueues.graphics,
@@ -171,7 +173,7 @@ std::expected<App, std::string> App::create() noexcept {
                    .color = {1.0f, 1.0f, 1.0f, 1.0f}}};
 
   vk::BufferCreateInfo vertexBufferInfo{
-      .size = sizeof(vertices[0]) * vertices.size(),
+      .size = sizeof(Mesh::Vertex) * vertices.size(),
       .usage = vk::BufferUsageFlagBits::eTransferDst |
                vk::BufferUsageFlagBits::eStorageBuffer |
                vk::BufferUsageFlagBits::eShaderDeviceAddress,
@@ -230,7 +232,18 @@ std::expected<App, std::string> App::create() noexcept {
         .pCommandBufferInfos = &submitInfo,
     };
 
-    coreQueues.graphics.queue->submit2(submitInfos, nullptr);
+    VK_MAKE(waitFence, device.createFence(vk::FenceCreateInfo{}),
+            "Failed to create fence");
+
+    coreQueues.graphics.queue->submit2(submitInfos, waitFence);
+
+    auto res = device.waitForFences({waitFence}, VK_TRUE, UINT64_MAX);
+    if (res != vk::Result::eSuccess) {
+      return std::unexpected(
+          "Failed to wait for fence after vertex buffer copy");
+    }
+
+    stagingBuffer.destroy(allocator);
   }
 
   vk::DescriptorPoolSize poolSize{.type = vk::DescriptorType::eUniformBuffer,

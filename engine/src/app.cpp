@@ -14,42 +14,6 @@
 
 namespace engine {
 
-App::App(App &&o) noexcept
-    : moveGuard(std::move(o.moveGuard)), core(std::move(o.core)),
-      physicalDevice(std::move(o.physicalDevice)), device(std::move(o.device)),
-      allocator(o.allocator), queues(std::move(o.queues)),
-      swapchain(std::move(o.swapchain)), renderImage(std::move(o.renderImage)),
-      commandPool(std::move(o.commandPool)),
-      syncObjects(std::move(o.syncObjects)), currentFrame(o.currentFrame),
-      oldSwapchain(std::move(o.oldSwapchain)),
-      imguiObjects(std::move(o.imguiObjects)) {
-  auto &window = this->core.getWindow();
-  window.setResizeCallback([&](Dimensions dim) { this->onWindowResize(dim); });
-}
-
-App &App::operator=(App &&o) noexcept {
-  if (this != &o) {
-    moveGuard = std::move(o.moveGuard);
-    core = std::move(o.core);
-    physicalDevice = std::move(o.physicalDevice);
-    device = std::move(o.device);
-    allocator = o.allocator;
-    queues = std::move(o.queues);
-    swapchain = std::move(o.swapchain);
-    renderImage = std::move(o.renderImage);
-    commandPool = std::move(o.commandPool);
-    syncObjects = std::move(o.syncObjects);
-    currentFrame = o.currentFrame;
-    oldSwapchain = std::move(o.oldSwapchain);
-    imguiObjects = std::move(o.imguiObjects);
-
-    auto &window = this->core.getWindow();
-    window.setResizeCallback(
-        [&](Dimensions dim) { this->onWindowResize(dim); });
-  }
-  return *this;
-}
-
 std::expected<App::FrameInfo, App::TickResult> App::newFrame() noexcept {
   checkSwapchain();
   auto nextImage_res = getNextImage();
@@ -129,7 +93,7 @@ App::presentFrame(FrameInfo frameInfo,
 }
 
 void App::endFrame() noexcept {
-  _input.onFrameEnd();
+  Input::instance().onFrameEnd();
   ImGui::EndFrame();
 }
 

@@ -23,7 +23,7 @@ void App::onWindowResize(engine::Dimensions dim) noexcept {
 App::TickResult App::update(float deltaTime) noexcept {
   engine::FrameData frameData{
       .deltaTimeMs = deltaTime,
-      .input = _input,
+      .input = engine::Input::instance(),
   };
 
   camera.camera.update(frameData);
@@ -40,8 +40,7 @@ App::TickResult App::render() noexcept {
 
   auto &cmdBuffer = commandBuffers[fInfo.frameIndex];
 
-  [[maybe_unused]]
-  auto offset = fInfo.frameIndex * sizeof(engine::Camera::Matrices);
+  camera.camera.writeMatrices(camera.buffers, fInfo.frameIndex);
 
   cmdBuffer.begin(vk::CommandBufferBeginInfo{
       .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
@@ -76,7 +75,7 @@ App::TickResult App::render() noexcept {
   Logger::trace("Beginning rendering");
   cmdBuffer.beginRendering(renderingInfo);
 
-  draw(cmdBuffer);
+  draw(cmdBuffer, fInfo.frameIndex);
 
   cmdBuffer.endRendering();
 
@@ -143,6 +142,8 @@ App::TickResult App::render() noexcept {
     ImGui::ShowDemoWindow();
   }
 
+  ui();
+
   engine::transitionImageLayout(
       cmdBuffer, swapchain.images()[fInfo.imageIndex],
       vk::ImageLayout::eTransferDstOptimal,
@@ -168,14 +169,15 @@ App::TickResult App::render() noexcept {
   return presentFrame(fInfo, {&cmdBuf, 1});
 }
 
-void App::draw(vk::raii::CommandBuffer &cmdBuffer) {
+void App::draw(vk::raii::CommandBuffer &cmdBuffer, uint32_t frameIndex) {
   cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
   setupCmdBuffer(cmdBuffer);
 
-  cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                               pipeline.getLayout(), 0,
-                               {camera.buffers.descriptorSets[0]}, nullptr);
+  cmdBuffer.bindDescriptorSets(
+      vk::PipelineBindPoint::eGraphics, pipeline.getLayout(), 0,
+      {camera.buffers.descriptorSets[frameIndex]}, nullptr);
+
   pipelines::Mesh::MeshPushConstants pc{
       .modelMatrix = glm::mat4(1.0f),
       .vBufferAddress = vertexBufferAddress,
@@ -185,4 +187,17 @@ void App::draw(vk::raii::CommandBuffer &cmdBuffer) {
       *pipeline.getLayout(), vk::ShaderStageFlagBits::eVertex, 0, pc);
 
   cmdBuffer.draw(4, 1, 0, 0);
+}
+
+void App::ui() {
+  ImGui::Begin("Info");
+  ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+              1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+  ImGui::Text("Camera position: (%.2f, %.2f, %.2f)",
+              camera.camera.getPosition().x, camera.camera.getPosition().y,
+              camera.camera.getPosition().z);
+  ImGui::Text("Camera rotation: (Yaw: %.2f, Pitch: %.2f)",
+              camera.camera.getRotation().yaw,
+              camera.camera.getRotation().pitch);
+  ImGui::End();
 }

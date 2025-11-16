@@ -56,6 +56,10 @@ enum class Key {
   Zero = GLFW_KEY_0,
   Space = GLFW_KEY_SPACE,
   Ctrl = GLFW_KEY_LEFT_CONTROL,
+  Left = GLFW_KEY_LEFT,
+  Right = GLFW_KEY_RIGHT,
+  Up = GLFW_KEY_UP,
+  Down = GLFW_KEY_DOWN
 };
 
 enum class CursorMode {
@@ -80,14 +84,8 @@ public:
   Window(const Window &) = delete;
   auto operator=(const Window &) -> Window & = delete;
 
-  // Need to re-set the user pointer when moving the window
-  Window(Window &&o) noexcept;
-  auto operator=(Window &&o) noexcept -> Window &;
-
-  void onWindowResize(Dimensions dim) noexcept;
-  void onWindowKeypress(int key, int scancode, int action, int mods) noexcept;
-  void onWindowMouseMove(double xpos, double ypos) noexcept;
-  void onWindowMouseButton(int button, int action, int mods) noexcept;
+  Window(Window &&o) noexcept = default;
+  auto operator=(Window &&o) noexcept -> Window & = default;
 
   [[nodiscard]] auto getNewSize(const bool reset = true) noexcept
       -> std::optional<Dimensions>;
@@ -116,31 +114,24 @@ public:
     return glfwWindowShouldClose(window.get()) == GLFW_TRUE;
   }
 
-  using ResizeCallback = std::function<void(engine::Dimensions)>;
-  void setResizeCallback(ResizeCallback callback) noexcept;
+  void setUserPtr(void *ptr);
+  static void *getUserPtr(GLFWwindow *window);
 
-  using KeyCallback = std::function<void(Key, int, KeyAction, int)>;
-  void setKeyCallback(KeyCallback callback) noexcept;
-
-  using MouseMoveCallback = std::function<void(double, double)>;
-  void setMouseMoveCallback(MouseMoveCallback callback) noexcept;
-
-  using MouseButtonCallback = std::function<void(int, int, int)>;
-  void setMouseButtonCallback(MouseButtonCallback callback) noexcept;
+  void setKeyCallback(GLFWkeyfun callback) {
+    glfwSetKeyCallback(window.get(), callback);
+  }
+  void setCursorPosCallback(GLFWcursorposfun callback) {
+    glfwSetCursorPosCallback(window.get(), callback);
+  }
+  void setMouseButtonCallback(GLFWmousebuttonfun callback) {
+    glfwSetMouseButtonCallback(window.get(), callback);
+  }
 
 protected:
   std::unique_ptr<GLFWwindow, void (*)(GLFWwindow *)> window;
   std::optional<Dimensions> newSize = std::nullopt;
 
   static std::atomic_bool s_resizable;
-
-  std::optional<ResizeCallback> resizeCallback;
-
-  std::optional<KeyCallback> keyCallback;
-
-  std::optional<MouseMoveCallback> mouseMoveCallback;
-
-  std::optional<MouseButtonCallback> mouseButtonCallback;
 
   CursorMode m_cursorMode = CursorMode::Normal;
 };

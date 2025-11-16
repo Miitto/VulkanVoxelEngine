@@ -31,9 +31,7 @@ public:
   }
 
   [[nodiscard]] auto view() const noexcept -> glm::mat4 override {
-    auto forward = glm::normalize(rotateVec(engine::FORWARD));
-    return glm::lookAt(position, position + forward,
-                       glm::vec3(0.0f, 1.0f, 0.0f));
+    return glm::lookAt(position, position + forward(), engine::UP);
   }
 
   [[nodiscard]] auto projection() const noexcept -> glm::mat4 override {

@@ -5,87 +5,106 @@
 #include <unordered_map>
 
 namespace engine {
-class Mouse {
-  glm::vec2 m_position;
-  glm::vec2 m_lastPosition;
 
-public:
-  Mouse() = default;
-
-  [[nodiscard]] glm::vec2 pos() const { return m_position; }
-  [[nodiscard]] glm::vec2 lastPos() const { return m_lastPosition; }
-
-  [[nodiscard]] glm::vec2 delta() const { return m_position - m_lastPosition; }
-
-  void move(glm::vec2 pos) { m_position = pos; }
-
-  void onFrameEnd() { m_lastPosition = m_position; }
-};
-
-enum class KeyState : uint8_t { Pressed, Down, Released, Up };
+enum class KeyState : uint8_t { Down, Held, Up };
 
 class Input {
-  std::unordered_map<engine::Key, KeyState> m_keyStates;
-  Mouse m_mouse;
-
 public:
+  class Mouse {
+    glm::vec2 position;
+    glm::vec2 lastPosition;
+
+  public:
+    Mouse() = default;
+
+    [[nodiscard]] glm::vec2 pos() const { return position; }
+    [[nodiscard]] glm::vec2 lastPos() const { return lastPosition; }
+
+    [[nodiscard]] glm::vec2 delta() const { return position - lastPosition; }
+
+    void move(glm::vec2 pos) { position = pos; }
+
+    void onFrameEnd() { lastPosition = position; }
+
+    friend class Input;
+  };
+
+protected:
+  std::unordered_map<engine::Key, KeyState> keyState;
+  Mouse m_mouse;
+  engine::Window *window;
+
   Input() = default;
 
-  void setupWindow(engine::Window &window) {
-    window.setKeyCallback([this](engine::Key key, int scancode,
-                                 engine::KeyAction action, int mods) {
-      (void)scancode;
-      (void)mods;
+  static Input s_instance;
 
-      this->key(key, action);
-    });
+  bool m_imguiWantsKeyboard = false;
+  bool m_imguiWantsMouse = false;
 
-    window.setMouseMoveCallback([this](double xpos, double ypos) {
-      m_mouse.move(
-          glm::vec2(static_cast<float>(xpos), static_cast<float>(ypos)));
-    });
+  void onKeyEvent(int key, int action);
+  void onMouseMove(double x, double y);
+  void onMouseButton(int button, int action);
+
+  void imGuiWantsKeyboard(bool wants) { m_imguiWantsKeyboard = wants; }
+  void imGuiWantsMouse(bool wants) { m_imguiWantsMouse = wants; }
+
+public:
+  inline static Input &instance() { return s_instance; }
+
+  void setupWindow(engine::Window &w) {
+    this->window = &w;
+    w.setUserPtr(this);
+    w.setKeyCallback(Input::glfwKeyCallback);
+    w.setCursorPosCallback(Input::glfwCursorPosCallback);
+    w.setMouseButtonCallback(Input::glfwMouseButtonCallback);
   }
 
   [[nodiscard]] const Mouse &mouse() const { return m_mouse; }
   [[nodiscard]] Mouse &mouseMut() { return m_mouse; }
   [[nodiscard]] const std::unordered_map<engine::Key, KeyState> &
   keyStates() const {
-    return m_keyStates;
+    return keyState;
+  }
+
+  [[nodiscard]]
+  bool isPressed(engine::Key key) const {
+    auto it = keyState.find(key);
+    return it != keyState.end() &&
+           (it->second == KeyState::Down || it->second == KeyState::Held);
   }
 
   [[nodiscard]] bool isDown(engine::Key key) const {
-    auto it = m_keyStates.find(key);
-    return it != m_keyStates.end() &&
-           (it->second == KeyState::Down || it->second == KeyState::Pressed);
+    auto it = keyState.find(key);
+    return it != keyState.end() && it->second == KeyState::Down;
   }
 
-  [[nodiscard]] bool isPressed(engine::Key key) const {
-    auto it = m_keyStates.find(key);
-    return it != m_keyStates.end() && it->second == KeyState::Pressed;
-  }
-
-  [[nodiscard]] bool isReleased(engine::Key key) const {
-    auto it = m_keyStates.find(key);
-    return it != m_keyStates.end() && it->second == KeyState::Released;
+  [[nodiscard]] bool isHeld(engine::Key key) const {
+    auto it = keyState.find(key);
+    return it != keyState.end() && it->second == KeyState::Held;
   }
 
   [[nodiscard]] bool isUp(engine::Key key) const {
-    auto it = m_keyStates.find(key);
-    return it == m_keyStates.end();
+    auto it = keyState.find(key);
+    return it != keyState.end() && it->second == KeyState::Up;
+  }
+
+  [[nodiscard]] bool isReleased(engine::Key key) const {
+    auto it = keyState.find(key);
+    return it == keyState.end();
   }
 
   void key(engine::Key key, engine::KeyAction action) {
     switch (action) {
     case engine::KeyAction::Press: {
-      m_keyStates[key] = KeyState::Pressed;
+      keyState[key] = KeyState::Down;
       break;
     }
     case engine::KeyAction::Release: {
-      m_keyStates[key] = KeyState::Released;
+      keyState[key] = KeyState::Up;
       break;
     }
     case engine::KeyAction::Repeat: {
-      m_keyStates[key] = KeyState::Down;
+      keyState[key] = KeyState::Held;
       break;
     }
     }
@@ -95,17 +114,24 @@ public:
     m_mouse.onFrameEnd();
 
     std::vector<engine::Key> toErase;
-    for (auto &[key, state] : m_keyStates) {
-      if (state == KeyState::Pressed) {
-        state = KeyState::Down;
-      } else if (state == KeyState::Released) {
+    for (auto &[key, state] : keyState) {
+      if (state == KeyState::Down) {
+        state = KeyState::Held;
+      } else if (state == KeyState::Up) {
         toErase.push_back(key);
       }
     }
 
     for (auto key : toErase) {
-      m_keyStates.erase(key);
+      keyState.erase(key);
     }
   }
+
+  static void glfwKeyCallback(GLFWwindow *window, int key, int scancode,
+                              int action, int mods);
+  static void glfwCursorPosCallback(GLFWwindow *window, double xpos,
+                                    double ypos);
+  static void glfwMouseButtonCallback(GLFWwindow *window, int button,
+                                      int action, int mods);
 };
 } // namespace engine

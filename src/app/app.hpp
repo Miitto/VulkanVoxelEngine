@@ -14,7 +14,8 @@ public:
 
   TickResult update(float deltaTime) noexcept override;
   TickResult render() noexcept override;
-  void draw(vk::raii::CommandBuffer &cmdBuffer);
+  void draw(vk::raii::CommandBuffer &cmdBuffer, uint32_t frameIndex);
+  void ui();
 
   void onWindowResize(engine::Dimensions dim) noexcept override;
 
@@ -23,8 +24,6 @@ public:
       return;
 
     device.waitIdle();
-
-    allocator.destroyBuffer(vertexBuffer.buffer, vertexBuffer.alloc);
   }
 
 protected:
@@ -53,7 +52,12 @@ protected:
     vk::BufferDeviceAddressInfo bufferAddressInfo{.buffer =
                                                       vertexBuffer.buffer};
 
-    vertexBufferAddress = device.getBufferAddress(bufferAddressInfo);
+    vertexBufferAddress = this->device.getBufferAddress(bufferAddressInfo);
+
+    registerBuffer(this->vertexBuffer);
+    for (auto &buf : this->camera.buffers.uniformBuffers) {
+      registerBuffer(buf);
+    }
   }
 
   std::array<vk::raii::CommandBuffer, MAX_FRAMES_IN_FLIGHT> commandBuffers;

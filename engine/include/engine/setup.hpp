@@ -73,17 +73,21 @@ createLogicalDevice(const vk::raii::PhysicalDevice &physicalDevice,
   // history Retrieved 2025-11-14, License - CC BY-SA 4.0
   using ChainStart = std::tuple_element_t<0, std::tuple<Ts...>>;
 
-  // Ingore missing designated initializers warning for clang
-  // The fields are deprecated so you'd get a warning with or without them
+// Ingore missing designated initializers warning for clang
+// The fields are deprecated so you'd get a warning with or without them
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-designated-field-initializers"
+#endif
   auto deviceCreateInfo = vk::DeviceCreateInfo{
       .pNext = &chain.template get<ChainStart>(),
       .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfo.size()),
       .pQueueCreateInfos = queueCreateInfo.data(),
       .enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
       .ppEnabledExtensionNames = deviceExtensions.data()};
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
 
   VK_MAKE(device, physicalDevice.createDevice(deviceCreateInfo),
           "Failed to create logical device");

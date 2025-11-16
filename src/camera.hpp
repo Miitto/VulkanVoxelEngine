@@ -42,11 +42,7 @@ public:
                 const vk::raii::DescriptorSetLayout &cameraLayout) noexcept
       -> std::expected<Buffers, std::string>;
 
-protected:
-  void writeMatrices() const {
-    auto m = matrices();
-    memcpy(buffer.allocInfo.pMappedData, &m, sizeof(engine::Camera::Matrices));
-  }
+  void writeMatrices(const Buffers &buffers, uint32_t frame) const;
 
-  vkh::AllocatedBuffer buffer;
+protected:
 };

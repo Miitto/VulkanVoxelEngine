@@ -7,13 +7,14 @@ std::expected<AllocatedBuffer, std::string>
 AllocatedBuffer::create(vma::Allocator &allocator,
                         const vk::BufferCreateInfo &bufInfo,
                         const vma::AllocationCreateInfo &allocInfo) {
-  VMA_MAKE(buffer, allocator.createBuffer(bufInfo, allocInfo),
+  vma::AllocationInfo aInfo = {};
+  VMA_MAKE(buffer, allocator.createBuffer(bufInfo, allocInfo, aInfo),
            "Failed to create allocated buffer");
 
   return AllocatedBuffer{
       .buffer = buffer.first,
       .alloc = buffer.second,
-      .allocInfo = {},
+      .allocInfo = aInfo,
   };
 }
 } // namespace vkh

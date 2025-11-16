@@ -13,10 +13,21 @@ struct Queue {
 
 struct AllocatedImage {
   vk::Image image;
-  vk::raii::ImageView view;
+  vk::ImageView view;
   vma::Allocation alloc;
   vk::Extent3D extent;
   vk::Format format;
+
+  void destroy(vma::Allocator &allocator, const vk::raii::Device &d) {
+    if (image) {
+      allocator.destroyImage(image, alloc);
+      d.getDispatcher()->vkDestroyImageView(
+          static_cast<VkDevice>(*d), static_cast<VkImageView>(view), nullptr);
+      image = nullptr;
+      view = nullptr;
+      alloc = nullptr;
+    }
+  }
 };
 
 struct AllocatedBuffer {
@@ -27,6 +38,14 @@ struct AllocatedBuffer {
   static std::expected<AllocatedBuffer, std::string>
   create(vma::Allocator &allocator, const vk::BufferCreateInfo &bufInfo,
          const vma::AllocationCreateInfo &allocInfo);
+
+  inline void destroy(vma::Allocator &allocator) {
+    if (alloc) {
+      allocator.destroyBuffer(buffer, alloc);
+      buffer = nullptr;
+      alloc = nullptr;
+    }
+  }
 };
 
 } // namespace vkh

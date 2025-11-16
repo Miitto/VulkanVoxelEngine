@@ -49,10 +49,15 @@ public:
     vkh::Queue present;
   };
 
+  struct ObjectsToDelete {
+    std::vector<vkh::AllocatedBuffer> buffers;
+    std::vector<vkh::AllocatedImage> images;
+  };
+
   App(const App &) = delete;
   App &operator=(const App &) = delete;
-  App(App &&) noexcept;
-  App &operator=(App &&) noexcept;
+  App(App &&) noexcept = default;
+  App &operator=(App &&) noexcept = default;
 
   virtual ~App() {
     if (moveGuard.moved())
@@ -61,7 +66,14 @@ public:
     ImGui_ImplVulkan_Shutdown();
 
     device.waitIdle();
-    allocator.destroyImage(renderImage.image, renderImage.alloc);
+
+    for (auto &buf : toDelete.buffers) {
+      buf.destroy(allocator);
+    }
+
+    for (auto &img : toDelete.images) {
+      img.destroy(allocator, device);
+    }
 
     allocator.destroy();
   }
@@ -113,10 +125,19 @@ public:
 
   std::expected<SwapchainImageResult, std::string> getNextImage() noexcept;
 
+  void registerBuffer(vkh::AllocatedBuffer buffer) noexcept {
+    toDelete.buffers.push_back(buffer);
+  }
+
+  void registerImage(vkh::AllocatedImage image) noexcept {
+    toDelete.images.push_back(image);
+  }
+
 protected:
   MoveGuard moveGuard;
 
-  Input _input;
+  ObjectsToDelete toDelete = {};
+
   engine::rendering::Core core;
 
   vk::raii::PhysicalDevice physicalDevice;
@@ -157,9 +178,7 @@ protected:
         commandPool(std::move(commandPool)),
         syncObjects(std::move(syncObjects)),
         imguiObjects(std::move(imGuiObjects)) {
-    auto &window = this->core.getWindow();
-    window.setResizeCallback(
-        [&](Dimensions dim) { this->onWindowResize(dim); });
+    registerImage(this->renderImage);
   }
 };
 
@@ -195,6 +214,6 @@ void run(T &app) {
 
     lastFrame = now;
   }
-end:
+end:;
 }
 } // namespace engine

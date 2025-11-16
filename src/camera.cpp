@@ -5,43 +5,52 @@
 
 void PerspectiveCamera::update(const engine::FrameData &data) noexcept {
   auto deltaMs = data.deltaTimeMs;
+  auto scale = deltaMs * 25.0f;
   const auto &input = data.input;
 
-  if (input.isDown(engine::Key::W)) {
-    move(engine::FORWARD * deltaMs);
-  }
-  if (input.isDown(engine::Key::S)) {
-    move(engine::BACKWARD * deltaMs);
-  }
-  if (input.isDown(engine::Key::A)) {
-    move(engine::LEFT * deltaMs);
-  }
-  if (input.isDown(engine::Key::D)) {
-    move(engine::RIGHT * deltaMs);
-  }
-  if (input.isDown(engine::Key::Space)) {
-    moveAbsolute(engine::UP * deltaMs);
-  }
-  if (input.isDown(engine::Key::Ctrl)) {
-    moveAbsolute(engine::DOWN * deltaMs);
-  }
-
-  if (input.isPressed(engine::Key::C)) {
-    center();
-  }
+  constexpr float rotationSpeed = 1.f;
 
   auto delta = input.mouse().delta();
-
-  if (delta == glm::vec2(0.0f)) {
-    return;
-  }
-
-  constexpr float rotationSpeed = 0.025f;
-
   engine::Camera::Axes rot{
       .yaw = delta.x * rotationSpeed,
-      .pitch = -delta.y * rotationSpeed,
+      .pitch = delta.y * rotationSpeed,
   };
+
+  if (input.isPressed(engine::Key::W)) {
+    move(engine::FORWARD * scale);
+  }
+  if (input.isPressed(engine::Key::S)) {
+    move(engine::BACKWARD * scale);
+  }
+  if (input.isPressed(engine::Key::A)) {
+    move(-engine::LEFT * scale);
+  }
+  if (input.isPressed(engine::Key::D)) {
+    move(-engine::RIGHT * scale);
+  }
+  if (input.isPressed(engine::Key::Space)) {
+    moveAbsolute(-engine::UP * scale);
+  }
+  if (input.isPressed(engine::Key::Ctrl)) {
+    moveAbsolute(-engine::DOWN * scale);
+  }
+
+  if (input.isPressed(engine::Key::Left)) {
+    rot.yaw -= scale;
+  }
+  if (input.isPressed(engine::Key::Right)) {
+    rot.yaw += scale;
+  }
+  if (input.isPressed(engine::Key::Up)) {
+    rot.pitch -= scale;
+  }
+  if (input.isPressed(engine::Key::Down)) {
+    rot.pitch += scale;
+  }
+
+  if (input.isDown(engine::Key::C)) {
+    center();
+  }
 
   rotate(rot);
 }
@@ -103,8 +112,11 @@ auto PerspectiveCamera::createBuffers(
   };
 
   vma::AllocationCreateInfo allocInfo{
-      .flags = vma::AllocationCreateFlagBits::eMapped,
+      .flags = vma::AllocationCreateFlagBits::eMapped |
+               vma::AllocationCreateFlagBits::eHostAccessSequentialWrite,
       .usage = vma::MemoryUsage::eCpuToGpu,
+      .requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible |
+                       vk::MemoryPropertyFlagBits::eHostCoherent,
   };
 
   EG_MAKE(buf1, vkh::AllocatedBuffer::create(allocator, bufferInfo, allocInfo),
@@ -142,4 +154,12 @@ auto PerspectiveCamera::descriptorLayout(
           "Failed to create descriptor set layout");
 
   return std::move(descriptorSetLayout);
+}
+
+void PerspectiveCamera::writeMatrices(const Buffers &buffers,
+                                      uint32_t frame) const {
+  auto m = matrices();
+
+  memcpy(buffers.uniformBuffers[frame].allocInfo.pMappedData, &m,
+         sizeof(engine::Camera::Matrices));
 }

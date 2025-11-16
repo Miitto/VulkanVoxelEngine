@@ -2,6 +2,7 @@ target_sources(${PROJECT_NAME} PRIVATE
   FILE_SET privateHeaders
   TYPE HEADERS
   PRIVATE
+  dynLoader.cpp
   queueFinder.cpp
   shader.cpp
   structs.cpp

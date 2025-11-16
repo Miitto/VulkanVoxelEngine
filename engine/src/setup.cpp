@@ -230,7 +230,7 @@ createRenderImage(const vk::raii::Device &device, const vma::Allocator &alloc,
           "Failed to create image view for render image");
 
   vkh::AllocatedImage allocatedImage{.image = image,
-                                     .view = std::move(imageView),
+                                     .view = imageView.release(),
                                      .alloc = allocation,
                                      .extent = imageCreateInfo.extent,
                                      .format = format};
@@ -304,7 +304,6 @@ setupImGui(GLFWwindow *window, const vk::raii::Instance &instance,
   // this initializes the core structures of imgui
   ImGui::CreateContext();
 
-  // this initializes imgui for SDL
   ImGui_ImplGlfw_InitForVulkan(window, true);
 
   // this initializes imgui for Vulkan

@@ -1,7 +1,6 @@
 #include "include/camera.slang"
 
-[[vk::binding(0, 0)]]
-ConstantBuffer<Camera> camera : register(b0);
+ConstantBuffer<Camera> camera;
 
 struct Vertex {
   float3 position;
@@ -31,7 +30,9 @@ VSOutput vert(uint index : SV_VertexID) {
 
     Vertex v = input.vertexBuffer[index];
 
-    float4 world = mul(input.model, float4(v.position, 1.0));
+    float4 pos = float4(v.position, 1.0);
+
+    float4 world = mul(input.model, pos);
 
     output.sv_position = camera.worldToClip(world);
     output.uv = float2(v.uvX, v.uvY);
