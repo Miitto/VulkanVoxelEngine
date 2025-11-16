@@ -1,29 +1,29 @@
 #include "camera.hpp"
 #include "engine/defines.hpp"
 #include "logger.hpp"
-#include "vkh/memorySelector.hpp"
+#include <engine/directions.hpp>
 
 void PerspectiveCamera::update(const engine::FrameData &data) noexcept {
   auto deltaMs = data.deltaTimeMs;
   const auto &input = data.input;
 
   if (input.isDown(engine::Key::W)) {
-    move(glm::vec3(0.0f, 0.0f, -1.f) * deltaMs);
+    move(engine::FORWARD * deltaMs);
   }
   if (input.isDown(engine::Key::S)) {
-    move(glm::vec3(0.0f, 0.0f, 1.f) * deltaMs);
+    move(engine::BACKWARD * deltaMs);
   }
   if (input.isDown(engine::Key::A)) {
-    move(glm::vec3(-1.f, 0.0f, 0.0f) * deltaMs);
+    move(engine::LEFT * deltaMs);
   }
   if (input.isDown(engine::Key::D)) {
-    move(glm::vec3(1.f, 0.0f, 0.0f) * deltaMs);
+    move(engine::RIGHT * deltaMs);
   }
   if (input.isDown(engine::Key::Space)) {
-    moveAbsolute(glm::vec3(0.0f, 1.0f, 0.0f) * deltaMs);
+    moveAbsolute(engine::UP * deltaMs);
   }
   if (input.isDown(engine::Key::Ctrl)) {
-    moveAbsolute(glm::vec3(0.0f, -1.0f, 0.0f) * deltaMs);
+    moveAbsolute(engine::DOWN * deltaMs);
   }
 
   if (input.isPressed(engine::Key::C)) {
@@ -36,7 +36,8 @@ void PerspectiveCamera::update(const engine::FrameData &data) noexcept {
     return;
   }
 
-  auto rotationSpeed = 0.025f;
+  constexpr float rotationSpeed = 0.025f;
+
   engine::Camera::Axes rot{
       .yaw = delta.x * rotationSpeed,
       .pitch = -delta.y * rotationSpeed,
@@ -49,7 +50,8 @@ void PerspectiveCamera::update(const engine::FrameData &data) noexcept {
     const vk::raii::Device &device,
     const vk::raii::DescriptorPool &descriptorPool,
     const vk::raii::DescriptorSetLayout &cameraLayout,
-    std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> &cameraBuffers) noexcept
+    std::array<vkh::AllocatedBuffer, MAX_FRAMES_IN_FLIGHT>
+        &cameraBuffers) noexcept
     -> std::expected<std::array<vk::raii::DescriptorSet, MAX_FRAMES_IN_FLIGHT>,
                      std::string> {
   std::array<vk::DescriptorSetLayout, MAX_FRAMES_IN_FLIGHT> layouts{
@@ -66,7 +68,7 @@ void PerspectiveCamera::update(const engine::FrameData &data) noexcept {
       nullptr, nullptr};
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    vk::DescriptorBufferInfo bufferInfo{.buffer = *cameraBuffers[i],
+    vk::DescriptorBufferInfo bufferInfo{.buffer = cameraBuffers[i].buffer,
                                         .offset = 0,
                                         .range =
                                             sizeof(engine::Camera::Matrices)};
@@ -87,47 +89,32 @@ void PerspectiveCamera::update(const engine::FrameData &data) noexcept {
 }
 
 auto PerspectiveCamera::createBuffers(
-    const vk::raii::Device &device,
-    const vk::raii::PhysicalDevice &physicalDevice,
+    const vk::raii::Device &device, vma::Allocator &allocator,
     const vk::raii::DescriptorPool &cameraDescriptorPool,
     const vk::raii::DescriptorSetLayout &cameraLayout) noexcept
     -> std::expected<Buffers, std::string> {
   constexpr uint32_t BUF_SIZE = sizeof(engine::Camera::Matrices);
-  constexpr uint32_t MEM_SIZE = BUF_SIZE * 2;
-  std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers{nullptr,
-                                                                    nullptr};
+  std::array<vkh::AllocatedBuffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers{};
 
-  VK_MAKE(buf1,
-          device.createBuffer(vk::BufferCreateInfo{
-              .size = sizeof(engine::Camera::Matrices),
-              .usage = vk::BufferUsageFlagBits::eUniformBuffer,
-              .sharingMode = vk::SharingMode::eExclusive}),
-          "Failed to create uniform buffer 1");
-  VK_MAKE(buf2,
-          device.createBuffer(vk::BufferCreateInfo{
-              .size = sizeof(engine::Camera::Matrices),
-              .usage = vk::BufferUsageFlagBits::eUniformBuffer,
-              .sharingMode = vk::SharingMode::eExclusive}),
-          "Failed to create uniform buffer 2");
+  vk::BufferCreateInfo bufferInfo{
+      .size = BUF_SIZE,
+      .usage = vk::BufferUsageFlagBits::eUniformBuffer,
+      .sharingMode = vk::SharingMode::eExclusive,
+  };
 
-  vkh::MemorySelector memSelector(buf1, physicalDevice);
-  EG_MAKE(allocInfo,
-          memSelector.allocInfo(MEM_SIZE,
-                                vk::MemoryPropertyFlagBits::eHostVisible |
-                                    vk::MemoryPropertyFlagBits::eHostCoherent),
-          "Failed to get memory allocation info");
+  vma::AllocationCreateInfo allocInfo{
+      .flags = vma::AllocationCreateFlagBits::eMapped,
+      .usage = vma::MemoryUsage::eCpuToGpu,
+  };
 
-  VK_MAKE(uniformBufferMemory, device.allocateMemory(allocInfo),
-          "Failed to allocate uniform buffer memory");
+  EG_MAKE(buf1, vkh::AllocatedBuffer::create(allocator, bufferInfo, allocInfo),
+          "Failed to create buffer 1");
 
-  uniformBuffers[0] = std::move(buf1);
-  uniformBuffers[1] = std::move(buf2);
+  EG_MAKE(buf2, vkh::AllocatedBuffer::create(allocator, bufferInfo, allocInfo),
+          "Failed to create buffer 2");
 
-  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    uniformBuffers[i].bindMemory(*uniformBufferMemory, BUF_SIZE * i);
-  }
-
-  void *mapping = uniformBufferMemory.mapMemory(0, MEM_SIZE);
+  uniformBuffers[0] = buf1;
+  uniformBuffers[1] = buf2;
 
   EG_MAKE(cameraSets,
           PerspectiveCamera::createDescriptorSets(device, cameraDescriptorPool,
@@ -135,9 +122,6 @@ auto PerspectiveCamera::createBuffers(
           "Failed to create descriptor sets for camera");
 
   return PerspectiveCamera::Buffers{.uniformBuffers = std::move(uniformBuffers),
-                                    .uniformBufferMemory =
-                                        std::move(uniformBufferMemory),
-                                    .mapping = mapping,
                                     .descriptorSets = std::move(cameraSets)};
 }
 

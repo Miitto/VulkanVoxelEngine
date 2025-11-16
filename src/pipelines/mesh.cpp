@@ -7,12 +7,12 @@
 #include <vkh/swapchain.hpp>
 
 namespace pipelines {
-auto GreedyVoxel::create(const vk::raii::Device &device,
-                         const vkh::SwapchainConfig &swapchainConfig) noexcept
-    -> std::expected<GreedyVoxel, std::string> {
+auto Mesh::create(const vk::raii::Device &device, const vk::Format outFormat,
+                  const DescriptorLayouts &layouts) noexcept
+    -> std::expected<Mesh, std::string> {
   Logger::trace("Creating Graphics Pipeline");
 
-  auto shader_res = vkh::Shader::create(device, "basic.spv");
+  auto shader_res = vkh::Shader::create(device, "mesh.spv");
 
   if (!shader_res) {
     Logger::error("Failed to create shader module: {}", shader_res.error());
@@ -24,14 +24,24 @@ auto GreedyVoxel::create(const vk::raii::Device &device,
   [[maybe_unused]]
   auto shaderStages = shaderModule.vertFrag();
 
-  vk::PipelineLayoutCreateInfo layoutInfo{.setLayoutCount = 0,
-                                          .pushConstantRangeCount = 0};
+  vk::PushConstantRange pushConstantRange{.stageFlags =
+                                              vk::ShaderStageFlagBits::eVertex,
+                                          .offset = 0,
+                                          .size = sizeof(MeshPushConstants)};
+
+  vk::PipelineLayoutCreateInfo layoutInfo{
+      .setLayoutCount = 1,
+      .pSetLayouts = &*layouts.camera,
+      .pushConstantRangeCount = 1,
+      .pPushConstantRanges = &pushConstantRange,
+  };
+
   VK_MAKE(layout, device.createPipelineLayout(layoutInfo),
           "Failed to create pipeline layout");
 
   vkh::GraphicsPipelineConfig pipelineConfig = {
       .rendering = {.colorAttachmentCount = 1,
-                    .pColorAttachmentFormats = &swapchainConfig.format.format},
+                    .pColorAttachmentFormats = &outFormat},
       .shaders = shaderStages,
       .vertexInput = {},
       .inputAssembly = {.topology = vk::PrimitiveTopology::eTriangleStrip},
@@ -40,7 +50,7 @@ auto GreedyVoxel::create(const vk::raii::Device &device,
                      .rasterizerDiscardEnable = vk::False,
                      .polygonMode = vk::PolygonMode::eFill,
                      .cullMode = vk::CullModeFlagBits::eBack,
-                     .frontFace = vk::FrontFace::eClockwise,
+                     .frontFace = vk::FrontFace::eCounterClockwise,
                      .depthBiasEnable = vk::False,
                      .depthBiasSlopeFactor = 1.0f,
                      .lineWidth = 1.0f},
@@ -61,15 +71,11 @@ auto GreedyVoxel::create(const vk::raii::Device &device,
 
   auto cfg = pipelineConfig.build();
 
-  auto pipeline_res = device.createGraphicsPipeline(nullptr, cfg);
-
-  if (!pipeline_res) {
-    Logger::error("Failed to create graphics pipeline: {}",
-                  vk::to_string(pipeline_res.error()));
-    return std::unexpected("Failed to create graphics pipeline");
-  }
+  VK_MAKE(pipeline, device.createGraphicsPipeline(nullptr, cfg),
+          "Failed to create graphics pipeline");
   Logger::trace("Graphics Pipeline created");
 
-  return GreedyVoxel({std::move(layout), std::move(pipeline_res.value())});
+  return Mesh({std::move(layout), std::move(pipeline)});
 }
+
 } // namespace pipelines

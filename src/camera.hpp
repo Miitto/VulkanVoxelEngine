@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/defines.hpp"
+#include "vkh/structs.hpp"
 #include <engine/cameras/perspective.hpp>
 #include <engine/util/macros.hpp>
 #include <expected>
@@ -10,9 +11,7 @@
 class PerspectiveCamera : public engine::cameras::Perspective {
 public:
   struct Buffers {
-    std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers;
-    vk::raii::DeviceMemory uniformBufferMemory;
-    void *mapping;
+    std::array<vkh::AllocatedBuffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers;
     std::array<vk::raii::DescriptorSet, MAX_FRAMES_IN_FLIGHT> descriptorSets;
   };
 
@@ -31,16 +30,23 @@ public:
   createDescriptorSets(const vk::raii::Device &device,
                        const vk::raii::DescriptorPool &descriptorPool,
                        const vk::raii::DescriptorSetLayout &cameraLayout,
-                       std::array<vk::raii::Buffer, MAX_FRAMES_IN_FLIGHT>
+                       std::array<vkh::AllocatedBuffer, MAX_FRAMES_IN_FLIGHT>
                            &cameraBuffers) noexcept
       -> std::expected<
           std::array<vk::raii::DescriptorSet, MAX_FRAMES_IN_FLIGHT>,
           std::string>;
 
   [[nodiscard]] static auto
-  createBuffers(const vk::raii::Device &device,
-                const vk::raii::PhysicalDevice &physicalDevice,
+  createBuffers(const vk::raii::Device &device, vma::Allocator &allocator,
                 const vk::raii::DescriptorPool &cameraDescriptorPool,
                 const vk::raii::DescriptorSetLayout &cameraLayout) noexcept
       -> std::expected<Buffers, std::string>;
+
+protected:
+  void writeMatrices() const {
+    auto m = matrices();
+    memcpy(buffer.allocInfo.pMappedData, &m, sizeof(engine::Camera::Matrices));
+  }
+
+  vkh::AllocatedBuffer buffer;
 };

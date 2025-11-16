@@ -1,6 +1,8 @@
 #pragma once
 
+#include <expected>
 #include <vk_mem_alloc.hpp>
+#include <vkh/macros.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
 namespace vkh {
@@ -21,6 +23,10 @@ struct AllocatedBuffer {
   vk::Buffer buffer;
   vma::Allocation alloc;
   vma::AllocationInfo allocInfo;
+
+  static std::expected<AllocatedBuffer, std::string>
+  create(vma::Allocator &allocator, const vk::BufferCreateInfo &bufInfo,
+         const vma::AllocationCreateInfo &allocInfo);
 };
 
 } // namespace vkh

@@ -19,7 +19,7 @@ public:
   };
 
   static auto create(const vk::raii::Device &device,
-                     const std::string &filename) noexcept
+                     const std::string &filename)
       -> std::expected<Shader, std::string>;
 
   [[nodiscard]] auto get() const noexcept -> const vk::raii::ShaderModule & {

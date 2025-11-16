@@ -1,6 +1,8 @@
 #include "engine/setup.hpp"
+
 #include "engine/defines.hpp"
 #include "logger.hpp"
+#include <array>
 #include <vkh/queueFinder.hpp>
 
 #include <imgui/imgui.h>
@@ -106,14 +108,8 @@ auto retrieveQueues(const vk::raii::Device &device,
     if (found)
       continue;
 
-    auto queue_res = device.getQueue(index, 0);
-    if (!queue_res) {
-      Logger::error("Failed to get queue at index {}: {}", index,
-                    vk::to_string(queue_res.error()));
-      return std::unexpected("Failed to get queue");
-    }
-    auto queue =
-        std::make_shared<vk::raii::Queue>(std::move(queue_res.value()));
+    auto queueR = device.getQueue(index, 0);
+    auto queue = std::make_shared<vk::raii::Queue>(std::move(queueR));
     queues.push_back(vkh::Queue{.index = index, .queue = queue});
   }
   return queues;
@@ -125,12 +121,17 @@ createSwapchain(const vk::raii::PhysicalDevice &physicalDevice,
                 const vk::raii::SurfaceKHR &surface,
                 const CoreQueueFamilyIndices &queues,
                 std::optional<vk::raii::SwapchainKHR *> oldSwapchain) noexcept {
-  auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+  VK_MAKE(surfaceCapabilities,
+          physicalDevice.getSurfaceCapabilitiesKHR(surface),
+          "Failed to get surfacce capabilities");
 
-  auto format = vkh::chooseSwapSurfaceFormat(
-      physicalDevice.getSurfaceFormatsKHR(surface));
-  auto presentMode = vkh::chooseSwapPresentMode(
-      physicalDevice.getSurfacePresentModesKHR(surface));
+  VK_MAKE(surfaceFormats, physicalDevice.getSurfaceFormatsKHR(surface),
+          "Failed to get surface formats");
+  VK_MAKE(presentModes, physicalDevice.getSurfacePresentModesKHR(surface),
+          "Failed to get surface present modes");
+
+  auto format = vkh::chooseSwapSurfaceFormat(surfaceFormats);
+  auto presentMode = vkh::chooseSwapPresentMode(presentModes);
 
   auto framebufferSize = window.getFramebufferSize();
 
@@ -242,57 +243,57 @@ setupImGui(GLFWwindow *window, const vk::raii::Instance &instance,
            const vk::raii::Device &device,
            const vk::raii::PhysicalDevice &physicalDevice,
            const vkh::Queue &graphicsQueue, const vk::Format swapchainFormat) {
-  vk::DescriptorPoolSize pool_sizes[] = {
-      {
-          .type = vk::DescriptorType::eSampler,
-          .descriptorCount = 1000,
-      },
-      {
-          .type = vk::DescriptorType::eCombinedImageSampler,
-          .descriptorCount = 1000,
-      },
-      {
-          .type = vk::DescriptorType::eSampledImage,
-          .descriptorCount = 1000,
-      },
-      {
-          .type = vk::DescriptorType::eStorageImage,
-          .descriptorCount = 1000,
-      },
-      {
-          .type = vk::DescriptorType::eUniformTexelBuffer,
-          .descriptorCount = 1000,
-      },
-      {
-          .type = vk::DescriptorType::eStorageTexelBuffer,
-          .descriptorCount = 1000,
-      },
-      {
-          .type = vk::DescriptorType::eUniformBuffer,
-          .descriptorCount = 1000,
-      },
-      {
-          .type = vk::DescriptorType::eStorageBuffer,
-          .descriptorCount = 1000,
-      },
-      {
-          .type = vk::DescriptorType::eUniformBufferDynamic,
-          .descriptorCount = 1000,
-      },
-      {
-          .type = vk::DescriptorType::eStorageBufferDynamic,
-          .descriptorCount = 1000,
-      },
-      {
-          .type = vk::DescriptorType::eInputAttachment,
-          .descriptorCount = 1000,
-      }};
+  std::array<vk::DescriptorPoolSize, 11> pool_sizes = {
+      {{
+           .type = vk::DescriptorType::eSampler,
+           .descriptorCount = 1000,
+       },
+       {
+           .type = vk::DescriptorType::eCombinedImageSampler,
+           .descriptorCount = 1000,
+       },
+       {
+           .type = vk::DescriptorType::eSampledImage,
+           .descriptorCount = 1000,
+       },
+       {
+           .type = vk::DescriptorType::eStorageImage,
+           .descriptorCount = 1000,
+       },
+       {
+           .type = vk::DescriptorType::eUniformTexelBuffer,
+           .descriptorCount = 1000,
+       },
+       {
+           .type = vk::DescriptorType::eStorageTexelBuffer,
+           .descriptorCount = 1000,
+       },
+       {
+           .type = vk::DescriptorType::eUniformBuffer,
+           .descriptorCount = 1000,
+       },
+       {
+           .type = vk::DescriptorType::eStorageBuffer,
+           .descriptorCount = 1000,
+       },
+       {
+           .type = vk::DescriptorType::eUniformBufferDynamic,
+           .descriptorCount = 1000,
+       },
+       {
+           .type = vk::DescriptorType::eStorageBufferDynamic,
+           .descriptorCount = 1000,
+       },
+       {
+           .type = vk::DescriptorType::eInputAttachment,
+           .descriptorCount = 1000,
+       }}};
 
   vk::DescriptorPoolCreateInfo pool_info = {
       .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
       .maxSets = 1000,
       .poolSizeCount = (uint32_t)std::size(pool_sizes),
-      .pPoolSizes = pool_sizes,
+      .pPoolSizes = pool_sizes.data(),
   };
 
   VK_MAKE(imguiPool, device.createDescriptorPool(pool_info),

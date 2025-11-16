@@ -1,5 +1,7 @@
 #include "vkh/instance.hpp"
 
+#include <vkh/macros.hpp>
+
 #include "vk-logger.hpp"
 #include <GLFW/glfw3.h>
 
@@ -7,7 +9,7 @@ namespace vkh {
 auto createInstance(vk::raii::Context &context, const char *appName,
                     const bool enableValidationLayers,
                     const std::span<const char *const> extraExtensions,
-                    const std::span<const char *const> extraLayers) noexcept
+                    const std::span<const char *const> extraLayers)
     -> std::expected<vk::raii::Instance, std::string> {
   Logger::trace("Creating Instance");
   auto appInfo = vk::ApplicationInfo{
@@ -72,15 +74,9 @@ auto createInstance(vk::raii::Context &context, const char *appName,
       .ppEnabledLayerNames = layerNames.data(),
       .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
       .ppEnabledExtensionNames = extensions.data()};
-  std::expected<vk::raii::Instance, vk::Result> instance_res =
-      context.createInstance(iCreateInfo);
+  VK_MAKE(instance, context.createInstance(iCreateInfo),
+          "Failed to create Vulkan Instance");
 
-  if (!instance_res) {
-    Logger::error("Failed to create Vulkan instance: {}",
-                  vk::to_string(instance_res.error()));
-    return std::unexpected("Failed to create Vulkan instnace");
-  }
-
-  return std::move(instance_res.value());
+  return std::move(instance);
 }
 } // namespace vkh

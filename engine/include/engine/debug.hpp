@@ -9,7 +9,7 @@ debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
               const vk::DebugUtilsMessengerCallbackDataEXT *pCallbackData,
               [[maybe_unused]] void *pUserData) noexcept;
 
-std::expected<vk::raii::DebugUtilsMessengerEXT, vk::Result>
+std::expected<vk::raii::DebugUtilsMessengerEXT, std::string>
 makeDebugMessenger(vk::raii::Instance &instance,
                    void *pUserData = nullptr) noexcept;
 } // namespace engine

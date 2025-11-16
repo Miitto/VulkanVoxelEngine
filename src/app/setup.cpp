@@ -2,17 +2,13 @@
 #include <expected>
 
 #include <GLFW/glfw3.h>
-#include <memory>
 
 #include "logger.hpp"
-#include "vkh/queueFinder.hpp"
 
 #include <engine/core.hpp>
 #include <engine/debug.hpp>
 #include <engine/setup.hpp>
 #include <engine/util/macros.hpp>
-#include <vertex.hpp>
-#include <vkh/memorySelector.hpp>
 #include <vkh/physicalDeviceSelector.hpp>
 #include <vkh/pipeline.hpp>
 #include <vkh/shader.hpp>
@@ -21,7 +17,7 @@ namespace {
 
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
-const char *WINDOW_TITLE = "Vulkan App IGNORE";
+const char *const WINDOW_TITLE = "Vulkan App IGNORE";
 
 #ifndef NDEBUG
 const bool enableValidationLayers = true;
@@ -103,13 +99,8 @@ std::expected<App, std::string> App::create() noexcept {
       .instance = core.getInstance(),
   };
 
-  auto allocatorRes = vma::createAllocator(allocCreateInfo);
-  if (allocatorRes.result != vk::Result::eSuccess) {
-    Logger::error("Failed to create VMA allocator: {}",
-                  vk::to_string(allocatorRes.result));
-    return std::unexpected("Failed to create VMA allocator");
-  }
-  auto allocator = allocatorRes.value;
+  VMA_MAKE(allocator, vma::createAllocator(allocCreateInfo),
+           "Failed to make allocator");
 
   EG_MAKE(swapchain,
           engine::setup::createSwapchain(physicalDevice, device,
@@ -155,35 +146,92 @@ std::expected<App, std::string> App::create() noexcept {
   std::array<vk::raii::CommandBuffer, MAX_FRAMES_IN_FLIGHT> commandBuffers{
       std::move(commandBuffersV[0]), std::move(commandBuffersV[1])};
 
-  std::array<Vertex, 4> vertices = {
-      Vertex{.position = {-0.5f, -0.5f, 0.0f}, .color = {1.0f, 0.0f, 0.0f}},
-      Vertex{.position = {0.5f, -0.5f, 0.0f}, .color = {0.0f, 1.0f, 0.0f}},
-      Vertex{.position = {-0.5f, 0.5f, 0.0f}, .color = {0.0f, 0.0f, 1.0f}},
-      Vertex{.position = {0.5f, 0.5f, 0.0f}, .color = {1.0f, 1.0f, 1.0f}}};
+  using pipelines::Mesh;
+
+  std::array<pipelines::Mesh::Vertex, 4> vertices = {
+      Mesh::Vertex{.position = {-0.5f, -0.5f, 0.0f},
+                   .uvX = -0.5f,
+                   .normal = engine::FORWARD,
+                   .uvY = 0.5f,
+                   .color = {1.0f, 0.0f, 0.0f, 1.0f}},
+      Mesh::Vertex{.position = {0.5f, -0.5f, 0.0f},
+                   .uvX = 0.5f,
+                   .normal = engine::FORWARD,
+                   .uvY = -0.5f,
+                   .color = {0.0f, 1.0f, 0.0f, 1.0f}},
+      Mesh::Vertex{.position = {-0.5f, 0.5f, 0.0f},
+                   .uvX = -0.5f,
+                   .normal = engine::FORWARD,
+                   .uvY = 0.5f,
+                   .color = {0.0f, 0.0f, 1.0f, 1.0f}},
+      Mesh::Vertex{.position = {0.5f, 0.5f, 0.0f},
+                   .uvX = 0.5f,
+                   .normal = engine::FORWARD,
+                   .uvY = 0.5f,
+                   .color = {1.0f, 1.0f, 1.0f, 1.0f}}};
 
   vk::BufferCreateInfo vertexBufferInfo{
       .size = sizeof(vertices[0]) * vertices.size(),
-      .usage = vk::BufferUsageFlagBits::eVertexBuffer,
+      .usage = vk::BufferUsageFlagBits::eTransferDst |
+               vk::BufferUsageFlagBits::eStorageBuffer |
+               vk::BufferUsageFlagBits::eShaderDeviceAddress,
       .sharingMode = vk::SharingMode::eExclusive};
 
-  VK_MAKE(vertexBuffer, device.createBuffer(vertexBufferInfo),
-          "Failed to create vertex buffer");
+  vma::AllocationCreateInfo vertexAllocInfo{
+      .usage = vma::MemoryUsage::eGpuOnly,
+  };
 
-  auto memSelector = vkh::MemorySelector(vertexBuffer, physicalDevice);
+  vkh::AllocatedBuffer vBuffer;
+  VMA_MAKE(vertexBufferPair,
+           allocator.createBuffer(vertexBufferInfo, vertexAllocInfo,
+                                  &vBuffer.allocInfo),
+           "Failed to create vertex buffer");
+  vBuffer.buffer = vertexBufferPair.first;
+  vBuffer.alloc = vertexBufferPair.second;
 
-  EG_MAKE(vertexAllocInfo,
-          memSelector.allocInfo(vk::MemoryPropertyFlagBits::eHostVisible |
-                                vk::MemoryPropertyFlagBits::eHostCoherent),
-          "Failed to get memory allocation info");
+  vkh::AllocatedBuffer stagingBuffer;
+  VMA_MAKE(
+      stagingBufferPair,
+      allocator.createBuffer(
+          vk::BufferCreateInfo{.size = vertexBufferInfo.size,
+                               .usage = vk::BufferUsageFlagBits::eTransferSrc,
+                               .sharingMode = vk::SharingMode::eExclusive},
+          vma::AllocationCreateInfo{
+              .flags = vma::AllocationCreateFlagBits::eMapped,
+              .usage = vma::MemoryUsage::eCpuOnly,
+          },
+          &stagingBuffer.allocInfo),
+      "Failed to create staging buffer");
+  stagingBuffer.buffer = stagingBufferPair.first;
+  stagingBuffer.alloc = stagingBufferPair.second;
 
-  VK_MAKE(vBufferMemory, device.allocateMemory(vertexAllocInfo),
-          "Failed to allocate vertex buffer memory");
+  memcpy(stagingBuffer.allocInfo.pMappedData, vertices.data(),
+         vertexBufferInfo.size);
 
-  vertexBuffer.bindMemory(*vBufferMemory, 0);
+  {
+    auto &cmdBuf = commandBuffers[0];
 
-  void *data = vBufferMemory.mapMemory(0, vertexBufferInfo.size);
-  memcpy(data, vertices.data(), vertexBufferInfo.size);
-  vBufferMemory.unmapMemory();
+    cmdBuf.begin(vk::CommandBufferBeginInfo{
+        .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+
+    vk::BufferCopy copyRegion{
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size = vertexBufferInfo.size,
+    };
+
+    cmdBuf.copyBuffer(stagingBuffer.buffer, vBuffer.buffer, copyRegion);
+
+    cmdBuf.end();
+
+    vk::CommandBufferSubmitInfo submitInfo{.commandBuffer = cmdBuf};
+    vk::SubmitInfo2 submitInfos{
+        .commandBufferInfoCount = 1,
+        .pCommandBufferInfos = &submitInfo,
+    };
+
+    coreQueues.graphics.queue->submit2(submitInfos, nullptr);
+  }
 
   vk::DescriptorPoolSize poolSize{.type = vk::DescriptorType::eUniformBuffer,
                                   .descriptorCount = MAX_FRAMES_IN_FLIGHT};
@@ -199,25 +247,28 @@ std::expected<App, std::string> App::create() noexcept {
           "Failed to create camera descriptor layout");
 
   EG_MAKE(cameraBuffers,
-          PerspectiveCamera::createBuffers(device, physicalDevice,
-                                           cameraDescriptorPool,
-                                           cameraDescriptorLayout),
+          PerspectiveCamera::createBuffers(
+              device, allocator, cameraDescriptorPool, cameraDescriptorLayout),
           "Failed to create uniform buffers");
 
-  EG_MAKE(
-      basicVertexPipeline,
-      pipelines::BasicVertex::create(device, renderImage.format,
-                                     pipelines::BasicVertex::DescriptorLayouts{
-                                         .camera = cameraDescriptorLayout}),
-      "Failed to create basic vertex pipeline");
+  EG_MAKE(basicVertexPipeline,
+          pipelines::Mesh::create(device, renderImage.format,
+                                  pipelines::Mesh::DescriptorLayouts{
+                                      .camera = cameraDescriptorLayout}),
+          "Failed to create basic vertex pipeline");
+
+  constexpr glm::vec3 CAMERA_START_POS = {0.0f, 0.0f, 2.0f};
+  constexpr float CAMERA_START_FOV = glm::radians(90.0f);
+  constexpr float CAMERA_NEAR_PLANE = 0.1f;
 
   PerspectiveCamera camera(
-      {0.0f, 0.0f, 2.0f}, {},
+      CAMERA_START_POS, {},
       engine::cameras::Perspective::Params{
-          .fov = glm::radians(90.0f),
+          .fov = CAMERA_START_FOV,
           .aspectRatio = static_cast<float>(swapchain.config().extent.width) /
                          static_cast<float>(swapchain.config().extent.height),
-          .nearPlane = 0.1f});
+          .nearPlane = CAMERA_NEAR_PLANE,
+      });
 
   CameraObjects camObjs{.pool = std::move(cameraDescriptorPool),
                         .buffers = std::move(cameraBuffers),
@@ -228,6 +279,5 @@ std::expected<App, std::string> App::create() noexcept {
              std::move(renderImage), std::move(commandPool),
              std::move(syncObjects), std::move(imGuiObjects),
              std::move(commandBuffers), std::move(camObjs),
-             std::move(basicVertexPipeline), std::move(vBufferMemory),
-             std::move(vertexBuffer));
+             std::move(basicVertexPipeline), vBuffer);
 }

@@ -3,6 +3,7 @@
 #include "vk-logger.hpp"
 #include <fstream>
 #include <vector>
+#include <vkh/macros.hpp>
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #include <Windows.h>
@@ -14,7 +15,7 @@ namespace {
 
 auto getExecutablePath() -> std::string {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-  std::array<char, MAX_PATH> buffer;
+  std::array<char, MAX_PATH> buffer = {};
   GetModuleFileNameA(nullptr, buffer.data(), MAX_PATH);
   std::string fullPath(buffer.data());
   size_t pos = fullPath.find_last_of("\\/");
@@ -29,7 +30,7 @@ auto getExecutablePath() -> std::string {
 #endif
 }
 
-auto readFile(const std::string &filename) noexcept
+auto readFile(const std::string &filename)
     -> std::expected<std::vector<char>, std::string> {
 
   auto exePath = getExecutablePath();
@@ -54,7 +55,7 @@ auto readFile(const std::string &filename) noexcept
 
 [[nodiscard]]
 auto createShaderModule(const vk::raii::Device &device,
-                        const std::string &filename) noexcept
+                        const std::string &filename)
     -> std::expected<vk::raii::ShaderModule, std::string> {
   auto code_res = readFile(filename);
 
@@ -68,21 +69,14 @@ auto createShaderModule(const vk::raii::Device &device,
       .codeSize = code.size() * sizeof(char),
       .pCode = reinterpret_cast<const uint32_t *>(code.data())};
 
-  auto shaderModule_res = device.createShaderModule(createInfo);
-
-  if (!shaderModule_res) {
-    return std::unexpected("Failed to create shader module: " +
-                           vk::to_string(shaderModule_res.error()));
-  }
-
-  auto &shaderModule = shaderModule_res.value();
+  VK_MAKE(shaderModule, device.createShaderModule(createInfo),
+          "Failed to create shader module");
 
   return std::move(shaderModule);
 }
 } // namespace
 
-auto Shader::create(const vk::raii::Device &device,
-                    const std::string &filename) noexcept
+auto Shader::create(const vk::raii::Device &device, const std::string &filename)
     -> std::expected<Shader, std::string> {
   auto shaderModule_res = createShaderModule(device, filename);
 

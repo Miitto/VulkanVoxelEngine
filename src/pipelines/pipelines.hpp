@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vkh/swapchain.hpp"
+#include <glm/glm.hpp>
 
 class Pipeline {
 protected:
@@ -32,21 +32,28 @@ public:
 
 namespace pipelines {
 
-class GreedyVoxel : public Pipeline {
+class Mesh : public Pipeline {
 public:
-  static auto create(const vk::raii::Device &device,
-                     const vkh::SwapchainConfig &swapchainConfig) noexcept
-      -> std::expected<GreedyVoxel, std::string>;
-};
+  struct Vertex {
+    glm::vec3 position;
+    float uvX;
+    glm::vec3 normal;
+    float uvY;
+    glm::vec4 color;
+  };
 
-class BasicVertex : public Pipeline {
-public:
+  struct MeshPushConstants {
+    glm::mat4 modelMatrix;
+    vk::DeviceAddress vBufferAddress;
+  };
+
   struct DescriptorLayouts {
     const vk::raii::DescriptorSetLayout &camera;
   };
+
   static auto create(const vk::raii::Device &device, const vk::Format outFormat,
                      const DescriptorLayouts &layouts) noexcept
-      -> std::expected<BasicVertex, std::string>;
+      -> std::expected<Mesh, std::string>;
 };
 
 } // namespace pipelines

@@ -1,5 +1,8 @@
 #include "vkh/queueFinder.hpp"
 
+#include "vk-logger.hpp"
+#include "vkh/macros.hpp"
+
 namespace vkh {
 
 [[nodiscard]] auto
@@ -35,8 +38,17 @@ QueueFinder::find(const std::function<bool(QueueFamily)> &finder) const
       break;
     }
     case QueueTypeFlags::Present: {
-      if (type.params.presentQueue.device.getSurfaceSupportKHR(
-              queueFamily.index, type.params.presentQueue.surface)) {
+
+      auto res = type.params.presentQueue.device.getSurfaceSupportKHR(
+          queueFamily.index, type.params.presentQueue.surface);
+
+      if (res.result != vk::Result::eSuccess) {
+        Logger::error("Failed to query present support for queue family {}: {}",
+                      queueFamily.index, vk::to_string(res.result));
+        continue;
+      }
+
+      if (res.value) {
         filtered.push_back(queueFamily);
       }
       break;

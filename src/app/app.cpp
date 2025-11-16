@@ -4,11 +4,11 @@
 #include <GLFW/glfw3.h>
 
 #include "logger.hpp"
+#include "vulkan/vulkan.hpp"
 
 #include <engine/core.hpp>
 #include <engine/debug.hpp>
 #include <engine/util/macros.hpp>
-#include <vertex.hpp>
 #include <vkh/physicalDeviceSelector.hpp>
 #include <vkh/pipeline.hpp>
 #include <vkh/shader.hpp>
@@ -43,10 +43,6 @@ App::TickResult App::render() noexcept {
   [[maybe_unused]]
   auto offset = fInfo.frameIndex * sizeof(engine::Camera::Matrices);
 
-  auto cameraMatrices = camera.camera.matrices();
-  memcpy((char *)camera.buffers.mapping + offset, &cameraMatrices,
-         sizeof(engine::Camera::Matrices));
-
   cmdBuffer.begin(vk::CommandBufferBeginInfo{
       .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
@@ -62,7 +58,12 @@ App::TickResult App::render() noexcept {
       .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
       .loadOp = vk::AttachmentLoadOp::eClear,
       .storeOp = vk::AttachmentStoreOp::eStore,
-      .clearValue = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)};
+      .clearValue = vk::ClearValue{.color = {std::array<float, 4>{
+                                       0.0f,
+                                       0.0f,
+                                       0.0f,
+                                       1.0f,
+                                   }}}};
 
   vk::RenderingInfo renderingInfo{
       .renderArea = vk::Rect2D{.offset = {.x = 0, .y = 0},
@@ -172,10 +173,16 @@ void App::draw(vk::raii::CommandBuffer &cmdBuffer) {
 
   setupCmdBuffer(cmdBuffer);
 
-  cmdBuffer.bindVertexBuffers(0, *vertexBuffer, {0});
   cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                pipeline.getLayout(), 0,
                                {camera.buffers.descriptorSets[0]}, nullptr);
+  pipelines::Mesh::MeshPushConstants pc{
+      .modelMatrix = glm::mat4(1.0f),
+      .vBufferAddress = vertexBufferAddress,
+  };
+
+  cmdBuffer.pushConstants<pipelines::Mesh::MeshPushConstants>(
+      *pipeline.getLayout(), vk::ShaderStageFlagBits::eVertex, 0, pc);
 
   cmdBuffer.draw(4, 1, 0, 0);
 }

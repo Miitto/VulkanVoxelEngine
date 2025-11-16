@@ -2,6 +2,8 @@
 
 #include "logger.hpp"
 
+#include <vkh/macros.hpp>
+
 namespace engine {
 VKAPI_ATTR vk::Bool32 VKAPI_CALL
 debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -32,7 +34,7 @@ debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
   return VK_FALSE;
 }
 
-std::expected<vk::raii::DebugUtilsMessengerEXT, vk::Result>
+std::expected<vk::raii::DebugUtilsMessengerEXT, std::string>
 makeDebugMessenger(vk::raii::Instance &instance, void *pUserData) noexcept {
   vk::DebugUtilsMessageSeverityFlagsEXT severityFlags(
       vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
@@ -50,7 +52,11 @@ makeDebugMessenger(vk::raii::Instance &instance, void *pUserData) noexcept {
       .pUserData = pUserData,
   };
 
-  return instance.createDebugUtilsMessengerEXT(
-      debugUtilsMessengerCreateInfoEXT);
+  VK_MAKE(
+      dbgUtilsMessenger,
+      instance.createDebugUtilsMessengerEXT(debugUtilsMessengerCreateInfoEXT),
+      "Failed to create Debug Utils Messenger");
+
+  return std::move(dbgUtilsMessenger);
 }
 } // namespace engine

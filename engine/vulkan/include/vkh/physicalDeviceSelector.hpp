@@ -1,8 +1,7 @@
 #pragma once
 
-#include <algorithm>
+#include <expected>
 #include <functional>
-#include <ranges>
 #include <span>
 #include <vulkan/vulkan_raii.hpp>
 
@@ -20,7 +19,7 @@ public:
     uint32_t score = 0;
   };
 
-  static auto create(const vk::raii::Instance &instance) noexcept
+  static auto create(const vk::raii::Instance &instance)
       -> std::expected<PhysicalDeviceSelector, std::string>;
   void
   requireExtensions(const std::span<const char *const> extensions) noexcept;
@@ -35,7 +34,7 @@ public:
       const std::function<uint32_t(
           const vkh::PhysicalDeviceSelector::DeviceSpecs &)> &scoreFn) noexcept;
   void sortDevices() noexcept;
-  auto select() noexcept -> std::vector<vk::raii::PhysicalDevice>;
+  auto select() -> std::vector<vk::raii::PhysicalDevice>;
 
 protected:
   std::vector<DeviceSpecs> physicalDevices;

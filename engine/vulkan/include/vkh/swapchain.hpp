@@ -39,6 +39,8 @@ struct SwapchainQueues {
 class Swapchain {
 
 public:
+  Swapchain() = delete;
+
   static auto
   create(const vk::raii::Device &device, const SwapchainConfig &swapchainConfig,
          const vk::raii::PhysicalDevice &physicalDevice,

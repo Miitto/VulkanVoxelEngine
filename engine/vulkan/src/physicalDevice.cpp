@@ -1,31 +1,31 @@
 #include "vkh/physicalDeviceSelector.hpp"
 
 #include "vk-logger.hpp"
+#include <vkh/macros.hpp>
 
 namespace vkh {
-auto PhysicalDeviceSelector::create(const vk::raii::Instance &instance) noexcept
+auto PhysicalDeviceSelector::create(const vk::raii::Instance &instance)
     -> std::expected<PhysicalDeviceSelector, std::string> {
-  auto devices = instance.enumeratePhysicalDevices();
 
-  if (!devices) {
-    return std::unexpected("Failed to get physical devices");
-  }
+  VK_MAKE(devices, instance.enumeratePhysicalDevices(),
+          "Failed to enumerate physical devices");
 
-  if (devices->empty()) {
+  if (devices.empty()) {
     return std::unexpected("No physical devices found");
   }
 
   auto specs = std::vector<DeviceSpecs>();
-  specs.reserve(devices->size());
+  specs.reserve(devices.size());
 
-  for (const auto &device : devices.value()) {
+  for (const auto &device : devices) {
+    VK_MAKE(properties, device.enumerateDeviceExtensionProperties(),
+            "Failed to get physical device properties");
     DeviceSpecs spec{.device = device,
                      .properties = device.getProperties(),
                      .features = device.getFeatures(),
                      .memoryProperties = device.getMemoryProperties(),
                      .queueFamilyProperties = device.getQueueFamilyProperties(),
-                     .availableExtensions =
-                         device.enumerateDeviceExtensionProperties()};
+                     .availableExtensions = properties};
 
     specs.push_back(std::move(spec));
   }
@@ -154,8 +154,7 @@ void PhysicalDeviceSelector::sortDevices() noexcept {
   });
 }
 
-auto PhysicalDeviceSelector::select() noexcept
-    -> std::vector<vk::raii::PhysicalDevice> {
+auto PhysicalDeviceSelector::select() -> std::vector<vk::raii::PhysicalDevice> {
   Logger::debug("Selecting devices");
   std::vector<vk::raii::PhysicalDevice> devices;
   devices.reserve(physicalDevices.size());

@@ -4,8 +4,14 @@
 
 namespace vkh {
 void printExtensions(vk::raii::Context &context,
-                     spdlog::level::level_enum logLevel) noexcept {
-  auto extensions = context.enumerateInstanceExtensionProperties();
+                     spdlog::level::level_enum logLevel) {
+  auto res = context.enumerateInstanceExtensionProperties();
+  if (res.result != vk::Result::eSuccess) {
+    Logger::warn("Failed to enumerate Vulkan extensions: {}",
+                 vk::to_string(res.result));
+    return;
+  }
+  auto &extensions = res.value;
 
   Logger::log(logLevel, "Available Vulkan Extensions:");
   for (const auto &ext : extensions) {
@@ -13,10 +19,16 @@ void printExtensions(vk::raii::Context &context,
   }
 }
 
-std::vector<const char *>
-checkExtensions(vk::raii::Context &context,
-                std::span<const char *> extensions) noexcept {
-  auto availableExtensions = context.enumerateInstanceExtensionProperties();
+std::vector<const char *> checkExtensions(vk::raii::Context &context,
+                                          std::span<const char *> extensions) {
+  auto res = context.enumerateInstanceExtensionProperties();
+  if (res.result != vk::Result::eSuccess) {
+    Logger::warn("Failed to enumerate Vulkan extensions: {}",
+                 vk::to_string(res.result));
+    return {};
+  }
+
+  auto &availableExtensions = res.value;
 
   std::vector<const char *> missingExtensions{};
 
@@ -33,8 +45,14 @@ checkExtensions(vk::raii::Context &context,
 }
 
 std::vector<const char *> checkLayers(vk::raii::Context &context,
-                                      std::span<const char *> layers) noexcept {
-  auto availableLayers = context.enumerateInstanceLayerProperties();
+                                      std::span<const char *> layers) {
+  auto res = context.enumerateInstanceLayerProperties();
+  if (res.result != vk::Result::eSuccess) {
+    Logger::warn("Failed to enumerate Vulkan layers: {}",
+                 vk::to_string(res.result));
+    return {};
+  }
+  auto &availableLayers = res.value;
 
   std::vector<const char *> missingLayers{};
 

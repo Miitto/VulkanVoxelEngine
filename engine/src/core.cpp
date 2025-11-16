@@ -26,7 +26,7 @@ auto Core::create(const engine::Window::Attribs windowAttribs,
   }
   auto instance = std::move(instance_res.value());
 
-  VkSurfaceKHR rawSurface;
+  VkSurfaceKHR rawSurface = nullptr;
   if (glfwCreateWindowSurface(*instance, window.get(), nullptr, &rawSurface) !=
       VK_SUCCESS) {
     Logger::error("Failed to create window surface");
@@ -38,7 +38,7 @@ auto Core::create(const engine::Window::Attribs windowAttribs,
   Core core(window, context, instance, surface);
 
 #ifndef NDEBUG
-  VK_MAKE(dbgCallback, engine::makeDebugMessenger(core.instance),
+  EG_MAKE(dbgCallback, engine::makeDebugMessenger(core.instance),
           "Failed to create debug messenger");
 
   core.setDebugMessenger(dbgCallback);

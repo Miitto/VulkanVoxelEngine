@@ -23,6 +23,8 @@ public:
       return;
 
     device.waitIdle();
+
+    allocator.destroyBuffer(vertexBuffer.buffer, vertexBuffer.alloc);
   }
 
 protected:
@@ -39,24 +41,26 @@ protected:
       std::array<engine::SyncObjects, MAX_FRAMES_IN_FLIGHT> &&syncObjects,
       engine::ImGuiVkObjects &&imGuiObjects,
       std::array<vk::raii::CommandBuffer, MAX_FRAMES_IN_FLIGHT> commandBuffers,
-      CameraObjects camera, pipelines::BasicVertex greedyPipeline,
-      vk::raii::DeviceMemory vertexMemory,
-      vk::raii::Buffer vertexBuffer) noexcept
+      CameraObjects camera, pipelines::Mesh greedyPipeline,
+      vkh::AllocatedBuffer vertexBuffer) noexcept
       : engine::App(std::move(core), std::move(physicalDevice),
                     std::move(device), allocator, std::move(queues),
                     std::move(swapchain), std::move(renderImage),
                     std::move(commandPool), std::move(syncObjects),
                     std::move(imGuiObjects)),
         commandBuffers(std::move(commandBuffers)), camera(std::move(camera)),
-        pipeline(std::move(greedyPipeline)),
-        vBufferMemory(std::move(vertexMemory)),
-        vertexBuffer(std::move(vertexBuffer)) {}
+        pipeline(std::move(greedyPipeline)), vertexBuffer(vertexBuffer) {
+    vk::BufferDeviceAddressInfo bufferAddressInfo{.buffer =
+                                                      vertexBuffer.buffer};
+
+    vertexBufferAddress = device.getBufferAddress(bufferAddressInfo);
+  }
 
   std::array<vk::raii::CommandBuffer, MAX_FRAMES_IN_FLIGHT> commandBuffers;
 
   CameraObjects camera;
 
-  pipelines::BasicVertex pipeline;
-  vk::raii::DeviceMemory vBufferMemory;
-  vk::raii::Buffer vertexBuffer;
+  pipelines::Mesh pipeline;
+  vkh::AllocatedBuffer vertexBuffer;
+  vk::DeviceAddress vertexBufferAddress = 0;
 };

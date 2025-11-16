@@ -142,7 +142,12 @@ void App::drawImGui(vk::raii::CommandBuffer &cmdBuffer,
       .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
       .loadOp = vk::AttachmentLoadOp::eLoad,
       .storeOp = vk::AttachmentStoreOp::eStore,
-      .clearValue = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)};
+      .clearValue = vk::ClearValue{.color = {std::array<float, 4>{
+                                       0.0f,
+                                       0.0f,
+                                       0.0f,
+                                       1.0f,
+                                   }}}};
 
   vk::RenderingInfo renderingInfo{
       .renderArea =

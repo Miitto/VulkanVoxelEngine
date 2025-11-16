@@ -1,6 +1,7 @@
 #include "vkh/swapchain.hpp"
 
 #include "vk-logger.hpp"
+#include <vkh/macros.hpp>
 
 namespace vkh {
 auto chooseSwapSurfaceFormat(
@@ -72,7 +73,9 @@ auto Swapchain::create(const vk::raii::Device &device,
                        std::optional<vk::raii::SwapchainKHR *> oldSwapchain)
     -> std::expected<Swapchain, std::string> {
 
-  auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+  VK_MAKE(surfaceCapabilities,
+          physicalDevice.getSurfaceCapabilitiesKHR(surface),
+          "Failed to get surface capabilities");
 
   vk::SwapchainCreateInfoKHR swapchainCreateInfo{
       .surface = *surface,
@@ -104,16 +107,10 @@ auto Swapchain::create(const vk::raii::Device &device,
     swapchainCreateInfo.oldSwapchain = nullptr;
   }
 
-  auto swapchain_res = device.createSwapchainKHR(swapchainCreateInfo);
-  if (!swapchain_res) {
-    Logger::error("Failed to create swapchain: {}",
-                  vk::to_string(swapchain_res.error()));
-    return std::unexpected("Failed to create swapchain");
-  }
+  VK_MAKE(swapchain, device.createSwapchainKHR(swapchainCreateInfo),
+          "Failed to create swapchain");
 
-  auto &swapchain = swapchain_res.value();
-
-  auto images = swapchain.getImages();
+  VK_MAKE(images, swapchain.getImages(), "Failed to get swapchain images");
 
   vk::ImageViewCreateInfo imageViewCreateInfo{
       .viewType = vk::ImageViewType::e2D,
@@ -128,13 +125,9 @@ auto Swapchain::create(const vk::raii::Device &device,
 
   for (const auto &image : images) {
     imageViewCreateInfo.image = image;
-    auto imageView_res = device.createImageView(imageViewCreateInfo);
-    if (!imageView_res) {
-      Logger::error("Failed to create image view: {}",
-                    vk::to_string(imageView_res.error()));
-      return std::unexpected("Failed to create image view");
-    }
-    imageViews.push_back(std::move(imageView_res.value()));
+    VK_MAKE(imageView, device.createImageView(imageViewCreateInfo),
+            "Failed to create image view");
+    imageViews.push_back(std::move(imageView));
   }
 
   Swapchain s(swapchain, swapchainConfig, images, imageViews);

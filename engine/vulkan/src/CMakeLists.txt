@@ -4,6 +4,7 @@ target_sources(${PROJECT_NAME} PRIVATE
   PRIVATE
   queueFinder.cpp
   shader.cpp
+  structs.cpp
   swapchain.cpp
   vk-logger.cpp
   instance.cpp
