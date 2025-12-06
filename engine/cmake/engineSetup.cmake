@@ -1,0 +1,13 @@
+function(setup_engine_library target)
+  target_compile_options(${target} PRIVATE
+  $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd5050>
+  $<$<CXX_COMPILER_ID:GNU,Clang>:
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Werror
+    -Wno-language-extension-token
+    -fno-exceptions
+  >
+)
+endfunction()
